@@ -1,0 +1,556 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   Jaisara design tokens
+   -----------------------------------------------------------------------------
+   Theming is CSS custom properties, switched by a `data-theme` attribute on
+   <html> (handoff §1). Light/dark is a *pairing* of palettes, not a separate
+   axis. The 15 palettes below are copied verbatim from the prototype; every
+   palette defines the same 13 semantic colour tokens.
+
+   Utilities: `bg-*` / `text-*` / `border-*` names below map to these vars via
+   the @theme block, so e.g. `bg-surface`, `text-muted`, `border-hair` all react
+   to the active theme with no class regeneration.
+   ========================================================================== */
+
+@theme {
+  /* Breakpoints — the design's three tiers (handoff §1.5):
+     mobile <780 (base) · tablet 780–1179 (md:) · desktop ≥1180 (lg:). */
+  --breakpoint-md: 780px;
+  --breakpoint-lg: 1180px;
+  /* The estimator splits into two columns at 1024px specifically (handoff §5). */
+  --breakpoint-wide: 1024px;
+
+  /* Radii (handoff §1.5) */
+  --radius-btn: 12px;
+  --radius-pill: 11px;
+  --radius-card: 16px;
+  --radius-receipt: 16px;
+  --radius-chip: 999px;
+  --radius-modal: 24px;
+}
+
+@theme inline {
+  /* Semantic colours — resolve at runtime against the active [data-theme]. */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-hair: var(--hair);
+  --color-hair-soft: var(--hair-soft);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-club: var(--club);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  /* Type families (self-hosted via next/font — see app/fonts) */
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-satoshi);
+  --font-serif: var(--font-instrument);
+
+  /* Elevation — runtime, so light palettes can soften it. */
+  --shadow-card: var(--shadow);
+}
+
+/* ---- Palettes ------------------------------------------------------------ */
+/* :root = `teal`, the default dark / signature palette. Derived hairlines
+   recompute per theme from --text; dark palettes inherit them and --shadow. */
+:root {
+  --bg: #0b3037;
+  --surface: #123f49;
+  --surface-2: #134e5e;
+  --border: #1f5966;
+  --text: #e9f5f2;
+  --text-muted: #93b7b8;
+  --primary: #99e1d9;
+  --on-primary: #06282e;
+  --club: #e4c590;
+  --success: #4fc79a;
+  --warning: #e7b15e;
+  --danger: #e86f6f;
+  --info: #5fb0d6;
+  --hair: color-mix(in oklab, var(--text) 9%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 6%, transparent);
+  --shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.6);
+
+  /* Layout */
+  --maxw: 1240px;
+  --pad: 18px; /* mobile gutter; widened below */
+  --secpt: clamp(44px, 6vw, 84px);
+  --secpb: clamp(24px, 4vw, 40px);
+  --secpb2: clamp(48px, 7vw, 88px);
+  --nav-h: 72px;
+  /* Receipt inner padding — tightens on phones. */
+  --rcpt-pad: 16px;
+  /* Support panel — dvh, never vh, or mobile browser chrome clips the input. */
+  --chat-bottom: 96px;
+  --chat-w: calc(100vw - 24px);
+  --chat-h: calc(100dvh - 170px);
+}
+
+@media (min-width: 780px) {
+  :root {
+    --pad: 32px;
+    --rcpt-pad: 32px;
+    --chat-bottom: 18px;
+    --chat-w: 400px;
+    --chat-h: min(620px, calc(100dvh - 210px));
+  }
+}
+@media (min-width: 1180px) {
+  :root {
+    --pad: 56px;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #eff6f4;
+  --surface: #ffffff;
+  --surface-2: #e1efeb;
+  --border: #d0e2dd;
+  --text: #0b3037;
+  --text-muted: #456568;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --primary: #0c6e63;
+  --on-primary: #ffffff;
+  --club: #b07d2a;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(11, 48, 55, 0.25);
+}
+:root[data-theme="obsidian"] {
+  --bg: #0a0f0e;
+  --surface: #121a18;
+  --surface-2: #18221f;
+  --border: #27332f;
+  --text: #eaf2ef;
+  --text-muted: #8fa39d;
+  --primary: #7fe9c3;
+  --on-primary: #04221a;
+  --club: #e4c590;
+  --success: #4fc79a;
+  --warning: #e7b15e;
+  --danger: #e86f6f;
+  --info: #5fb0d6;
+}
+:root[data-theme="indigo"] {
+  --bg: #0c1020;
+  --surface: #141a2e;
+  --surface-2: #1b2440;
+  --border: #29335a;
+  --text: #e8ebf7;
+  --text-muted: #99a2c4;
+  --primary: #a8b8ff;
+  --on-primary: #0b1030;
+  --club: #e4c590;
+  --success: #57d2a6;
+  --warning: #e7b15e;
+  --danger: #e86f6f;
+  --info: #5fb0d6;
+}
+:root[data-theme="sand"] {
+  --bg: #f4f1ea;
+  --surface: #ffffff;
+  --surface-2: #ebe6da;
+  --border: #ded7c8;
+  --text: #1c2a24;
+  --text-muted: #535f55;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --primary: #14584a;
+  --on-primary: #ffffff;
+  --club: #96681a;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(28, 42, 36, 0.2);
+}
+:root[data-theme="lime"] {
+  --bg: #080a07;
+  --surface: #101410;
+  --surface-2: #171d15;
+  --border: #242c21;
+  --text: #f0f5ec;
+  --text-muted: #8e9a87;
+  --primary: #c6f24e;
+  --on-primary: #0d1400;
+  --club: #e4c590;
+  --success: #7be08f;
+  --warning: #e7b15e;
+  --danger: #f0736b;
+  --info: #7fb8e8;
+}
+:root[data-theme="violet"] {
+  --bg: #07050f;
+  --surface: #100c1d;
+  --surface-2: #181228;
+  --border: #271e3d;
+  --text: #efebfa;
+  --text-muted: #968cb4;
+  --primary: #b27dff;
+  --on-primary: #12042b;
+  --club: #f0c97a;
+  --success: #5fd9a8;
+  --warning: #e7b15e;
+  --danger: #f0736b;
+  --info: #7fb8e8;
+}
+:root[data-theme="ember"] {
+  --bg: #0b0705;
+  --surface: #15100c;
+  --surface-2: #1e1712;
+  --border: #2e241c;
+  --text: #f7efe7;
+  --text-muted: #a2907f;
+  --primary: #ff9f45;
+  --on-primary: #1f0e00;
+  --club: #e4c590;
+  --success: #5fd9a8;
+  --warning: #e7b15e;
+  --danger: #f0736b;
+  --info: #7fb8e8;
+}
+:root[data-theme="ice"] {
+  --bg: #05090c;
+  --surface: #0d141a;
+  --surface-2: #131d25;
+  --border: #1e2c38;
+  --text: #e8f3fa;
+  --text-muted: #7f97a8;
+  --primary: #4fd4ff;
+  --on-primary: #00151f;
+  --club: #e4c590;
+  --success: #5fd9a8;
+  --warning: #e7b15e;
+  --danger: #f0736b;
+  --info: #7fb8e8;
+}
+:root[data-theme="magenta"] {
+  --bg: #0a060a;
+  --surface: #150e15;
+  --surface-2: #1e141e;
+  --border: #2e1f2e;
+  --text: #f9ecf6;
+  --text-muted: #a88ba1;
+  --primary: #ff5cc8;
+  --on-primary: #25002a;
+  --club: #f0c97a;
+  --success: #5fd9a8;
+  --warning: #e7b15e;
+  --danger: #f0736b;
+  --info: #7fb8e8;
+}
+:root[data-theme="aurora"] {
+  --bg: #040c0c;
+  --surface: #0c1717;
+  --surface-2: #122020;
+  --border: #1c3030;
+  --text: #e6f7f3;
+  --text-muted: #7f9e99;
+  --primary: #3df2b6;
+  --on-primary: #00201a;
+  --club: #e4c590;
+  --success: #3df2b6;
+  --warning: #e7b15e;
+  --danger: #f0736b;
+  --info: #7fb8e8;
+}
+:root[data-theme="crimson"] {
+  --bg: #0a0607;
+  --surface: #140d0f;
+  --surface-2: #1d1417;
+  --border: #2d1f23;
+  --text: #f8ecee;
+  --text-muted: #a38a8f;
+  --primary: #ff5a6e;
+  --on-primary: #2a0008;
+  --club: #e4c590;
+  --success: #5fd9a8;
+  --warning: #e7b15e;
+  --danger: #ff5a6e;
+  --info: #7fb8e8;
+}
+:root[data-theme="mono"] {
+  --bg: #0a0a0a;
+  --surface: #131313;
+  --surface-2: #1b1b1b;
+  --border: #2a2a2a;
+  --text: #f5f5f5;
+  --text-muted: #8c8c8c;
+  --primary: #ffffff;
+  --on-primary: #0a0a0a;
+  --club: #c9a96a;
+  --success: #8fd6a8;
+  --warning: #d9b573;
+  --danger: #e08585;
+  --info: #9bb8d6;
+}
+:root[data-theme="terminal"] {
+  --bg: #020604;
+  --surface: #08120c;
+  --surface-2: #0c1a12;
+  --border: #14291c;
+  --text: #d9fbe6;
+  --text-muted: #6e9a80;
+  --primary: #37ff8b;
+  --on-primary: #001a0a;
+  --club: #d9c27a;
+  --success: #37ff8b;
+  --warning: #e7b15e;
+  --danger: #f0736b;
+  --info: #7fb8e8;
+}
+:root[data-theme="frost"] {
+  --bg: #f2f5f9;
+  --surface: #ffffff;
+  --surface-2: #e6ecf4;
+  --border: #d3dce8;
+  --text: #0e1726;
+  --text-muted: #4c5b72;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --primary: #2e5bff;
+  --on-primary: #ffffff;
+  --club: #9a6f1e;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(14, 23, 38, 0.2);
+}
+
+/* ---- Base ---------------------------------------------------------------- */
+@layer base {
+  html {
+    overflow-x: clip;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(
+      56% 42% at 50% -6%,
+      color-mix(in oklab, var(--primary) 9%, transparent),
+      transparent 74%
+    );
+    background-repeat: no-repeat;
+    color: var(--text);
+    font-family: var(--font-inter), Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-wrap: pretty;
+  }
+
+  /* Fine film-grain overlay (decorative). */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    pointer-events: none;
+    opacity: 0.038;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--text);
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: var(--on-primary);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--text) 16%, transparent);
+    border-radius: 99px;
+    border: 3px solid var(--bg);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* Every currency/percentage figure is tabular (handoff §1.4). */
+  [data-count] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001s !important;
+    }
+  }
+}
+
+/* ---- Reusable layout helpers -------------------------------------------- */
+@layer components {
+  /* Centered content column with the responsive page gutter. */
+  .container-page {
+    width: 100%;
+    max-width: var(--maxw);
+    margin-inline: auto;
+    padding-inline: var(--pad);
+  }
+}
+
+/* ---- Keyframes (handoff §6) --------------------------------------------- */
+@keyframes jsIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes jsToast {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes jsShim {
+  0% {
+    background-position: -260px 0;
+  }
+  100% {
+    background-position: 260px 0;
+  }
+}
+@keyframes jsSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes jsUp {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes jsReveal {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes jsMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes jsFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+@keyframes jsDrift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(6%, -4%) scale(1.1);
+  }
+  66% {
+    transform: translate(-5%, 5%) scale(0.94);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+@keyframes jsBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes jsStamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-14deg) scale(1.7);
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(1);
+  }
+}
+@keyframes jsGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes jsFeedIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes jsSheen {
+  0% {
+    transform: translateX(-140%);
+  }
+  55%,
+  100% {
+    transform: translateX(360%);
+  }
+}
