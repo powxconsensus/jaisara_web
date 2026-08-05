@@ -75,11 +75,11 @@ export function HeroGround() {
 
   useEffect(() => {
     if (!impact) return;
-    return impact.subscribe(({ strength, hot }) => {
+    return impact.subscribe((event) => {
       const root = rootRef.current;
       if (!root) return;
       sync();
-      playImpact(root, strength, hot);
+      playImpact(root, event);
     });
   }, [impact, sync]);
 

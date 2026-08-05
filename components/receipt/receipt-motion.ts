@@ -27,12 +27,7 @@ export const CUE = {
   impact: 0.56,
   /** The stamp re-punches. */
   stamp: 0.62,
-  /** Softer echo bounce. */
-  echo: 0.72,
 } as const;
-
-/** Echo impact strength relative to the first strike. */
-export const ECHO_STRENGTH = 0.26;
 
 /**
  * The card sinks out of frame, drops back in from above and rocks flat, as one

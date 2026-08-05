@@ -12,9 +12,14 @@ import { createContext, useContext, useMemo, useRef, type ReactNode } from "reac
  * landings; the ground decides what a landing looks like.
  */
 
+/**
+ * A landing. There is exactly one per cycle: the sheet rocks after it hits,
+ * but the ledger breaks once. The prototype fired a second, softer impact on
+ * the rebound; because every impact cancels the one before it, that second
+ * call truncated the first fracture and replayed it, which read as two
+ * separate breaks instead of one landing. Do not add it back.
+ */
 export interface ImpactEvent {
-  /** 0–1. The echo bounce lands at a fraction of the first strike. */
-  strength: number;
   /** Paid claims land harder than pending ones, so the two states differ. */
   hot: boolean;
 }

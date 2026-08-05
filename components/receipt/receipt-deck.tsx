@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RECEIPTS, RECEIPT_INTERVAL_MS } from "@/lib/data/receipts";
-import { useImpact } from "@/components/landing/impact-context";
+import { useImpact, type ImpactEvent } from "@/components/landing/impact-context";
 import { ReceiptCard } from "./receipt-card";
 import {
   CUE,
-  ECHO_STRENGTH,
   FALL_DURATION_MS,
   playFall,
   playStamp,
@@ -33,6 +32,12 @@ export function ReceiptDeck() {
   const [index, setIndex] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const stampRef = useRef<HTMLDivElement>(null);
+  // The index is mirrored in a ref so `advance` never depends on it. If it
+  // did, the swap it schedules would change `advance`'s identity mid-fall,
+  // re-run the interval effect, and its cleanup would clear the cues for the
+  // impact, stamp and echo that had not fired yet — the card would land on a
+  // ledger that never fractured.
+  const indexRef = useRef(0);
   // Hover/focus pause is read inside a timer callback, so it lives in a ref
   // rather than state — no re-render, and no stale closure.
   const pausedRef = useRef(false);
@@ -51,16 +56,17 @@ export function ReceiptDeck() {
     cuesRef.current = [];
   }, []);
 
-  /** Tell the ground the card has landed, and how hard. */
-  const strike = useCallback(
-    (strength: number, hot: boolean) => impact?.emit({ strength, hot }),
-    [impact],
-  );
+  /** Tell the ground the card has touched down, and what kind of touch it was. */
+  const strike = useCallback((event: ImpactEvent) => impact?.emit(event), [impact]);
 
   const advance = useCallback(() => {
     if (pausedRef.current) return;
     const card = cardRef.current;
-    const step = () => setIndex((current) => (current + 1) % RECEIPTS.length);
+    const next = (indexRef.current + 1) % RECEIPTS.length;
+    const step = () => {
+      indexRef.current = next;
+      setIndex(next);
+    };
 
     if (!card || prefersReducedMotion()) {
       step();
@@ -69,23 +75,23 @@ export function ReceiptDeck() {
 
     // The sheet on screen at the moment of impact is the *next* one, so the
     // fracture reads its intensity from that claim: paid lands harder.
-    const hot = RECEIPTS[(index + 1) % RECEIPTS.length].status === "paid";
+    const hot = RECEIPTS[next].status === "paid";
 
     clearCues();
     playFall(card);
-    // Everything else hangs off the same timeline.
+    // Everything else hangs off the same timeline. The sheet rocks after it
+    // lands, but the ledger breaks exactly once — see ImpactEvent.
     cuesRef.current = [
       setTimeout(step, FALL_DURATION_MS * CUE.contentSwap),
-      setTimeout(() => strike(1, hot), FALL_DURATION_MS * CUE.impact),
+      setTimeout(() => strike({ hot }), FALL_DURATION_MS * CUE.impact),
       setTimeout(() => playStamp(stampRef.current), FALL_DURATION_MS * CUE.stamp),
-      setTimeout(() => strike(ECHO_STRENGTH, hot), FALL_DURATION_MS * CUE.echo),
     ];
-  }, [clearCues, index, strike]);
+  }, [clearCues, strike]);
 
   useEffect(() => {
-    // A plain per-instance interval. Never coordinate through a global: a
-    // remount races the unmount and leaves a stale id with no live timer,
-    // freezing the rotation. A duplicate interval is harmless because
+    // A plain per-instance interval, mounted once. Never coordinate through a
+    // global: a remount races the unmount and leaves a stale id with no live
+    // timer, freezing the rotation. A duplicate interval is harmless because
     // `advance` cancels in-flight animations first.
     const id = setInterval(advance, RECEIPT_INTERVAL_MS);
     return () => {
@@ -97,7 +103,7 @@ export function ReceiptDeck() {
   // Settle the first sheet onto the ground, so the hero opens with a landing.
   useEffect(() => {
     if (prefersReducedMotion()) return;
-    const id = setTimeout(() => strike(1, RECEIPTS[0].status === "paid"), 900);
+    const id = setTimeout(() => strike({ hot: RECEIPTS[0].status === "paid" }), 900);
     return () => clearTimeout(id);
   }, [strike]);
 
