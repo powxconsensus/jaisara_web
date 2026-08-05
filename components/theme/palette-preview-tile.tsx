@@ -1,6 +1,6 @@
 "use client";
 
-import { tileColors, type PaletteMeta } from "@/lib/theme";
+import { swatchFor, tileColors, type Mode, type PaletteMeta } from "@/lib/theme";
 import { CheckIcon } from "@/components/ui/icons";
 
 /**
@@ -9,19 +9,24 @@ import { CheckIcon } from "@/components/ui/icons";
  * palette's accent, a primary button and a club-gold dot — all on the
  * palette's true background.
  *
- * The point is that a user can judge a theme without applying it.
+ * The tile renders the family in the *current mode*, so what you see is what
+ * picking it gives you. The point is that a user can judge a theme without
+ * applying it.
  */
 export function PalettePreviewTile({
   palette,
+  mode,
   active,
   onSelect,
 }: {
   palette: PaletteMeta;
+  mode: Mode;
   active: boolean;
   onSelect: () => void;
 }) {
-  const { bg, surface, line } = tileColors(palette);
-  const [, primary, club] = palette.swatch;
+  const swatch = swatchFor(palette, mode);
+  const { bg, surface, line } = tileColors(swatch, mode);
+  const [, primary, club] = swatch;
 
   return (
     <button

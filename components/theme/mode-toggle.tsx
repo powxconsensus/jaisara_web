@@ -3,9 +3,9 @@
 import { useTheme } from "./use-theme";
 
 /**
- * Light ⇄ dark toggle. Mode remembers the last dark and last light palette
- * independently, so toggling returns to the user's previous pick on that side
- * (handoff §1.3) — the pairing logic lives in the theme store.
+ * Light ⇄ dark toggle. It flips `data-mode` only — the palette family is
+ * preserved, because the two are independent axes (handoff §1.3). Every family
+ * defines both sides, so there is nothing to remember and nothing to pair.
  */
 export function ModeToggle() {
   const { mode, toggleMode, mounted } = useTheme();

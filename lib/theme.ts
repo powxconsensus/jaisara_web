@@ -1,10 +1,15 @@
 /**
  * Palette metadata and theming rules (handoff §1.2, §1.3).
  *
- * The 15 palettes are a *selection aid* while the brand is undecided — not a
- * shipped feature. Once a palette is chosen, keep two (one dark, one light) and
- * the switcher collapses to a mode toggle. This module is the single source of
- * that list; the CSS-variable values live in `app/globals.css`.
+ * Palette and mode are ORTHOGONAL. `data-theme` on <html> selects one of 15
+ * families; `data-mode` selects light or dark. Every family defines both, so
+ * all 30 combinations are valid — light/dark is not a pairing of two palettes
+ * and toggling mode never changes which family you are on.
+ *
+ * The 15 families are a *selection aid* while the brand is undecided, not a
+ * shipped feature. Once one is chosen, keep it and the switcher collapses to
+ * the mode toggle. This module is the single source of the list; the
+ * CSS-variable values live in `app/globals.css`.
  */
 
 export type Mode = "light" | "dark";
@@ -26,78 +31,112 @@ export type PaletteKey =
   | "terminal"
   | "frost";
 
+/** [background, primary, club] — the three colours a preview tile needs. */
+export type Swatch = readonly [string, string, string];
+
 export interface PaletteMeta {
   key: PaletteKey;
   name: string;
+  /** Character, without a light/dark prefix — mode is its own control now. */
   tag: string;
-  mode: Mode;
-  /** [background, primary, club] — for preview swatches. */
-  swatch: [string, string, string];
+  /** The side this family was authored on; the default mode on first load. */
+  nativeMode: Mode;
+  dark: Swatch;
+  light: Swatch;
 }
-
-/** The three light palettes; everything else is dark. */
-export const LIGHT_PALETTES = new Set<PaletteKey>(["light", "sand", "frost"]);
 
 export const DEFAULT_PALETTE: PaletteKey = "teal";
-/** The light partner used when a user toggles to light mode from the default. */
-export const DEFAULT_LIGHT_PALETTE: PaletteKey = "light";
 
+/**
+ * Deep Teal and Bright Turquoise are both turquoise and shipped byte-identical
+ * in light mode once. They are deliberately separated here: #eff6f4/#0c6e63
+ * against #f3fbf9/#0a8073. Re-measure contrast if either is retuned — every
+ * light accent must clear 4.5:1 on white, since the primary CTA is 12px/600.
+ */
 export const PALETTES: PaletteMeta[] = [
-  { key: "teal", name: "Deep Teal", tag: "Dark · signature", mode: "dark", swatch: ["#0B3037", "#99E1D9", "#E4C590"] },
-  { key: "light", name: "Turquoise Light", tag: "Light · airy", mode: "light", swatch: ["#EFF6F4", "#0C6E63", "#B07D2A"] },
-  { key: "obsidian", name: "Obsidian Mint", tag: "Dark · high contrast", mode: "dark", swatch: ["#0A0F0E", "#7FE9C3", "#E4C590"] },
-  { key: "indigo", name: "Midnight Indigo", tag: "Dark · cool", mode: "dark", swatch: ["#0C1020", "#A8B8FF", "#E4C590"] },
-  { key: "sand", name: "Sand & Pine", tag: "Light · warm", mode: "light", swatch: ["#F4F1EA", "#14584A", "#96681A"] },
-  { key: "lime", name: "Acid Lime", tag: "Dark · high energy", mode: "dark", swatch: ["#080A07", "#C6F24E", "#E4C590"] },
-  { key: "violet", name: "Cyber Violet", tag: "Dark · electric", mode: "dark", swatch: ["#07050F", "#B27DFF", "#F0C97A"] },
-  { key: "ice", name: "Ion Blue", tag: "Dark · glacial", mode: "dark", swatch: ["#05090C", "#4FD4FF", "#E4C590"] },
-  { key: "aurora", name: "Aurora", tag: "Dark · neon mint", mode: "dark", swatch: ["#040C0C", "#3DF2B6", "#E4C590"] },
-  { key: "magenta", name: "Neon Magenta", tag: "Dark · loud", mode: "dark", swatch: ["#0A060A", "#FF5CC8", "#F0C97A"] },
-  { key: "ember", name: "Ember", tag: "Dark · warm amber", mode: "dark", swatch: ["#0B0705", "#FF9F45", "#E4C590"] },
-  { key: "crimson", name: "Crimson Carbon", tag: "Dark · aggressive", mode: "dark", swatch: ["#0A0607", "#FF5A6E", "#E4C590"] },
-  { key: "terminal", name: "Terminal", tag: "Dark · phosphor", mode: "dark", swatch: ["#020604", "#37FF8B", "#D9C27A"] },
-  { key: "mono", name: "Monochrome", tag: "Dark · pure neutral", mode: "dark", swatch: ["#0A0A0A", "#FFFFFF", "#C9A96A"] },
-  { key: "frost", name: "Frost", tag: "Light · cobalt", mode: "light", swatch: ["#F2F5F9", "#2E5BFF", "#9A6F1E"] },
+  { key: "teal", name: "Deep Teal", tag: "Signature", nativeMode: "dark",
+    dark: ["#0b3037", "#99e1d9", "#e4c590"], light: ["#eff6f4", "#0c6e63", "#b07d2a"] },
+  { key: "light", name: "Bright Turquoise", tag: "Airy", nativeMode: "light",
+    dark: ["#071f23", "#5fe3d2", "#e4c590"], light: ["#f3fbf9", "#0a8073", "#a8791f"] },
+  { key: "obsidian", name: "Obsidian Mint", tag: "High contrast", nativeMode: "dark",
+    dark: ["#0a0f0e", "#7fe9c3", "#e4c590"], light: ["#f1f5f3", "#0b7a5a", "#a87b24"] },
+  { key: "indigo", name: "Midnight Indigo", tag: "Cool", nativeMode: "dark",
+    dark: ["#0c1020", "#a8b8ff", "#e4c590"], light: ["#f1f3fb", "#3b4bc8", "#a87b24"] },
+  { key: "sand", name: "Sand & Pine", tag: "Warm", nativeMode: "light",
+    dark: ["#0d0b07", "#8fd8a8", "#e4c590"], light: ["#f4f1ea", "#14584a", "#96681a"] },
+  { key: "lime", name: "Acid Lime", tag: "High energy", nativeMode: "dark",
+    dark: ["#080a07", "#c6f24e", "#e4c590"], light: ["#f4f7ec", "#4e7a0b", "#a87b24"] },
+  { key: "violet", name: "Cyber Violet", tag: "Electric", nativeMode: "dark",
+    dark: ["#07050f", "#b27dff", "#f0c97a"], light: ["#f5f2fc", "#6b2ed1", "#a0741f"] },
+  { key: "ice", name: "Ion Blue", tag: "Glacial", nativeMode: "dark",
+    dark: ["#05090c", "#4fd4ff", "#e4c590"], light: ["#eff5fa", "#0a6e96", "#a87b24"] },
+  { key: "aurora", name: "Aurora", tag: "Neon mint", nativeMode: "dark",
+    dark: ["#040c0c", "#3df2b6", "#e4c590"], light: ["#eef8f5", "#04815e", "#a87b24"] },
+  { key: "magenta", name: "Neon Magenta", tag: "Loud", nativeMode: "dark",
+    dark: ["#0a060a", "#ff5cc8", "#f0c97a"], light: ["#fbf1f8", "#c01a86", "#a0741f"] },
+  { key: "ember", name: "Ember", tag: "Warm amber", nativeMode: "dark",
+    dark: ["#0b0705", "#ff9f45", "#e4c590"], light: ["#fbf4ee", "#c2560a", "#a87b24"] },
+  { key: "crimson", name: "Crimson Carbon", tag: "Aggressive", nativeMode: "dark",
+    dark: ["#0a0607", "#ff5a6e", "#e4c590"], light: ["#fcf1f2", "#c41f35", "#a87b24"] },
+  { key: "terminal", name: "Terminal", tag: "Phosphor", nativeMode: "dark",
+    dark: ["#020604", "#37ff8b", "#d9c27a"], light: ["#eff7f1", "#06713c", "#8a6e2f"] },
+  { key: "mono", name: "Monochrome", tag: "Pure neutral", nativeMode: "dark",
+    dark: ["#0a0a0a", "#ffffff", "#c9a96a"], light: ["#f4f4f4", "#101010", "#8a6e2f"] },
+  { key: "frost", name: "Frost", tag: "Cobalt", nativeMode: "dark",
+    dark: ["#060a11", "#7fb4ff", "#e4c590"], light: ["#f2f5f9", "#2e5bff", "#9a6f1e"] },
 ];
 
-const PALETTE_KEYS = new Set(PALETTES.map((p) => p.key));
+const BY_KEY = new Map(PALETTES.map((p) => [p.key, p]));
 
 export function isPaletteKey(value: unknown): value is PaletteKey {
-  return typeof value === "string" && PALETTE_KEYS.has(value as PaletteKey);
+  return typeof value === "string" && BY_KEY.has(value as PaletteKey);
 }
 
-export function modeOf(palette: PaletteKey): Mode {
-  return LIGHT_PALETTES.has(palette) ? "light" : "dark";
+export function isMode(value: unknown): value is Mode {
+  return value === "light" || value === "dark";
+}
+
+export function paletteMeta(key: PaletteKey): PaletteMeta {
+  return BY_KEY.get(key) ?? PALETTES[0];
+}
+
+/** Mode a family opens in when the user has never chosen one. */
+export function nativeMode(key: PaletteKey): Mode {
+  return paletteMeta(key).nativeMode;
+}
+
+export function swatchFor(meta: PaletteMeta, mode: Mode): Swatch {
+  return mode === "light" ? meta.light : meta.dark;
 }
 
 /**
- * Preview-tile surface/hairline derived per palette so a tile looks like the
- * product, not a colour sample (handoff §4.9): dark = background lifted 16%
- * toward white; light = white with a hairline.
+ * Preview-tile surface/hairline derived from the swatch so a tile looks like
+ * the product, not a colour sample (handoff §4.9): dark = background lifted
+ * 16% toward white; light = white with a hairline.
  */
-export function tileColors(meta: PaletteMeta) {
-  const [bg] = meta.swatch;
-  const isLight = meta.mode === "light";
+export function tileColors(swatch: Swatch, mode: Mode) {
+  const [bg] = swatch;
+  const isLight = mode === "light";
   return {
     bg,
-    surface: isLight ? "#FFFFFF" : `color-mix(in oklab, ${bg} 84%, #FFFFFF)`,
+    surface: isLight ? "#ffffff" : `color-mix(in oklab, ${bg} 84%, #ffffff)`,
     line: isLight
       ? `color-mix(in oklab, ${bg} 62%, #000000)`
-      : `color-mix(in oklab, ${bg} 58%, #FFFFFF)`,
+      : `color-mix(in oklab, ${bg} 58%, #ffffff)`,
   };
 }
 
-/** localStorage key for device-level persistence (handoff §1.3). */
-export const THEME_STORAGE_KEY = "jaisara-theme";
+/** localStorage keys (handoff §1.3) — one per axis, plus the account override. */
+export const PALETTE_STORAGE_KEY = "jaisara-theme";
+export const MODE_STORAGE_KEY = "jaisara-mode";
+export const ACCOUNT_PALETTE_STORAGE_KEY = "jaisara-theme-user";
 
 export interface ThemePrefs {
   palette: PaletteKey;
-  lastDark: PaletteKey;
-  lastLight: PaletteKey;
+  mode: Mode;
 }
 
 export const DEFAULT_PREFS: ThemePrefs = {
   palette: DEFAULT_PALETTE,
-  lastDark: DEFAULT_PALETTE,
-  lastLight: DEFAULT_LIGHT_PALETTE,
+  mode: nativeMode(DEFAULT_PALETTE),
 };

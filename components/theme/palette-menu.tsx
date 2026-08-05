@@ -1,7 +1,7 @@
 "use client";
 
 import * as Popover from "@radix-ui/react-popover";
-import { PALETTES } from "@/lib/theme";
+import { PALETTES, paletteMeta, swatchFor } from "@/lib/theme";
 import { useTheme } from "./use-theme";
 
 /**
@@ -9,12 +9,15 @@ import { useTheme } from "./use-theme";
  * behaviour with `pointerdown` semantics, avoiding the "every interaction takes
  * two clicks" bug a document-level click listener caused (handoff §6).
  *
+ * Swatches preview the *current mode*, because that is what picking one will
+ * give you — the mode toggle beside it is the other axis and is not touched.
+ *
  * This is the *quick* switch — Account → Appearance is where a user manages the
  * palette long-term. Both disappear once the brand palette is chosen.
  */
 export function PaletteMenu() {
-  const { palette, setPalette, mounted } = useTheme();
-  const active = PALETTES.find((p) => p.key === palette);
+  const { palette, mode, setPalette, mounted } = useTheme();
+  const active = paletteMeta(palette);
 
   return (
     <Popover.Root>
@@ -28,7 +31,7 @@ export function PaletteMenu() {
           <span className="-ml-[3px] size-2.5 rounded-[3px] bg-club" />
         </span>
         <span className="hidden whitespace-nowrap font-mono text-[10px] tracking-[0.12em] text-muted lg:inline">
-          {mounted && active ? active.name : "Palette"}
+          {mounted ? active.name : "Palette"}
         </span>
       </Popover.Trigger>
 
@@ -42,7 +45,9 @@ export function PaletteMenu() {
             PALETTE // {PALETTES.length}
           </p>
           <div className="flex flex-col gap-0.5">
-            {PALETTES.map((p) => (
+            {PALETTES.map((p) => {
+              const [bg, primary, club] = swatchFor(p, mode);
+              return (
               <button
                 key={p.key}
                 type="button"
@@ -53,10 +58,10 @@ export function PaletteMenu() {
                 <span className="flex flex-none gap-[3px]">
                   <span
                     className="h-[18px] w-3 rounded-[4px] border border-hair"
-                    style={{ background: p.swatch[0] }}
+                    style={{ background: bg }}
                   />
-                  <span className="h-[18px] w-3 rounded-[4px]" style={{ background: p.swatch[1] }} />
-                  <span className="h-[18px] w-3 rounded-[4px]" style={{ background: p.swatch[2] }} />
+                  <span className="h-[18px] w-3 rounded-[4px]" style={{ background: primary }} />
+                  <span className="h-[18px] w-3 rounded-[4px]" style={{ background: club }} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-semibold">{p.name}</span>
@@ -68,7 +73,8 @@ export function PaletteMenu() {
                   <span className="size-1.5 flex-none rounded-[2px] bg-primary" />
                 )}
               </button>
-            ))}
+              );
+            })}
           </div>
         </Popover.Content>
       </Popover.Portal>

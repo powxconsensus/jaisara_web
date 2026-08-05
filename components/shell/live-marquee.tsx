@@ -26,7 +26,10 @@ export function LiveMarquee() {
   const line = LIVE_FEED[index % LIVE_FEED.length];
 
   return (
-    <div className="mt-[clamp(34px,5vw,52px)] flex flex-wrap items-center border-t border-hair">
+    /* The top margin sets where the ground's horizon lands: the ticker pins to
+       the base of the hero, so every pixel here pushes the floor further down
+       the plane and the receipt's impact further away. */
+    <div className="mt-[clamp(22px,3vw,38px)] flex flex-wrap items-center border-t border-hair leading-[normal]">
       <div className="flex flex-none items-center gap-[11px] border-hair py-4 pr-[26px] md:border-r">
         <span className="size-1.5 rounded-[2px] bg-success" />
         <span className="font-mono text-[9.5px] tracking-[0.2em] text-muted">LIVE</span>

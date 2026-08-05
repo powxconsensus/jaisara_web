@@ -1,11 +1,12 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { modeOf, type Mode, type PaletteKey } from "@/lib/theme";
+import type { Mode, PaletteKey } from "@/lib/theme";
 import {
   getPrefs,
   getServerPrefs,
   resetToDefault,
+  setMode,
   setPalette,
   subscribe,
   toggleMode,
@@ -17,6 +18,7 @@ interface UseThemeResult {
   /** False during SSR and hydration — guard palette-specific labels with it. */
   mounted: boolean;
   setPalette: (palette: PaletteKey) => void;
+  setMode: (mode: Mode) => void;
   toggleMode: () => void;
   resetToDefault: () => void;
 }
@@ -26,7 +28,7 @@ const subscribeToNothing = () => () => {};
 /**
  * Reads theme prefs from the external store (localStorage). No context is
  * needed — every consumer subscribes to the same store, and the pre-paint
- * script in <head> has already applied `data-theme` before React runs.
+ * script in <head> has already applied both attributes before React runs.
  */
 export function useTheme(): UseThemeResult {
   const prefs = useSyncExternalStore(subscribe, getPrefs, getServerPrefs);
@@ -38,9 +40,10 @@ export function useTheme(): UseThemeResult {
 
   return {
     palette: prefs.palette,
-    mode: modeOf(prefs.palette),
+    mode: prefs.mode,
     mounted,
     setPalette,
+    setMode,
     toggleMode,
     resetToDefault,
   };

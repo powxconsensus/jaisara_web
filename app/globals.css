@@ -3,10 +3,11 @@
 /* =============================================================================
    Jaisara design tokens
    -----------------------------------------------------------------------------
-   Theming is CSS custom properties, switched by a `data-theme` attribute on
-   <html> (handoff §1). Light/dark is a *pairing* of palettes, not a separate
-   axis. The 15 palettes below are copied verbatim from the prototype; every
-   palette defines the same 13 semantic colour tokens.
+   Theming is CSS custom properties on <html>, switched by TWO independent
+   attributes (handoff §1.3): `data-theme` picks one of 15 palette families,
+   `data-mode` picks light or dark. Every family defines both, so all 30
+   combinations are valid. The values below are copied verbatim from the
+   prototype; every palette defines the same 13 semantic colour tokens.
 
    Utilities: `bg-*` / `text-*` / `border-*` names below map to these vars via
    the @theme block, so e.g. `bg-surface`, `text-muted`, `border-hair` all react
@@ -86,8 +87,28 @@
   --secpb: clamp(24px, 4vw, 40px);
   --secpb2: clamp(48px, 7vw, 88px);
   --nav-h: 72px;
-  /* Receipt inner padding — tightens on phones. */
+
+  /* The hero stage and the ledger ground (handoff, Hero spec).
+     --groundplane must exceed the plane depth that fills the container,
+     H·p / (cos·p + H·sin), but stay under --groundpersp / sin, or the far
+     end of the floor crosses the camera. */
+  --herominh: auto;
+  --display: clamp(32px, 8.6vw, 41px);
+  --groundh: 178px;
+  --groundplane: 400px;
+  --groundrot: 81deg;
+  --groundpersp: 520px;
+  --groundgrid: 66px;
+
+  /* Receipt — mobile flattens it completely; the tilt is a desktop affordance. */
   --rcpt-pad: 16px;
+  --rcpt-w: 100%;
+  --rcpt-top: 0px;
+  --rcpt-mb: 46px;
+  --rcpt-persp: none;
+  --rcpt-tf: none;
+  --rcpt-tfh: none;
+  --rcpt-float: none;
   /* Support panel — dvh, never vh, or mobile browser chrome clips the input. */
   --chat-bottom: 96px;
   --chat-w: calc(100vw - 24px);
@@ -97,36 +118,69 @@
 @media (min-width: 780px) {
   :root {
     --pad: 32px;
-    --rcpt-pad: 32px;
     --chat-bottom: 18px;
     --chat-w: 400px;
     --chat-h: min(620px, calc(100dvh - 210px));
+
+    --display: clamp(38px, 6.2vw, 58px);
+    --groundh: 262px;
+    --groundplane: 560px;
+    --groundrot: 80deg;
+    --groundpersp: 760px;
+    --groundgrid: 104px;
+
+    --rcpt-pad: 32px;
+    --rcpt-w: min(396px, 100%);
+    --rcpt-top: 92px;
+    --rcpt-mb: 58px;
+    --rcpt-persp: 1500px;
+    --rcpt-tf: rotateY(-14deg) rotateX(6deg) rotateZ(-2.8deg);
+    --rcpt-tfh: rotateY(-7deg) rotateX(3deg) rotateZ(-1.2deg) scale(1.025);
+    --rcpt-float: jsFloat 9s 1.4s ease-in-out infinite;
   }
 }
 @media (min-width: 1180px) {
   :root {
     --pad: 56px;
+
+    /* Only on desktop does the hero claim the viewport; below that it sizes
+       to its content or the ground eats the copy. */
+    --herominh: clamp(700px, calc(100dvh - 26px), 1060px);
+    --display: clamp(42px, 5.6vw, 84px);
+    --groundh: clamp(244px, 23vw, 336px);
+    --groundplane: 700px;
+    --groundrot: 79deg;
+    --groundpersp: 1000px;
+    --groundgrid: 132px;
+
+    --rcpt-mb: 150px;
   }
 }
 
+/* Families authored dark-first (12) and light-first (3: light, sand, frost).
+   `teal` has no block of its own — :root above is it. */
+
+/* Bright Turquoise */
 :root[data-theme="light"] {
-  --bg: #eff6f4;
+  --bg: #f3fbf9;
   --surface: #ffffff;
-  --surface-2: #e1efeb;
-  --border: #d0e2dd;
-  --text: #0b3037;
-  --text-muted: #456568;
+  --surface-2: #dcf4ef;
+  --border: #c2e8df;
+  --text: #06282b;
+  --text-muted: #3c6a6a;
   --hair: color-mix(in oklab, var(--text) 18%, transparent);
   --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
-  --primary: #0c6e63;
+  --primary: #0a8073;
   --on-primary: #ffffff;
-  --club: #b07d2a;
+  --club: #a8791f;
   --success: #0e9e6e;
   --warning: #b4740f;
   --danger: #c94a4a;
   --info: #2c7cb8;
-  --shadow: 0 24px 50px -34px rgba(11, 48, 55, 0.25);
+  --shadow: 0 24px 50px -34px rgba(6, 40, 43, 0.22);
 }
+
+/* Obsidian Mint */
 :root[data-theme="obsidian"] {
   --bg: #0a0f0e;
   --surface: #121a18;
@@ -142,6 +196,8 @@
   --danger: #e86f6f;
   --info: #5fb0d6;
 }
+
+/* Midnight Indigo */
 :root[data-theme="indigo"] {
   --bg: #0c1020;
   --surface: #141a2e;
@@ -157,6 +213,8 @@
   --danger: #e86f6f;
   --info: #5fb0d6;
 }
+
+/* Sand & Pine */
 :root[data-theme="sand"] {
   --bg: #f4f1ea;
   --surface: #ffffff;
@@ -175,6 +233,8 @@
   --info: #2c7cb8;
   --shadow: 0 24px 50px -34px rgba(28, 42, 36, 0.2);
 }
+
+/* Acid Lime */
 :root[data-theme="lime"] {
   --bg: #080a07;
   --surface: #101410;
@@ -190,6 +250,8 @@
   --danger: #f0736b;
   --info: #7fb8e8;
 }
+
+/* Cyber Violet */
 :root[data-theme="violet"] {
   --bg: #07050f;
   --surface: #100c1d;
@@ -205,6 +267,8 @@
   --danger: #f0736b;
   --info: #7fb8e8;
 }
+
+/* Ember */
 :root[data-theme="ember"] {
   --bg: #0b0705;
   --surface: #15100c;
@@ -220,6 +284,8 @@
   --danger: #f0736b;
   --info: #7fb8e8;
 }
+
+/* Ion Blue */
 :root[data-theme="ice"] {
   --bg: #05090c;
   --surface: #0d141a;
@@ -235,6 +301,8 @@
   --danger: #f0736b;
   --info: #7fb8e8;
 }
+
+/* Neon Magenta */
 :root[data-theme="magenta"] {
   --bg: #0a060a;
   --surface: #150e15;
@@ -250,6 +318,8 @@
   --danger: #f0736b;
   --info: #7fb8e8;
 }
+
+/* Aurora */
 :root[data-theme="aurora"] {
   --bg: #040c0c;
   --surface: #0c1717;
@@ -265,6 +335,8 @@
   --danger: #f0736b;
   --info: #7fb8e8;
 }
+
+/* Crimson Carbon */
 :root[data-theme="crimson"] {
   --bg: #0a0607;
   --surface: #140d0f;
@@ -280,6 +352,8 @@
   --danger: #ff5a6e;
   --info: #7fb8e8;
 }
+
+/* Monochrome */
 :root[data-theme="mono"] {
   --bg: #0a0a0a;
   --surface: #131313;
@@ -295,6 +369,8 @@
   --danger: #e08585;
   --info: #9bb8d6;
 }
+
+/* Terminal */
 :root[data-theme="terminal"] {
   --bg: #020604;
   --surface: #08120c;
@@ -310,6 +386,8 @@
   --danger: #f0736b;
   --info: #7fb8e8;
 }
+
+/* Frost */
 :root[data-theme="frost"] {
   --bg: #f2f5f9;
   --surface: #ffffff;
@@ -327,6 +405,311 @@
   --danger: #c94a4a;
   --info: #2c7cb8;
   --shadow: 0 24px 50px -34px rgba(14, 23, 38, 0.2);
+}
+
+/* ---- Mode overrides ------------------------------------------------------ */
+/* Two attributes out-specify the one-attribute base, so source order is free.
+   Light variants are not inverted darks: each gets a darkened accent that
+   clears 4.5:1 on white, a white --surface and --hair at 18% instead of 9%. */
+
+/* Deep Teal — light */
+:root[data-theme="teal"][data-mode="light"] {
+  --bg: #eff6f4;
+  --surface: #ffffff;
+  --surface-2: #e1efeb;
+  --border: #d0e2dd;
+  --text: #0b3037;
+  --text-muted: #456568;
+  --primary: #0c6e63;
+  --club: #b07d2a;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Obsidian Mint — light */
+:root[data-theme="obsidian"][data-mode="light"] {
+  --bg: #f1f5f3;
+  --surface: #ffffff;
+  --surface-2: #e3eae7;
+  --border: #d2dcd8;
+  --text: #0e1614;
+  --text-muted: #4b5a55;
+  --primary: #0b7a5a;
+  --club: #a87b24;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Midnight Indigo — light */
+:root[data-theme="indigo"][data-mode="light"] {
+  --bg: #f1f3fb;
+  --surface: #ffffff;
+  --surface-2: #e3e8f7;
+  --border: #d2d9ee;
+  --text: #101634;
+  --text-muted: #4e5878;
+  --primary: #3b4bc8;
+  --club: #a87b24;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Acid Lime — light */
+:root[data-theme="lime"][data-mode="light"] {
+  --bg: #f4f7ec;
+  --surface: #ffffff;
+  --surface-2: #e8efd8;
+  --border: #d8e2c4;
+  --text: #171c0e;
+  --text-muted: #525c42;
+  --primary: #4e7a0b;
+  --club: #a87b24;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Cyber Violet — light */
+:root[data-theme="violet"][data-mode="light"] {
+  --bg: #f5f2fc;
+  --surface: #ffffff;
+  --surface-2: #eae3f8;
+  --border: #dcd3ee;
+  --text: #150e28;
+  --text-muted: #5a5078;
+  --primary: #6b2ed1;
+  --club: #a0741f;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Ember — light */
+:root[data-theme="ember"][data-mode="light"] {
+  --bg: #fbf4ee;
+  --surface: #ffffff;
+  --surface-2: #f4e7da;
+  --border: #e8d7c4;
+  --text: #22150c;
+  --text-muted: #6b5443;
+  --primary: #c2560a;
+  --club: #a87b24;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Ion Blue — light */
+:root[data-theme="ice"][data-mode="light"] {
+  --bg: #eff5fa;
+  --surface: #ffffff;
+  --surface-2: #dfeaf4;
+  --border: #cedcea;
+  --text: #0b1620;
+  --text-muted: #45596b;
+  --primary: #0a6e96;
+  --club: #a87b24;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Neon Magenta — light */
+:root[data-theme="magenta"][data-mode="light"] {
+  --bg: #fbf1f8;
+  --surface: #ffffff;
+  --surface-2: #f5e2f0;
+  --border: #ead2e4;
+  --text: #22101d;
+  --text-muted: #6b4a62;
+  --primary: #c01a86;
+  --club: #a0741f;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Aurora — light */
+:root[data-theme="aurora"][data-mode="light"] {
+  --bg: #eef8f5;
+  --surface: #ffffff;
+  --surface-2: #ddf0ea;
+  --border: #cbe3db;
+  --text: #08201a;
+  --text-muted: #416058;
+  --primary: #04815e;
+  --club: #a87b24;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Crimson Carbon — light */
+:root[data-theme="crimson"][data-mode="light"] {
+  --bg: #fcf1f2;
+  --surface: #ffffff;
+  --surface-2: #f6e2e4;
+  --border: #ebd2d5;
+  --text: #210c0f;
+  --text-muted: #6b4348;
+  --primary: #c41f35;
+  --club: #a87b24;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Monochrome — light */
+:root[data-theme="mono"][data-mode="light"] {
+  --bg: #f4f4f4;
+  --surface: #ffffff;
+  --surface-2: #e8e8e8;
+  --border: #d8d8d8;
+  --text: #101010;
+  --text-muted: #5a5a5a;
+  --primary: #101010;
+  --club: #8a6e2f;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Terminal — light */
+:root[data-theme="terminal"][data-mode="light"] {
+  --bg: #eff7f1;
+  --surface: #ffffff;
+  --surface-2: #deefe3;
+  --border: #cce2d3;
+  --text: #04170c;
+  --text-muted: #3e6049;
+  --primary: #06713c;
+  --club: #8a6e2f;
+  --hair: color-mix(in oklab, var(--text) 18%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 11%, transparent);
+  --on-primary: #ffffff;
+  --success: #0e9e6e;
+  --warning: #b4740f;
+  --danger: #c94a4a;
+  --info: #2c7cb8;
+  --shadow: 0 24px 50px -34px rgba(18, 22, 24, 0.22);
+}
+
+/* Bright Turquoise — dark */
+:root[data-theme="light"][data-mode="dark"] {
+  --bg: #071f23;
+  --surface: #0c2e34;
+  --surface-2: #0f3b44;
+  --border: #16505c;
+  --text: #e6f6f3;
+  --text-muted: #86b3b2;
+  --primary: #5fe3d2;
+  --on-primary: #04262a;
+  --club: #e4c590;
+  --hair: color-mix(in oklab, var(--text) 9%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 6%, transparent);
+  --success: #4fc79a;
+  --warning: #e7b15e;
+  --danger: #e86f6f;
+  --info: #5fb0d6;
+  --shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.6);
+}
+
+/* Sand & Pine — dark */
+:root[data-theme="sand"][data-mode="dark"] {
+  --bg: #0d0b07;
+  --surface: #171410;
+  --surface-2: #201c16;
+  --border: #302a20;
+  --text: #f6f1e6;
+  --text-muted: #a4977f;
+  --primary: #8fd8a8;
+  --on-primary: #06220f;
+  --club: #e4c590;
+  --hair: color-mix(in oklab, var(--text) 9%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 6%, transparent);
+  --success: #4fc79a;
+  --warning: #e7b15e;
+  --danger: #e86f6f;
+  --info: #5fb0d6;
+  --shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.6);
+}
+
+/* Frost — dark */
+:root[data-theme="frost"][data-mode="dark"] {
+  --bg: #060a11;
+  --surface: #0e1520;
+  --surface-2: #141d2b;
+  --border: #202c3e;
+  --text: #e9f0fa;
+  --text-muted: #8496ac;
+  --primary: #7fb4ff;
+  --on-primary: #05132b;
+  --club: #e4c590;
+  --hair: color-mix(in oklab, var(--text) 9%, transparent);
+  --hair-soft: color-mix(in oklab, var(--text) 6%, transparent);
+  --success: #4fc79a;
+  --warning: #e7b15e;
+  --danger: #e86f6f;
+  --info: #5fb0d6;
+  --shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.6);
 }
 
 /* ---- Base ---------------------------------------------------------------- */

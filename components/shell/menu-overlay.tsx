@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import type { RefObject } from "react";
 import { MENU_NAV } from "@/lib/nav";
-import { PALETTES } from "@/lib/theme";
+import { PALETTES, swatchFor } from "@/lib/theme";
 import { useTheme } from "@/components/theme/use-theme";
 import { CouponPill } from "./coupon-pill";
 
@@ -114,33 +114,34 @@ export function MenuOverlay({
               <div className="w-full border-t border-hair-soft pt-4">
                 <p className="mb-2.5 font-mono text-[9px] tracking-[0.22em] text-muted">PALETTE</p>
                 <div className="flex flex-wrap gap-[7px]">
-                  {PALETTES.map((p) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      title={p.name}
-                      aria-pressed={p.key === palette}
-                      onClick={() => setPalette(p.key)}
-                      className="flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] border py-2 pl-2 pr-3"
-                      style={{ borderColor: p.key === palette ? "var(--primary)" : "var(--hair)" }}
-                    >
-                      <span className="flex flex-none gap-0.5">
-                        <span
-                          className="h-4 w-[9px] rounded-[3px] border border-hair"
-                          style={{ background: p.swatch[0] }}
-                        />
-                        <span
-                          className="h-4 w-[9px] rounded-[3px]"
-                          style={{ background: p.swatch[1] }}
-                        />
-                        <span
-                          className="h-4 w-[9px] rounded-[3px]"
-                          style={{ background: p.swatch[2] }}
-                        />
-                      </span>
-                      <span className="whitespace-nowrap text-xs font-medium">{p.name}</span>
-                    </button>
-                  ))}
+                  {PALETTES.map((p) => {
+                    const swatch = swatchFor(p, mode);
+                    return (
+                      <button
+                        key={p.key}
+                        type="button"
+                        title={p.name}
+                        aria-pressed={p.key === palette}
+                        onClick={() => setPalette(p.key)}
+                        className="flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] border py-2 pl-2 pr-3"
+                        style={{ borderColor: p.key === palette ? "var(--primary)" : "var(--hair)" }}
+                      >
+                        <span className="flex flex-none gap-0.5">
+                          {swatch.map((colour, i) => (
+                            <span
+                              key={i}
+                              className="h-4 w-[9px] rounded-[3px]"
+                              style={{
+                                background: colour,
+                                border: i === 0 ? "1px solid var(--hair)" : undefined,
+                              }}
+                            />
+                          ))}
+                        </span>
+                        <span className="whitespace-nowrap text-xs font-medium">{p.name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

@@ -1,9 +1,12 @@
 import {
+  ACCOUNT_PALETTE_STORAGE_KEY,
   DEFAULT_PREFS,
-  LIGHT_PALETTES,
-  THEME_STORAGE_KEY,
+  MODE_STORAGE_KEY,
+  PALETTE_STORAGE_KEY,
+  isMode,
   isPaletteKey,
-  modeOf,
+  nativeMode,
+  type Mode,
   type PaletteKey,
   type ThemePrefs,
 } from "./theme";
@@ -12,6 +15,11 @@ import {
  * Theme persistence, kept outside React so the provider can read it with
  * `useSyncExternalStore` — no state-in-effect, and other tabs stay in sync.
  *
+ * The two axes are stored under separate keys and never touch each other:
+ * choosing a palette preserves the mode, toggling the mode preserves the
+ * palette. Only when the user has *never* set a mode do we fall back to the
+ * family's native side.
+ *
  * `getSnapshot` must be referentially stable between changes, so the parsed
  * prefs are cached and only invalidated on write or a `storage` event.
  */
@@ -19,27 +27,29 @@ import {
 let cache: ThemePrefs | null = null;
 const listeners = new Set<() => void>();
 
-function readFromStorage(): ThemePrefs {
+function read(key: string): string | null {
   try {
-    const raw = localStorage.getItem(THEME_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<ThemePrefs>;
-      if (isPaletteKey(parsed.palette)) {
-        return {
-          palette: parsed.palette,
-          lastDark: isPaletteKey(parsed.lastDark) ? parsed.lastDark : DEFAULT_PREFS.lastDark,
-          lastLight: isPaletteKey(parsed.lastLight) ? parsed.lastLight : DEFAULT_PREFS.lastLight,
-        };
-      }
-    }
+    return localStorage.getItem(key);
   } catch {
-    /* private mode / disabled storage */
+    return null; /* private mode / disabled storage */
   }
-  return DEFAULT_PREFS;
+}
+
+function readFromStorage(): ThemePrefs {
+  const stored = read(ACCOUNT_PALETTE_STORAGE_KEY) ?? read(PALETTE_STORAGE_KEY);
+  const palette: PaletteKey = isPaletteKey(stored) ? stored : DEFAULT_PREFS.palette;
+  const storedMode = read(MODE_STORAGE_KEY);
+  return { palette, mode: isMode(storedMode) ? storedMode : nativeMode(palette) };
 }
 
 function emit() {
   for (const listener of listeners) listener();
+}
+
+function apply(prefs: ThemePrefs) {
+  const root = document.documentElement;
+  root.setAttribute("data-theme", prefs.palette);
+  root.setAttribute("data-mode", prefs.mode);
 }
 
 export function getPrefs(): ThemePrefs {
@@ -59,47 +69,50 @@ export function subscribe(onChange: () => void): () => void {
   };
 }
 
-function write(next: ThemePrefs) {
+function write(next: ThemePrefs, persist: () => void) {
   cache = next;
-  document.documentElement.setAttribute("data-theme", next.palette);
+  apply(next);
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(next));
+    persist();
   } catch {
     /* ignore */
   }
   emit();
 }
 
-/** Choose a palette, remembering it as the last pick on its own side. */
-export function setPalette(palette: PaletteKey) {
-  const prev = getPrefs();
-  write(
-    LIGHT_PALETTES.has(palette)
-      ? { palette, lastLight: palette, lastDark: prev.lastDark }
-      : { palette, lastDark: palette, lastLight: prev.lastLight },
-  );
-}
-
-/** Flip light ⇄ dark, returning to the previous pick on the other side. */
-export function toggleMode() {
-  const prev = getPrefs();
-  write({
-    ...prev,
-    palette: modeOf(prev.palette) === "dark" ? prev.lastLight : prev.lastDark,
+/** Choose a palette family. The mode is untouched. */
+export function setPalette(palette: PaletteKey, signedIn = false) {
+  write({ ...getPrefs(), palette }, () => {
+    localStorage.setItem(PALETTE_STORAGE_KEY, palette);
+    if (signedIn) localStorage.setItem(ACCOUNT_PALETTE_STORAGE_KEY, palette);
   });
 }
 
-/** Clear the override and return to the brand default. */
+/** Choose light or dark. The palette family is untouched. */
+export function setMode(mode: Mode) {
+  write({ ...getPrefs(), mode }, () => localStorage.setItem(MODE_STORAGE_KEY, mode));
+}
+
+export function toggleMode() {
+  setMode(getPrefs().mode === "dark" ? "light" : "dark");
+}
+
+/** Clear the account override and return to the brand default on both axes. */
 export function resetToDefault() {
-  write(DEFAULT_PREFS);
+  write(DEFAULT_PREFS, () => {
+    localStorage.removeItem(ACCOUNT_PALETTE_STORAGE_KEY);
+    localStorage.setItem(PALETTE_STORAGE_KEY, DEFAULT_PREFS.palette);
+    localStorage.setItem(MODE_STORAGE_KEY, DEFAULT_PREFS.mode);
+  });
 }
 
 /** Keep other tabs in sync with this one. */
 if (typeof window !== "undefined") {
+  const KEYS = [PALETTE_STORAGE_KEY, MODE_STORAGE_KEY, ACCOUNT_PALETTE_STORAGE_KEY];
   window.addEventListener("storage", (event) => {
-    if (event.key !== THEME_STORAGE_KEY) return;
+    if (event.key !== null && !KEYS.includes(event.key)) return;
     cache = readFromStorage();
-    document.documentElement.setAttribute("data-theme", cache.palette);
+    apply(cache);
     emit();
   });
 }

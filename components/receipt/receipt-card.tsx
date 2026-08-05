@@ -16,7 +16,7 @@ function Line({
 }) {
   const toneClass = tone === "success" ? "text-success" : tone === "muted" ? "text-muted" : "";
   return (
-    <div className={`flex items-baseline gap-2 py-2.5 ${toneClass}`}>
+    <div className={`flex items-baseline gap-2 py-3.5 ${toneClass}`}>
       <span className="flex-none">{label}</span>
       {/* A real border, not letter-spaced dots — it stretches to fill. */}
       <span
@@ -49,8 +49,13 @@ export function ReceiptCard({
     <div
       ref={cardRef}
       /* The resting state IS this static style. Motion never persists
-         transform/opacity here — see receipt-motion.ts. */
-      className="relative overflow-hidden rounded-receipt border border-hair bg-surface [transform-origin:8%_100%]"
+         transform/opacity here — see receipt-motion.ts.
+
+         `leading-[normal]` is deliberate: Tailwind's preflight puts 1.5 on
+         <html>, which inflates every mono row and made the sheet 22px shorter
+         than the design. The card's height sets where the fracture lands on
+         the ground, so this is geometry, not typography. */
+      className="relative overflow-hidden rounded-receipt border border-hair bg-surface leading-[normal] [transform-origin:8%_100%]"
       style={{
         boxShadow:
           "0 50px 100px -55px rgba(0,0,0,.8), 0 0 0 1px color-mix(in oklab, var(--primary) 12%, transparent)",
@@ -104,7 +109,7 @@ export function ReceiptCard({
         <Perforation className="my-3.5" />
 
         {/* Itemised lines — replaced by a one-line summary on phones. */}
-        <div className="hidden px-[var(--rcpt-pad)] pb-[26px] pt-2 font-mono text-xs md:block">
+        <div className="hidden px-[var(--rcpt-pad)] pb-8 pt-3.5 font-mono text-xs md:block">
           <Line
             label={`${receipt.firm.toUpperCase()} ${receipt.plan.toUpperCase()}`}
             value={money(receipt.list)}
