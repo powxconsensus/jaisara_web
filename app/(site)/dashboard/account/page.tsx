@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ProfileCard } from "@/components/dashboard/profile-card";
 import { AppearanceCard } from "@/components/theme/appearance-card";
+import { SecurityCard } from "@/components/dashboard/security-card";
+import { DeleteAccountCard } from "@/components/dashboard/delete-account-card";
 
 export const metadata: Metadata = { title: "Account settings" };
 
@@ -18,7 +20,9 @@ export default function AccountPage() {
         Profile details and how Jaisara looks to you.
       </p>
       <ProfileCard />
+      <SecurityCard />
       <AppearanceCard />
+      <DeleteAccountCard />
     </div>
   );
 }

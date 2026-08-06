@@ -6,7 +6,8 @@ import { useRef, useState } from "react";
 import { PRIMARY_NAV } from "@/lib/nav";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
-import { ACCOUNT, WALLET } from "@/lib/data/wallet";
+import { WALLET } from "@/lib/data/wallet";
+import { useAuth } from "@/components/auth/auth-context";
 import { Logo } from "@/components/ui/logo";
 import { ModeToggle } from "@/components/theme/mode-toggle";
 import { PaletteMenu } from "@/components/theme/palette-menu";
@@ -18,18 +19,17 @@ import { MenuOverlay } from "./menu-overlay";
  * Inline links show at desktop (≥1180px); below that the menu overlay takes
  * over. Anchor targets clear it via `scroll-margin-top` (handoff §6).
  */
-/** Monogram from the account name, for the navbar avatar. */
-const ACCOUNT_INITIALS = ACCOUNT.displayName
-  .split(/\s+/)
-  .slice(0, 2)
-  .map((part) => part[0]?.toUpperCase() ?? "")
-  .join("");
-
 export function Navbar() {
   const pathname = usePathname();
+  const { status, user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  // The app surfaces stand in for an authenticated session until auth lands.
-  const signedIn = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+  const signedIn = status === "authenticated";
+  const initials = (user?.displayName || user?.email || "?")
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Close the overlay whenever the route changes — including browser back,
@@ -91,17 +91,17 @@ export function Navbar() {
                 className="grid size-8 place-items-center rounded-[10px] font-mono text-[11px] text-primary"
                 style={{ background: "color-mix(in oklab, var(--primary) 20%, var(--surface))" }}
               >
-                {ACCOUNT_INITIALS}
+                {initials}
               </span>
             </Link>
-          ) : (
+          ) : status === "guest" ? (
             <Link
               href="/signup"
               className="hidden h-9 flex-none items-center gap-2 rounded-[10px] bg-primary px-4 font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-on-primary transition hover:brightness-[1.08] md:flex"
             >
               Start<span className="text-[13px]">↗</span>
             </Link>
-          )}
+          ) : null}
 
           {/* Stays above the overlay and becomes the close control in the
               identical slot — a requirement from the handoff. */}

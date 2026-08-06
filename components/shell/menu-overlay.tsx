@@ -2,10 +2,12 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { RefObject } from "react";
 import { MENU_NAV } from "@/lib/nav";
 import { PALETTES, swatchFor } from "@/lib/theme";
 import { useTheme } from "@/components/theme/use-theme";
+import { useAuth } from "@/components/auth/auth-context";
 import { CouponPill } from "./coupon-pill";
 
 /**
@@ -27,7 +29,15 @@ export function MenuOverlay({
   triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
   const { palette, setPalette, mode, toggleMode } = useTheme();
+  const { status, signOut } = useAuth();
+  const router = useRouter();
   const close = () => onOpenChange(false);
+  const logout = async () => {
+    await signOut();
+    close();
+    router.push("/");
+    router.refresh();
+  };
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -95,13 +105,32 @@ export function MenuOverlay({
             <div className="flex flex-wrap items-center justify-between gap-3.5 pt-[30px]">
               <CouponPill />
               <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/signup"
-                  onClick={close}
-                  className="flex items-center gap-2 rounded-[10px] bg-primary px-[18px] py-[11px] font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary"
-                >
-                  Free account ↗
-                </Link>
+                {status === "authenticated" ? (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      onClick={close}
+                      className="flex items-center gap-2 rounded-[10px] bg-primary px-[18px] py-[11px] font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary"
+                    >
+                      Dashboard ↗
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void logout()}
+                      className="cursor-pointer rounded-[10px] border border-hair px-4 py-[11px] font-mono text-[10px] tracking-[0.12em] text-muted"
+                    >
+                      SIGN OUT
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/signup"
+                    onClick={close}
+                    className="flex items-center gap-2 rounded-[10px] bg-primary px-[18px] py-[11px] font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary"
+                  >
+                    Free account ↗
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={toggleMode}

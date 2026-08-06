@@ -4,6 +4,7 @@ import { fontVariables } from "./fonts";
 import { ThemeScript } from "@/components/theme/theme-script";
 import { ToastProvider } from "@/components/shell/toast";
 import { AssistantProvider } from "@/components/support/assistant-context";
+import { AuthProvider } from "@/components/auth/auth-context";
 
 export const metadata: Metadata = {
   title: {
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <ThemeScript />
         <ToastProvider>
-          <AssistantProvider>{children}</AssistantProvider>
+          <AuthProvider>
+            <AssistantProvider>{children}</AssistantProvider>
+          </AuthProvider>
         </ToastProvider>
       </body>
     </html>

@@ -6,6 +6,12 @@ export const metadata: Metadata = {
   description: "Free forever, no card. Withdraw your cashback from $20.",
 };
 
-export default function SignupPage() {
-  return <AuthForm mode="signup" />;
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string | string[] }>;
+}) {
+  const query = await searchParams;
+  const referral = typeof query.ref === "string" ? query.ref.trim().toUpperCase() : "";
+  return <AuthForm mode="signup" initialReferral={referral} />;
 }
