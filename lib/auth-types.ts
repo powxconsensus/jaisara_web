@@ -5,6 +5,10 @@ export interface AuthUser {
   emailVerified: boolean;
   hasPassword?: boolean;
   referralCode?: string;
+  pendingEmailChange?: {
+    email: string;
+    expiresAt: string;
+  };
   roles: string[];
   permissions?: string[];
   rank?: number;

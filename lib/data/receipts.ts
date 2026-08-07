@@ -25,6 +25,16 @@ export interface Receipt {
   ago: string;
   id: string;
   status: ReceiptStatus;
+  /**
+   * The cashback actually credited, when this receipt came from a real
+   * conversion.
+   *
+   * The designed receipts describe a rate and let the card do the arithmetic.
+   * A real one already knows the answer to the cent, and re-deriving it from a
+   * rounded percentage prints a number that disagrees with the member's wallet
+   * — 6.7% of $99 is $6.63, but $6.68 was credited.
+   */
+  cashbackUsd?: number;
 }
 
 export const RECEIPTS: Receipt[] = [
@@ -56,9 +66,12 @@ export const RECEIPT_STATUS: Record<
   },
 };
 
-/** Derived figures for one receipt. */
+/** Derived figures for one receipt — except a real credited amount, which wins. */
 export function receiptTotals(receipt: Receipt) {
-  return challengeMath(receipt.list, receipt.discountPct, receipt.cashbackPct);
+  const totals = challengeMath(receipt.list, receipt.discountPct, receipt.cashbackPct);
+  return receipt.cashbackUsd === undefined
+    ? totals
+    : { ...totals, cashback: receipt.cashbackUsd };
 }
 
 /** Rotation interval, ms (handoff §2). */

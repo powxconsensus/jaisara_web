@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { CLUB_TIERS, type EstimatorFirm } from "@/lib/data/estimator";
-import { FIRM_COUNT } from "@/lib/data/firms";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { Accent, SectionHeading } from "@/components/ui/section-heading";
 import { FirmCombobox } from "./firm-combobox";
@@ -24,7 +23,7 @@ type Step = 1 | 2 | 3 | 4;
  * at a time, config and result never stacked. Going back via an EDIT chip
  * preserves every other answer.
  */
-export function Estimator() {
+export function Estimator({ firms = [] }: { firms?: EstimatorFirm[] }) {
   const [firm, setFirm] = useState<EstimatorFirm | null>(null);
   const [planIndex, setPlanIndex] = useState<number | null>(null);
   const [sizeIndex, setSizeIndex] = useState<number | null>(null);
@@ -93,10 +92,10 @@ export function Estimator() {
           <StepShell index="01" title="Prop firm" chosen={firm?.name}>
             <div className="mb-3.5 flex items-center justify-between gap-3">
               <span className="font-mono text-[9px] tracking-[0.1em] text-muted">
-                {FIRM_COUNT} LISTED — TYPE TO SEARCH
+                {firms.length} LISTED — TYPE TO SEARCH
               </span>
             </div>
-            <FirmCombobox value={firm} onChange={chooseFirm} />
+            <FirmCombobox value={firm} onChange={chooseFirm} firms={firms} />
           </StepShell>
         )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RECEIPTS, RECEIPT_INTERVAL_MS } from "@/lib/data/receipts";
+import { RECEIPTS, RECEIPT_INTERVAL_MS, type Receipt } from "@/lib/data/receipts";
 import { useImpact, type ImpactEvent } from "@/components/landing/impact-context";
 import { ReceiptCard } from "./receipt-card";
 import {
@@ -28,7 +28,19 @@ import {
  * State is only `index` and a pause flag — deliberately NO animation phase. See
  * receipt-motion.ts for why that matters.
  */
-export function ReceiptDeck() {
+export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
+  // Live approvals when there are any, the designed set when the platform is
+  // new. An empty hero would be the worst possible first impression, and a
+  // deck that renders nothing is also a deck whose fracture geometry has no
+  // card height to measure from.
+  //
+  // Captured once: the feed is server-rendered and fixed for the life of this
+  // component, and a `deck` whose identity changed would land in the timer and
+  // animation dependencies below — restarting rotation mid-cycle is exactly
+  // the class of bug this component's architecture exists to prevent.
+  const [deck] = useState<Receipt[]>(() =>
+    receipts && receipts.length > 0 ? receipts : RECEIPTS,
+  );
   const [index, setIndex] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const stampRef = useRef<HTMLDivElement>(null);
@@ -62,7 +74,7 @@ export function ReceiptDeck() {
   const advance = useCallback(() => {
     if (pausedRef.current) return;
     const card = cardRef.current;
-    const next = (indexRef.current + 1) % RECEIPTS.length;
+    const next = (indexRef.current + 1) % deck.length;
     const step = () => {
       indexRef.current = next;
       setIndex(next);
@@ -75,7 +87,7 @@ export function ReceiptDeck() {
 
     // The sheet on screen at the moment of impact is the *next* one, so the
     // fracture reads its intensity from that claim: paid lands harder.
-    const hot = RECEIPTS[next].status === "paid";
+    const hot = deck[next].status === "paid";
 
     clearCues();
     playFall(card);
@@ -86,7 +98,7 @@ export function ReceiptDeck() {
       setTimeout(() => strike({ hot }), FALL_DURATION_MS * CUE.impact),
       setTimeout(() => playStamp(stampRef.current), FALL_DURATION_MS * CUE.stamp),
     ];
-  }, [clearCues, strike]);
+  }, [clearCues, strike, deck]);
 
   useEffect(() => {
     // A plain per-instance interval, mounted once. Never coordinate through a
@@ -103,9 +115,9 @@ export function ReceiptDeck() {
   // Settle the first sheet onto the ground, so the hero opens with a landing.
   useEffect(() => {
     if (prefersReducedMotion()) return;
-    const id = setTimeout(() => strike({ hot: RECEIPTS[0].status === "paid" }), 900);
+    const id = setTimeout(() => strike({ hot: deck[0].status === "paid" }), 900);
     return () => clearTimeout(id);
-  }, [strike]);
+  }, [strike, deck]);
 
   return (
     <div className="flex justify-center pb-[var(--rcpt-mb)] pt-[var(--rcpt-top)] [perspective-origin:62%_38%] [perspective:var(--rcpt-persp)]">
@@ -135,7 +147,7 @@ export function ReceiptDeck() {
             }}
           />
 
-          <ReceiptCard receipt={RECEIPTS[index]} cardRef={cardRef} stampRef={stampRef} />
+          <ReceiptCard receipt={deck[index % deck.length]} cardRef={cardRef} stampRef={stampRef} />
         </div>
       </div>
     </div>

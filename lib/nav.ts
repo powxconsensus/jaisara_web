@@ -43,7 +43,6 @@ export const FOOTER_COLUMNS: { heading: string; items: NavItem[] }[] = [
     items: [
       { label: "About us", href: "/about" },
       { label: "Journal", href: "/journal" },
-      { label: "Admin (demo)", href: "/admin" },
     ],
   },
   {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FIRMS, FIRM_COUNT, type Firm, type PayoutCadence } from "@/lib/data/firms";
+import { type Firm, type PayoutCadence } from "@/lib/data/firms";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { DealRow } from "./deal-row";
 import { CompareTray } from "./compare-tray";
@@ -25,7 +25,7 @@ type SortKey = (typeof SORTS)[number]["key"];
  * Search-first deals index (handoff §4.2): text search, type and payout
  * facets, sortable columns, and a compare tray holding 2–3 firms.
  */
-export function DealsIndex() {
+export function DealsIndex({ firms = [] }: { firms?: Firm[] }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<TypeFilter>("All");
   const [payout, setPayout] = useState<PayoutFilter>("All");
@@ -36,7 +36,7 @@ export function DealsIndex() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const matches = FIRMS.filter((firm) => {
+    const matches = firms.filter((firm) => {
       if (q && !firm.name.toLowerCase().includes(q)) return false;
       if (type !== "All" && !firm.kind.toLowerCase().includes(type.toLowerCase())) return false;
       if (payout !== "All" && firm.payout !== (payout as PayoutCadence)) return false;
@@ -49,10 +49,10 @@ export function DealsIndex() {
       if (sort === "discount") return b.discount - a.discount;
       return b.cashback - a.cashback;
     });
-  }, [query, type, payout, sort, minCashback]);
+  }, [query, type, payout, sort, minCashback, firms]);
 
   const compared = compare
-    .map((slug) => FIRMS.find((firm) => firm.slug === slug))
+    .map((slug) => firms.find((firm) => firm.slug === slug))
     .filter((firm): firm is Firm => Boolean(firm));
 
   const toggleCompare = (slug: string) =>
@@ -70,7 +70,7 @@ export function DealsIndex() {
   return (
     <div className="mx-auto max-w-[var(--maxw)] px-[var(--pad)] pb-[150px] pt-[clamp(36px,5vw,64px)]">
       <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.24em] text-muted">
-        [ Deals ] {FIRM_COUNT} firms indexed · more added weekly
+        [ Deals ] {firms.length} firms indexed · more added weekly
       </p>
       <h1 className="mb-3.5 font-display text-[clamp(32px,5vw,64px)] font-black uppercase leading-[0.96] tracking-[-0.025em]">
         Every firm.
@@ -91,7 +91,7 @@ export function DealsIndex() {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={`Search ${FIRM_COUNT} firms…`}
+          placeholder={`Search ${firms.length} firms…`}
           aria-label="Search firms"
           className="min-w-[180px] max-w-full flex-[1_1_200px] rounded-[10px] border border-hair bg-surface px-3.5 py-[11px] text-[13.5px] outline-none focus:border-primary md:max-w-[300px]"
         />

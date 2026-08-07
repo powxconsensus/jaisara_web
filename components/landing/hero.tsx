@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FIRM_COUNT } from "@/lib/data/firms";
+import type { PublicStats } from "@/lib/data/deals";
+import type { Receipt } from "@/lib/data/receipts";
 import { CountUp } from "@/components/ui/count-up";
 import { ReceiptDeck } from "@/components/receipt/receipt-deck";
 import { LiveMarquee } from "@/components/shell/live-marquee";
@@ -8,11 +9,24 @@ import { HeroStage } from "./hero-stage";
 import { HeroAtmosphere } from "./hero-atmosphere";
 import { HeroGround } from "./hero-ground";
 
-const STATS = [
-  { value: 412850, prefix: "$", suffix: "", label: "PAID TO TRADERS" },
-  { value: FIRM_COUNT, prefix: "", suffix: "", label: "FIRMS" },
-  { value: 9200, prefix: "", suffix: "+", label: "MEMBERS" },
-];
+/**
+ * The three figures under the headline, from the ledger and the catalogue.
+ *
+ * "Paid to traders" counts cleared cashback only — quoting pending amounts as
+ * paid would be a marketing claim the ledger cannot back up.
+ */
+function statsFor(stats?: PublicStats) {
+  return [
+    {
+      value: Math.round(Number(stats?.paidToTradersUsd ?? 0)),
+      prefix: "$",
+      suffix: "",
+      label: "PAID TO TRADERS",
+    },
+    { value: stats?.firmCount ?? 0, prefix: "", suffix: "", label: "FIRMS" },
+    { value: stats?.memberCount ?? 0, prefix: "", suffix: "+", label: "MEMBERS" },
+  ];
+}
 
 /**
  * Landing hero: copy left, receipt right, collapsing to one column below
@@ -24,7 +38,15 @@ const STATS = [
  * sits on top by DOM order alone. Give the scrim a z-index and it covers the
  * headline.
  */
-export function Hero() {
+export function Hero({
+  receipts,
+  marquee,
+  stats,
+}: {
+  receipts?: Receipt[];
+  marquee?: string[];
+  stats?: PublicStats;
+}) {
   return (
     <ImpactProvider>
       <HeroStage>
@@ -52,7 +74,7 @@ export function Hero() {
           <div className="grid min-h-0 flex-1 items-center gap-[clamp(30px,5vw,70px)] lg:grid-cols-[1.05fr_.95fr]">
             <div>
               <p className="mb-[clamp(22px,3vw,34px)] font-mono text-[10px] tracking-[0.24em] text-muted [animation:jsUp_.7s_both]">
-                PROP FIRM CASHBACK · {FIRM_COUNT} FIRMS INDEXED
+                PROP FIRM CASHBACK · {stats?.firmCount ?? 0} FIRMS INDEXED
               </p>
 
               <h1 className="mb-[clamp(22px,3vw,32px)] font-display text-[length:var(--display)] font-black uppercase leading-[0.92] tracking-[-0.02em]">
@@ -111,7 +133,7 @@ export function Hero() {
               </div>
 
               <dl className="mt-[clamp(30px,4vw,44px)] flex flex-wrap gap-[clamp(24px,3.5vw,44px)] border-t border-hair pt-6 [animation:jsUp_.8s_.5s_both]">
-                {STATS.map((stat) => (
+                {statsFor(stats).map((stat) => (
                   <div key={stat.label}>
                     <dd className="font-mono text-[21px] tracking-[-0.03em]">
                       <CountUp to={stat.value} prefix={stat.prefix} suffix={stat.suffix} />
@@ -124,10 +146,10 @@ export function Hero() {
               </dl>
             </div>
 
-            <ReceiptDeck />
+            <ReceiptDeck receipts={receipts} />
           </div>
 
-          <LiveMarquee />
+          <LiveMarquee lines={marquee} />
         </div>
       </HeroStage>
     </ImpactProvider>

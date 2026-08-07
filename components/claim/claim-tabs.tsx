@@ -3,10 +3,19 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
-import { FIRMS } from "@/lib/data/firms";
 import { useToast } from "@/components/shell/toast";
 import { cn } from "@/lib/cn";
-import { ClaimField, EMPTY_CLAIM, PARSED_CLAIM, type ClaimFields } from "./claim-form";
+import { apiErrorMessage } from "@/lib/auth-types";
+import { ClaimField, EMPTY_CLAIM, type ClaimFields } from "./claim-form";
+
+/** A firm the member can claim against, with the id the API needs. */
+export interface ClaimPlatform {
+  id: string;
+  slug: string;
+  name: string;
+  cashbackPct: number;
+  supportsSubId: boolean;
+}
 
 type Mode = "auto" | "upload" | "manual";
 type Stage = "idle" | "parsing" | "parsed";
@@ -17,37 +26,45 @@ const MODES: { key: Mode; label: string }[] = [
   { key: "manual", label: "Enter manually" },
 ];
 
-const AUTO_FIRMS = FIRMS.slice(0, 4).map((firm, i) => ({
-  ...firm,
-  supported: i < 2,
-  note: i < 2 ? "Matches your order email automatically" : "Needs a receipt or manual entry",
-}));
-
-const SAMPLE_FILE = "fundingpips-order-8842190.pdf";
 /** Flat rate used for the on-screen estimate before a firm is resolved. */
 const DEFAULT_RATE = 10;
 
-function estimate(fields: ClaimFields): { amount: number; rate: number } | null {
+/**
+ * The on-screen estimate.
+ *
+ * Always an estimate, never a promise: the real figure is a share of the
+ * commission the firm reports, which nobody knows until the report lands.
+ */
+function estimate(
+  fields: ClaimFields,
+  platforms: ClaimPlatform[],
+): { amount: number; rate: number } | null {
   const paid = Number.parseFloat(fields.amount);
   if (!Number.isFinite(paid)) return null;
-  const firm = FIRMS.find((f) => f.name.toLowerCase() === fields.firm.trim().toLowerCase());
-  const rate = firm?.cashback ?? DEFAULT_RATE;
+  const firm = platforms.find(
+    (entry) => entry.name.toLowerCase() === fields.firm.trim().toLowerCase(),
+  );
+  const rate = firm?.cashbackPct || DEFAULT_RATE;
   return { amount: (paid * rate) / 100, rate };
 }
 
 /** Shared footer: the estimate well plus the submit actions. */
 function EstimateBar({
   fields,
+  platforms,
   onSubmit,
   onReset,
   submitLabel,
+  busy,
 }: {
   fields: ClaimFields;
+  platforms: ClaimPlatform[];
   onSubmit: () => void;
   onReset?: () => void;
   submitLabel: string;
+  busy?: boolean;
 }) {
-  const result = estimate(fields);
+  const result = estimate(fields, platforms);
   return (
     <div className="mt-5 flex flex-wrap items-center justify-between gap-3.5 rounded-[13px] bg-surface-2 p-[18px]">
       <div>
@@ -70,10 +87,11 @@ function EstimateBar({
         )}
         <button
           type="button"
+          disabled={busy}
           onClick={onSubmit}
-          className="cursor-pointer rounded-[10px] bg-primary px-[22px] py-[13px] font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary transition hover:-translate-y-px hover:brightness-[1.08]"
+          className="cursor-pointer rounded-[10px] bg-primary px-[22px] py-[13px] font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary transition hover:-translate-y-px hover:brightness-[1.08] disabled:cursor-wait disabled:opacity-50"
         >
-          {submitLabel}
+          {busy ? "Submitting…" : submitLabel}
         </button>
       </div>
     </div>
@@ -84,7 +102,7 @@ function EstimateBar({
  * Three routes to a claim (handoff §4.6). Manual is a first-class tab, not a
  * fallback link — parsing fails often enough that hiding it punishes the user.
  */
-export function ClaimTabs() {
+export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
   const router = useRouter();
   const { toast } = useToast();
   const [mode, setMode] = useState<Mode>("auto");
@@ -92,37 +110,142 @@ export function ClaimTabs() {
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState("");
   const [fields, setFields] = useState<ClaimFields>(EMPTY_CLAIM);
-  const [autoOn, setAutoOn] = useState<Record<string, boolean>>({
-    [AUTO_FIRMS[0].slug]: true,
-    [AUTO_FIRMS[1].slug]: true,
-  });
+  const [storageKey, setStorageKey] = useState<string | null>(null);
+  const [concerns, setConcerns] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const parseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const startParse = (name: string) => {
-    setFileName(name);
+  const autoFirms = platforms.filter((platform) => platform.supportsSubId);
+
+  /**
+   * Uploads the receipt and shows what the parser made of it.
+   *
+   * The parser proposes and the member confirms — every field stays editable,
+   * and a failed parse degrades to an empty form rather than blocking the
+   * claim. That is why the upload result is used to *prefill*, never to submit.
+   */
+  const startParse = async (file: File) => {
+    setFileName(file.name);
     setStage("parsing");
     setDragging(false);
-    if (parseTimer.current) clearTimeout(parseTimer.current);
-    parseTimer.current = setTimeout(() => {
-      setFields(PARSED_CLAIM);
+    setError(null);
+    setConcerns([]);
+
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const response = await fetch("/api/claims/receipt", { method: "POST", body });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setError(apiErrorMessage(result, "That receipt could not be uploaded."));
+        setStage("idle");
+        return;
+      }
+
+      setStorageKey(result.storageKey ?? null);
+      const parsed = result.parsed;
+
+      if (parsed) {
+        setFields({
+          firm: parsed.firmName ?? "",
+          plan: parsed.productName ?? "",
+          amount: parsed.amount ?? "",
+          date: parsed.purchaseDate ?? "",
+          order: parsed.orderId ?? "",
+          coupon: parsed.couponCode ?? "",
+        });
+        setConcerns(parsed.concerns ?? []);
+      } else if (result.message) {
+        setError(result.message);
+      }
+
       setStage("parsed");
-    }, 1600);
+    } catch {
+      setError("The claims service is unavailable. Please try again.");
+      setStage("idle");
+    }
   };
 
   const reset = () => {
     setStage("idle");
     setFields(EMPTY_CLAIM);
     setFileName("");
+    setStorageKey(null);
+    setConcerns([]);
+    setError(null);
   };
 
-  const submit = () => {
-    toast("Claim submitted — we'll review it within 48 hours");
-    router.push("/dashboard");
+  const submit = async () => {
+    const platform = platforms.find(
+      (entry) => entry.name.toLowerCase() === fields.firm.trim().toLowerCase(),
+    );
+
+    if (!platform) {
+      setError("Pick the firm exactly as it is listed, so we know whose report to match.");
+      return;
+    }
+    if (!fields.order.trim()) {
+      setError("The order number is what the match is keyed on — it cannot be blank.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/claims", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          platformId: platform.id,
+          orderId: fields.order.trim(),
+          amount: fields.amount.trim() || undefined,
+          purchasedAt: fields.date ? new Date(fields.date).toISOString() : undefined,
+          productText: fields.plan.trim() || undefined,
+          proofStorageKey: storageKey ?? undefined,
+          source: storageKey ? "RECEIPT" : "MANUAL",
+        }),
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setError(apiErrorMessage(result, "That claim could not be submitted."));
+        return;
+      }
+
+      toast("Claim submitted — we'll review it once the firm reports the order.", "success");
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("The claims service is unavailable. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const set = (key: keyof ClaimFields) => (value: string) =>
     setFields((prev) => ({ ...prev, [key]: value }));
+
+  const notices = (
+    <>
+      {error && (
+        <p role="alert" className="mt-3.5 text-[12.5px] leading-6 text-danger">
+          {error}
+        </p>
+      )}
+      {concerns.length > 0 && (
+        <div className="mt-3.5 rounded-[12px] border border-warning/40 px-4 py-3">
+          <p className="font-mono text-[9px] tracking-[0.14em] text-warning">WORTH CHECKING</p>
+          <ul className="mt-2 space-y-1 text-[12px] leading-5 text-muted">
+            {concerns.map((concern) => (
+              <li key={concern}>{concern}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="max-w-[660px]">
@@ -133,7 +256,7 @@ export function ClaimTabs() {
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
-          if (file) startParse(file.name);
+          if (file) void startParse(file);
         }}
       />
 
@@ -170,7 +293,7 @@ export function ClaimTabs() {
             <span className="mt-1.5 size-1.5 flex-none rounded-[2px] bg-success" />
             <div>
               <p className="mb-[5px] text-[13.5px] font-semibold">
-                Auto-claim is on for {Object.values(autoOn).filter(Boolean).length} firms
+                Auto-claim covers {autoFirms.length} firm{autoFirms.length === 1 ? "" : "s"}
               </p>
               <p className="text-[12.5px] leading-[1.55] text-muted">
                 We match your email or trading account against the firm&rsquo;s daily report.
@@ -180,38 +303,39 @@ export function ClaimTabs() {
           </div>
 
           <div className="rounded-card border border-hair bg-surface px-[22px] pb-3.5 pt-1.5">
-            {AUTO_FIRMS.map((firm) => {
-              const on = Boolean(autoOn[firm.slug]);
+            {platforms.map((firm) => {
+              const on = firm.supportsSubId;
               return (
                 <div
                   key={firm.slug}
                   className="flex items-center gap-3.5 border-b border-hair-soft py-[17px]"
                 >
                   <span className="grid size-9 flex-none place-items-center rounded-[10px] bg-surface-2 font-mono text-[10px] text-muted">
-                    {firm.mark}
+                    {firm.name.slice(0, 2).toUpperCase()}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{firm.name}</p>
-                    <p className="mt-0.5 text-[11.5px] text-muted">{firm.note}</p>
+                    <p className="mt-0.5 text-[11.5px] text-muted">
+                      {firm.supportsSubId
+                        ? "Matches your tracked link automatically"
+                        : "Needs a receipt or manual entry"}
+                    </p>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={on}
-                    aria-label={`Auto-claim for ${firm.name}`}
-                    disabled={!firm.supported}
-                    onClick={() => setAutoOn((prev) => ({ ...prev, [firm.slug]: !on }))}
-                    className="h-6 w-11 flex-none cursor-pointer rounded-full p-[3px] transition-colors duration-[250ms] disabled:cursor-not-allowed disabled:opacity-40"
-                    style={{ background: on ? "var(--primary)" : "var(--surface-2)" }}
+                  {/* Status, not a switch. Whether a firm can auto-match is a
+                      property of that firm's reporting — there is no
+                      per-member setting behind it, and a toggle that stores
+                      nothing is worse than no toggle. */}
+                  <span
+                    className="flex-none rounded-md px-2.5 py-1.5 font-mono text-[8.5px] tracking-[0.12em]"
+                    style={{
+                      background: on
+                        ? "color-mix(in oklab, var(--success) 16%, transparent)"
+                        : "var(--surface-2)",
+                      color: on ? "var(--success)" : "var(--text-muted)",
+                    }}
                   >
-                    <span
-                      className="block size-[18px] rounded-full transition-transform duration-[250ms] ease-[cubic-bezier(.2,.8,.2,1)]"
-                      style={{
-                        background: on ? "var(--on-primary)" : "var(--text-muted)",
-                        transform: on ? "translateX(20px)" : "none",
-                      }}
-                    />
-                  </button>
+                    {on ? "AUTOMATIC" : "RECEIPT NEEDED"}
+                  </span>
                 </div>
               );
             })}
@@ -239,7 +363,7 @@ export function ClaimTabs() {
             onDrop={(event) => {
               event.preventDefault();
               const file = event.dataTransfer.files?.[0];
-              if (file) startParse(file.name);
+              if (file) void startParse(file);
             }}
             className="cursor-pointer rounded-[18px] border-[1.5px] border-dashed px-[30px] py-[clamp(36px,6vw,60px)] text-center transition-all"
             style={{
@@ -259,16 +383,6 @@ export function ClaimTabs() {
             <span className="inline-block rounded-[10px] border border-hair bg-bg px-[18px] py-[11px] font-mono text-[10.5px] font-medium uppercase tracking-[0.12em]">
               Choose file
             </span>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                startParse(SAMPLE_FILE);
-              }}
-              className="mt-[15px] block w-full cursor-pointer font-mono text-[10px] tracking-[0.1em] text-primary"
-            >
-              OR TRY A SAMPLE RECEIPT
-            </button>
           </div>
 
           <div className="mt-3.5 flex items-center gap-[11px] rounded-[12px] border border-hair bg-surface px-[17px] py-3.5">
@@ -357,9 +471,12 @@ export function ClaimTabs() {
             />
           </div>
 
+          {notices}
           <EstimateBar
             fields={fields}
-            onSubmit={submit}
+            platforms={platforms}
+            busy={busy}
+            onSubmit={() => void submit()}
             onReset={reset}
             submitLabel="Confirm & submit"
           />
@@ -405,7 +522,14 @@ export function ClaimTabs() {
             </span>
           </button>
 
-          <EstimateBar fields={fields} onSubmit={submit} submitLabel="Submit for review" />
+          {notices}
+          <EstimateBar
+            fields={fields}
+            platforms={platforms}
+            busy={busy}
+            onSubmit={() => void submit()}
+            submitLabel="Submit for review"
+          />
         </div>
       )}
     </div>

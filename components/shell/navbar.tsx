@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PRIMARY_NAV } from "@/lib/nav";
 import { cn } from "@/lib/cn";
-import { money } from "@/lib/format";
-import { WALLET } from "@/lib/data/wallet";
 import { useAuth } from "@/components/auth/auth-context";
+import { useWallet } from "@/components/wallet/use-wallet";
 import { Logo } from "@/components/ui/logo";
+import { SignOutIcon } from "@/components/ui/icons";
 import { ModeToggle } from "@/components/theme/mode-toggle";
 import { PaletteMenu } from "@/components/theme/palette-menu";
 import { CouponPill } from "./coupon-pill";
@@ -21,9 +22,15 @@ import { MenuOverlay } from "./menu-overlay";
  */
 export function Navbar() {
   const pathname = usePathname();
-  const { status, user } = useAuth();
+  const { status, user, signOut } = useAuth();
+  const { wallet } = useWallet();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const signedIn = status === "authenticated";
+  const hasAdminAccess = Boolean(user?.permissions?.some((permission) =>
+    ["marketing:view", "post:write", "user:view"].includes(permission),
+  ));
   const initials = (user?.displayName || user?.email || "?")
     .split(/[\s@._-]+/)
     .filter(Boolean)
@@ -31,6 +38,13 @@ export function Navbar() {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await signOut();
+    router.push("/");
+    router.refresh();
+  };
 
   // Close the overlay whenever the route changes — including browser back,
   // which no link handler would catch. Adjusting state during render is
@@ -43,7 +57,14 @@ export function Navbar() {
 
   return (
     <div className="sticky top-3.5 z-[90] px-[var(--pad)]">
-      <div className="relative mx-auto max-w-[var(--maxw)]">
+      {/* Console screens run wider than the marketing measure, so the bar
+          widens with them rather than floating narrow above them. */}
+      <div
+        className={cn(
+          "relative mx-auto",
+          pathname.startsWith("/console") ? "max-w-[var(--maxw-console)]" : "max-w-[var(--maxw)]",
+        )}
+      >
         <div
           className="relative z-[96] flex h-[58px] items-center gap-2.5 rounded-[14px] border border-hair py-0 pl-4 pr-2.5 [backdrop-filter:blur(22px)_saturate(1.3)]"
           style={{ background: "color-mix(in oklab, var(--bg) 72%, transparent)" }}
@@ -73,6 +94,14 @@ export function Navbar() {
           <CouponPill className="hidden md:flex" />
 
           <div className="hidden items-center gap-1 md:flex">
+            {hasAdminAccess && (
+              <Link
+                href="/console"
+                className="rounded-[9px] px-3 py-2 font-mono text-[9.5px] uppercase tracking-[0.12em] text-primary hover:bg-surface"
+              >
+                Console
+              </Link>
+            )}
             <ModeToggle />
             <PaletteMenu />
           </div>
@@ -81,12 +110,16 @@ export function Navbar() {
               account monogram, as in the prototype's signed-in state. */}
           {signedIn ? (
             <Link href="/dashboard" className="hidden flex-none items-center gap-2 text-fg md:flex">
-              <span
-                data-count
-                className="flex h-9 items-center rounded-[10px] border border-hair px-3 font-mono text-xs"
-              >
-                {money(WALLET.available)}
-              </span>
+              {/* Only once the real balance is known — an invented number
+                  here is the first thing a member sees. */}
+              {wallet && (
+                <span
+                  data-count
+                  className="flex h-9 items-center rounded-[10px] border border-hair px-3 font-mono text-xs"
+                >
+                  ${wallet.availableUsd}
+                </span>
+              )}
               <span
                 className="grid size-8 place-items-center rounded-[10px] font-mono text-[11px] text-primary"
                 style={{ background: "color-mix(in oklab, var(--primary) 20%, var(--surface))" }}
@@ -94,6 +127,22 @@ export function Navbar() {
                 {initials}
               </span>
             </Link>
+          ) : null}
+
+          {/* Signing out belongs where you always are, not three clicks deep in
+              account settings. Icon only — the label is the tooltip and the
+              accessible name. */}
+          {signedIn ? (
+            <button
+              type="button"
+              disabled={signingOut}
+              onClick={() => void handleSignOut()}
+              title="Sign out"
+              aria-label="Sign out"
+              className="hidden size-9 flex-none cursor-pointer place-items-center rounded-[10px] border border-hair text-muted transition hover:border-danger hover:text-danger disabled:cursor-wait disabled:opacity-60 md:grid"
+            >
+              <SignOutIcon size={16} />
+            </button>
           ) : status === "guest" ? (
             <Link
               href="/signup"

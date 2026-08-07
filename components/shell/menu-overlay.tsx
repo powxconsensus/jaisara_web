@@ -29,7 +29,10 @@ export function MenuOverlay({
   triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
   const { palette, setPalette, mode, toggleMode } = useTheme();
-  const { status, signOut } = useAuth();
+  const { status, signOut, user } = useAuth();
+  const hasAdminAccess = Boolean(user?.permissions?.some((permission) =>
+    ["marketing:view", "post:write", "user:view"].includes(permission),
+  ));
   const router = useRouter();
   const close = () => onOpenChange(false);
   const logout = async () => {
@@ -107,6 +110,15 @@ export function MenuOverlay({
               <div className="flex flex-wrap gap-2">
                 {status === "authenticated" ? (
                   <>
+                    {hasAdminAccess && (
+                      <Link
+                        href="/console"
+                        onClick={close}
+                        className="flex items-center gap-2 rounded-[10px] border border-primary px-[18px] py-[11px] font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-primary"
+                      >
+                        Console
+                      </Link>
+                    )}
                     <Link
                       href="/dashboard"
                       onClick={close}

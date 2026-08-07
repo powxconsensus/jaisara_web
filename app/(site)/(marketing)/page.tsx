@@ -1,4 +1,6 @@
 import { Hero } from "@/components/landing/hero";
+import { fetchRecentActivity, toMarquee, toReceipts } from "@/lib/data/activity";
+import { fetchEstimatorFirms, fetchFirms, fetchStats } from "@/lib/data/deals";
 import { Split } from "@/components/landing/split";
 import { FirmIndex } from "@/components/landing/firm-index";
 import { Estimator } from "@/components/estimator/estimator";
@@ -6,13 +8,25 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { ClubBand } from "@/components/landing/club-band";
 import { Faq } from "@/components/landing/faq";
 
-export default function LandingPage() {
+/**
+ * Server-rendered so the hero's receipt feed is in the cached HTML on first
+ * paint. See `lib/data/activity.ts` for why this is revalidated on the server
+ * rather than polled from every visitor's browser.
+ */
+export default async function LandingPage() {
+  const [activity, firms, estimatorFirms, stats] = await Promise.all([
+    fetchRecentActivity(),
+    fetchFirms(),
+    fetchEstimatorFirms(),
+    fetchStats(),
+  ]);
+
   return (
     <>
-      <Hero />
+      <Hero receipts={toReceipts(activity)} marquee={toMarquee(activity)} stats={stats} />
       <Split />
-      <FirmIndex />
-      <Estimator />
+      <FirmIndex firms={firms} />
+      <Estimator firms={estimatorFirms} />
       <HowItWorks />
       <ClubBand />
       <Faq />

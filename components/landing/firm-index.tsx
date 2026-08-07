@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FIRM_COUNT, topFirmsByCashback } from "@/lib/data/firms";
+import type { Firm } from "@/lib/data/firms";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
 
@@ -9,8 +9,9 @@ import { SectionHeading } from "@/components/ui/section-heading";
  * Sorted by cashback descending, and the rank number is the position in that
  * ordering, so the two can never disagree (handoff §4.1).
  */
-export function FirmIndex() {
-  const firms = topFirmsByCashback(5);
+export function FirmIndex({ firms = [] }: { firms?: Firm[] }) {
+  // Best rate first — the index is a comparison, so the strongest offer leads.
+  const top = [...firms].sort((a, b) => b.cashback - a.cashback).slice(0, 5);
 
   return (
     <Reveal className="mx-auto max-w-[var(--maxw)] px-[var(--pad)] pb-[var(--secpb)] pt-[var(--secpt)]">
@@ -24,12 +25,12 @@ export function FirmIndex() {
           href="/deals"
           className="flex-none pb-1.5 font-mono text-[10.5px] tracking-[0.15em] text-muted transition-colors hover:text-fg"
         >
-          VIEW ALL {FIRM_COUNT} ↗
+          VIEW ALL {firms.length} ↗
         </Link>
       </div>
 
       <div className="mt-[26px]">
-        {firms.map((firm, i) => (
+        {top.map((firm, i) => (
           <Link
             key={firm.slug}
             href={`/firm/${firm.slug}`}

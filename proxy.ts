@@ -16,6 +16,14 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+/**
+ * `/console` is here as well as `/dashboard`.
+ *
+ * The console guards itself client-side too, but that check runs only after
+ * the bundle has loaded — without this an unauthenticated visitor gets a blank
+ * admin frame before being told to sign in. This is a redirect, not the
+ * security boundary: every console request is authorised again by the API.
+ */
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/console", "/console/:path*"],
 };

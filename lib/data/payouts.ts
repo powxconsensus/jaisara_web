@@ -7,30 +7,23 @@ export interface Chain {
   mark: string;
   note: string;
   placeholder: string;
+  /** The value `PayoutAddress.chain` accepts — a fixed enum in the schema. */
+  enumValue: "TRC20" | "ERC20" | "BEP20" | "POLYGON" | "SOLANA";
 }
 
+/**
+ * The supported networks.
+ *
+ * Legitimately static: `PayoutAddress.chain` is a fixed enum in the schema, so
+ * this list is a mirror of it rather than data standing in for an API. The
+ * gift-card catalogue and the minimum withdrawal used to live here too — both
+ * are now read from the API, because both are things an admin changes.
+ */
 export const CHAINS: Chain[] = [
-  { key: "trc20", name: "TRC-20", mark: "TRX", note: "Tron · no fee", placeholder: "T… Tron address" },
-  { key: "erc20", name: "ERC-20", mark: "ETH", note: "Ethereum · network fee applies", placeholder: "0x… Ethereum address" },
-  { key: "bep20", name: "BEP-20", mark: "BNB", note: "BNB Smart Chain · low fee", placeholder: "0x… BSC address" },
-  { key: "polygon", name: "Polygon", mark: "POL", note: "Low fee", placeholder: "0x… Polygon address" },
-  { key: "sol", name: "Solana", mark: "SOL", note: "SPL USDC/USDT · fast", placeholder: "Solana address" },
+  { key: "trc20", name: "TRC-20", mark: "TRX", note: "Tron · no fee", placeholder: "T… Tron address", enumValue: "TRC20" },
+  { key: "erc20", name: "ERC-20", mark: "ETH", note: "Ethereum · network fee applies", placeholder: "0x… Ethereum address", enumValue: "ERC20" },
+  { key: "bep20", name: "BEP-20", mark: "BNB", note: "BNB Smart Chain · low fee", placeholder: "0x… BSC address", enumValue: "BEP20" },
+  { key: "polygon", name: "Polygon", mark: "POL", note: "Low fee", placeholder: "0x… Polygon address", enumValue: "POLYGON" },
+  { key: "sol", name: "Solana", mark: "SOL", note: "SPL USDC/USDT · fast", placeholder: "Solana address", enumValue: "SOLANA" },
 ];
 
-export interface GiftCard {
-  key: string;
-  name: string;
-  mark: string;
-  note: string;
-}
-
-export const GIFT_CARDS: GiftCard[] = [
-  { key: "amazon", name: "Amazon", mark: "AMZ", note: "US, UK, DE, IN" },
-  { key: "apple", name: "Apple", mark: "APL", note: "App Store & iTunes" },
-  { key: "google", name: "Google Play", mark: "GP", note: "Most regions" },
-  { key: "steam", name: "Steam", mark: "STM", note: "Global wallet" },
-  { key: "visa", name: "Visa prepaid", mark: "VISA", note: "US only" },
-];
-
-/** Minimum withdrawal, USD. */
-export const MIN_WITHDRAWAL = 20;

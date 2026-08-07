@@ -82,6 +82,11 @@
 
   /* Layout */
   --maxw: 1240px;
+  /* The console is a working surface, not a reading one: its screens are
+     tables and side-by-side comparisons that a reading measure squeezes.
+     Console routes swap `--maxw` for this on the page *and* the navbar, so the
+     floating bar never sits as a narrow island above much wider content. */
+  --maxw-console: min(94vw, 1720px);
   --pad: 18px; /* mobile gutter; widened below */
   --secpt: clamp(44px, 6vw, 84px);
   --secpb: clamp(24px, 4vw, 40px);

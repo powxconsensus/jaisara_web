@@ -25,13 +25,22 @@ export function upstreamHeaders(request: Request, json = true): Headers {
   return headers;
 }
 
+/**
+ * Calls the API.
+ *
+ * `no-store` is the default because most callers are per-request, authenticated
+ * reads — but it is a *default*, applied before the spread so a caller can ask
+ * for a cached, revalidating fetch instead. It used to be applied after, which
+ * silently overrode the caller and left `no-store` paired with a `revalidate`
+ * window; that contradiction deadlocked the prerender of every marketing page.
+ */
 export async function apiRequest(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
   return fetch(authApiUrl(path), {
-    ...init,
     cache: "no-store",
+    ...init,
   });
 }
 

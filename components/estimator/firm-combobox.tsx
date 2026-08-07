@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { ESTIMATOR_FIRMS, type EstimatorFirm } from "@/lib/data/estimator";
+import { type EstimatorFirm } from "@/lib/data/estimator";
 import { cn } from "@/lib/cn";
 
 /**
@@ -15,9 +15,11 @@ import { cn } from "@/lib/cn";
 export function FirmCombobox({
   value,
   onChange,
+  firms,
 }: {
   value: EstimatorFirm | null;
   onChange: (firm: EstimatorFirm) => void;
+  firms: EstimatorFirm[];
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -28,9 +30,9 @@ export function FirmCombobox({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return ESTIMATOR_FIRMS;
-    return ESTIMATOR_FIRMS.filter((firm) => firm.name.toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return firms;
+    return firms.filter((firm) => firm.name.toLowerCase().includes(q));
+  }, [query, firms]);
 
   // Autofocus the search when the panel opens.
   useEffect(() => {

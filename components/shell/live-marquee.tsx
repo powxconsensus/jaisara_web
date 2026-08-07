@@ -14,7 +14,10 @@ const TICKER_FIRMS = topFirmsByCashback(10);
  * reduced motion (handoff §4.1). The track is duplicated so translating it
  * -50% loops seamlessly; the copy is hidden from assistive tech.
  */
-export function LiveMarquee() {
+export function LiveMarquee({ lines }: { lines?: string[] }) {
+  // Real cashback when there is any, the designed copy while the platform is
+  // new — an empty ticker under the hero reads as broken, not as honest.
+  const feed = lines && lines.length > 0 ? lines : LIVE_FEED;
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -23,7 +26,7 @@ export function LiveMarquee() {
     return () => clearInterval(id);
   }, []);
 
-  const line = LIVE_FEED[index % LIVE_FEED.length];
+  const line = feed[index % feed.length];
 
   return (
     /* The top margin sets where the ground's horizon lands: the ticker pins to

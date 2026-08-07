@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { ClaimTabs } from "@/components/claim/claim-tabs";
+import { fetchDeals, toClaimPlatforms } from "@/lib/data/deals";
 
 export const metadata: Metadata = { title: "Submit a claim" };
 
-export default function ClaimPage() {
+export default async function ClaimPage() {
+  const platforms = toClaimPlatforms(await fetchDeals());
+
   return (
     <div className="max-w-[660px]">
       <p className="mb-3.5 font-mono text-[10px] uppercase tracking-[0.24em] text-muted">
@@ -16,7 +19,7 @@ export default function ClaimPage() {
         Let us fetch it automatically, drop the receipt and we&rsquo;ll read it, or type the details
         yourself.
       </p>
-      <ClaimTabs />
+      <ClaimTabs platforms={platforms} />
     </div>
   );
 }

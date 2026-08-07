@@ -1,17 +1,33 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FIRMS, getFirm } from "@/lib/data/firms";
+import { fetchDeals, fetchFirms, toFirm } from "@/lib/data/deals";
 import { CopyCoupon } from "@/components/deals/copy-coupon";
 
-/** Pre-render every firm page — they are the SEO surface. */
-export function generateStaticParams() {
-  return FIRMS.map((firm) => ({ slug: firm.slug }));
+/**
+ * Pre-render every firm page — they are the SEO surface.
+ *
+ * Built from the live catalogue, so publishing a firm in the console produces
+ * its public page on the next build without a code change.
+ */
+export async function generateStaticParams() {
+  const firms = await fetchFirms();
+  return firms.map((firm) => ({ slug: firm.slug }));
+}
+
+/** One firm, from the catalogue, falling back to the designed set. */
+async function getFirmBySlug(slug: string) {
+  const deals = await fetchDeals();
+  const deal = deals.find((entry) => entry.slug === slug);
+  if (deal) return toFirm(deal);
+
+  const firms = await fetchFirms();
+  return firms.find((firm) => firm.slug === slug) ?? null;
 }
 
 export async function generateMetadata({ params }: PageProps<"/firm/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const firm = getFirm(slug);
+  const firm = await getFirmBySlug(slug);
   if (!firm) return { title: "Firm not found" };
   return {
     title: `${firm.name} — ${firm.cashback}% cashback`,
@@ -36,7 +52,7 @@ const STEPS = [
 
 export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
   const { slug } = await params;
-  const firm = getFirm(slug);
+  const firm = await getFirmBySlug(slug);
   if (!firm) notFound();
 
   const terms = [

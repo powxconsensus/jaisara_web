@@ -55,3 +55,25 @@ export const SearchIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (
     <path d="m20 20-3.2-3.2" />
   </Icon>
 );
+
+/**
+ * Sign out: door on the left, arrow leaving to the right.
+ *
+ * The first version had the arrow pointing back into the frame, which is the
+ * conventional glyph for signing *in* — the direction is the whole meaning of
+ * this icon, so it has to leave.
+ */
+export const SignOutIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (
+  <Icon {...p}>
+    <path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2" />
+    <path d="m14 7 5 5-5 5" />
+    <path d="M19 12H9" />
+  </Icon>
+);
+
+export const LockIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (
+  <Icon {...p}>
+    <rect x="4" y="10.5" width="16" height="10" rx="2.5" />
+    <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+  </Icon>
+);

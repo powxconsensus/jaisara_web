@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FIRM_COUNT } from "@/lib/data/firms";
+import { fetchStats } from "@/lib/data/deals";
 import { CountUp } from "@/components/ui/count-up";
 
 export const metadata: Metadata = {
@@ -30,7 +30,8 @@ const PRINCIPLES = [
   },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const stats = await fetchStats();
   return (
     <div className="mx-auto max-w-[var(--maxw)] px-[var(--pad)] pb-[60px] pt-[clamp(40px,6vw,76px)]">
       <p className="mb-3.5 font-mono text-[10px] uppercase tracking-[0.24em] text-muted">
@@ -44,14 +45,14 @@ export default function AboutPage() {
       </h1>
       <p className="mb-12 max-w-[58ch] text-[16.5px] leading-[1.7] text-muted">
         Jaisara is a cashback platform for prop firm traders. We hold coupon deals with{" "}
-        {FIRM_COUNT} firms, and when you buy through one, most of the commission comes back to you
+        {stats.firmCount} firms, and when you buy through one, most of the commission comes back to you
         instead of staying with a comparison site.
       </p>
 
       <dl className="mb-14 flex flex-wrap gap-[clamp(24px,4vw,64px)] border-y border-hair py-8">
         {[
           { value: 412850, prefix: "$", suffix: "", label: "PAID TO TRADERS" },
-          { value: FIRM_COUNT, prefix: "", suffix: "", label: "FIRMS INDEXED" },
+          { value: stats.firmCount, prefix: "", suffix: "", label: "FIRMS INDEXED" },
           { value: 9200, prefix: "", suffix: "+", label: "MEMBERS" },
         ].map((stat) => (
           <div key={stat.label}>
