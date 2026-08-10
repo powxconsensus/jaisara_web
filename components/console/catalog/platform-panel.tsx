@@ -21,6 +21,8 @@ import {
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
+import { ImagePickerButton, useImageUpload } from "@/components/console/journal/image-upload";
+import { FirmMark } from "@/components/ui/firm-mark";
 import { useMutation, useResource, type Resource } from "@/lib/console-api";
 import { orNone, slugify } from "@/lib/console-format";
 import {
@@ -79,6 +81,25 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
   const canManage = can(P.platformManage);
   const rows = platforms.data ?? [];
   const selected = rows.find((row) => row.id === selectedId) ?? null;
+
+  /**
+   * The logo belongs to a firm that already exists.
+   *
+   * It is stored at `firms/<slug>/logos/…`, and that slug is read from the row
+   * rather than from this form — so there is nowhere to put the bytes until the
+   * firm has been saved once. The endpoint also writes `logoUrl` onto the row
+   * itself, which is why the reload below is not optional.
+   */
+  const logo = useImageUpload(
+    selectedId ? `/api/admin/catalog/platforms/${selectedId}/logo` : "",
+  );
+  const uploadLogo = async (file: File) => {
+    const uploaded = await logo.upload(file);
+    if (!uploaded) return;
+
+    setForm((previous) => ({ ...previous, logoUrl: uploaded.url }));
+    await platforms.reload();
+  };
 
   const choose = (platform: Platform) => {
     setSelectedId(platform.id);
@@ -289,6 +310,56 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
                   }
                 />
               </div>
+            </div>
+
+            {/* The logo is what the storefront leads every row with, so it is
+                worth a real control rather than a URL field somebody has to
+                find a host for. Uploading writes to our own storage and fills
+                the URL in; pasting a URL the firm already hosts also works. */}
+            <div>
+              <FieldLabel htmlFor="platform-logo">LOGO</FieldLabel>
+              <div className="flex flex-wrap items-center gap-3">
+                <FirmMark
+                  name={form.name || "This firm"}
+                  mark={(form.name || "??").slice(0, 2).toUpperCase()}
+                  logoUrl={form.logoUrl || null}
+                  size={44}
+                  className="rounded-[12px]"
+                />
+                <TextInput
+                  id="platform-logo"
+                  type="url"
+                  disabled={!canManage}
+                  placeholder="https://… or upload"
+                  className="min-w-[180px] flex-1"
+                  value={form.logoUrl}
+                  onChange={(event) => setForm({ ...form, logoUrl: event.target.value })}
+                />
+                <ImagePickerButton
+                  disabled={!canManage || !selectedId || logo.uploading}
+                  label={logo.uploading ? "UPLOADING…" : "UPLOAD"}
+                  onPicked={(file) => void uploadLogo(file)}
+                />
+                {form.logoUrl && canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, logoUrl: "" })}
+                    className="cursor-pointer font-mono text-[9px] tracking-[0.14em] text-muted hover:text-danger"
+                  >
+                    REMOVE
+                  </button>
+                )}
+              </div>
+              {logo.error && (
+                <p role="alert" className="mt-2 text-[11.5px] text-danger">
+                  {logo.error}
+                </p>
+              )}
+              <p className="mt-2 text-[11px] text-muted">
+                {selectedId
+                  ? "PNG, JPEG, WebP or GIF, under 5MB. A square mark reads best — the storefront shows it at 40px. Firms without one fall back to a monogram. Uploading saves it to the firm straight away."
+                  : "Save the firm first — its logo is filed under the firm's own slug, so there is nowhere to put it until the firm exists. Firms without one fall back to a monogram."}
+              </p>
             </div>
 
             <div>

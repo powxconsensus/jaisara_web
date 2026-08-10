@@ -5,6 +5,8 @@ import { useId, useState } from "react";
 import { FieldLabel, TextInput } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { VerificationSent } from "@/components/auth/verification-sent";
+import { ForgotPassword } from "@/components/auth/forgot-password";
 import { isStrongPassword, passwordPolicyMessage } from "@/lib/password-policy";
 import { PasswordRequirements } from "@/components/auth/password-requirements";
 
@@ -60,6 +62,7 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [verification, setVerification] = useState<VerificationNotice | null>(null);
+  const [recovering, setRecovering] = useState(false);
   const emailId = useId();
   const passwordId = useId();
   const passwordRequirementsId = useId();
@@ -147,32 +150,6 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
     window.location.assign(target.toString());
   };
 
-  const forgotPassword = async () => {
-    if (!email) {
-      setFormError("Enter your email address first.");
-      return;
-    }
-    setPending(true);
-    setFormError(null);
-    try {
-      const response = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) {
-        setFormError(apiErrorMessage(body, "Could not send a password reset email."));
-        return;
-      }
-      toast("If that account exists, a reset link is on its way", "info");
-    } catch {
-      setFormError("The authentication service is unavailable. Please try again.");
-    } finally {
-      setPending(false);
-    }
-  };
-
   const resendVerification = async () => {
     if (!verification) return;
     setPending(true);
@@ -196,6 +173,36 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
       setPending(false);
     }
   };
+
+  // Recovery takes the whole screen. Firing the request from under the sign-in
+  // form left somebody who had just said they cannot log in looking at the
+  // form that does not work for them, with a toast as the only feedback.
+  if (recovering) {
+    return <ForgotPassword initialEmail={email} onBack={() => setRecovering(false)} />;
+  }
+
+  /**
+   * Once the link is sent there is nothing left to do on this screen, so the
+   * form is replaced rather than annotated. Leaving a lit Create-account
+   * button under a "check your inbox" notice invites the one action that
+   * cannot help.
+   */
+  if (verification) {
+    return (
+      <VerificationSent
+        email={verification.email}
+        emailSent={verification.emailSent}
+        pending={pending}
+        error={formError}
+        onResend={() => void resendVerification()}
+        onBack={() => {
+          setVerification(null);
+          setFormError(null);
+          setPassword("");
+        }}
+      />
+    );
+  }
 
   return (
     <div className="w-full max-w-[420px] [animation:jsUp_.7s_.08s_cubic-bezier(.2,.8,.2,1)_both]">
@@ -271,7 +278,7 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
               !isSignup && (
                 <button
                   type="button"
-                  onClick={() => void forgotPassword()}
+                  onClick={() => setRecovering(true)}
                   disabled={pending}
                   className="cursor-pointer font-mono text-[9.5px] tracking-[0.1em] text-muted hover:text-fg"
                 >
@@ -368,33 +375,6 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
           </div>
         )}
 
-        {verification && (
-          <div
-            role="status"
-            className="rounded-[12px] border p-4"
-            style={{
-              borderColor: "color-mix(in oklab, var(--info) 38%, var(--hair))",
-              background: "color-mix(in oklab, var(--info) 8%, var(--surface-2))",
-            }}
-          >
-            <p className="font-mono text-[9.5px] tracking-[0.16em] text-info">
-              VERIFY YOUR EMAIL
-            </p>
-            <p className="mt-2 text-[12.5px] leading-[1.6] text-muted">
-              {verification.emailSent
-                ? `We sent a one-hour verification link to ${verification.email}.`
-                : `A verification link for ${verification.email} is still active. Check your inbox and spam folder.`}
-            </p>
-            <button
-              type="button"
-              onClick={() => void resendVerification()}
-              disabled={pending}
-              className="mt-3 cursor-pointer font-mono text-[9.5px] tracking-[0.12em] text-primary disabled:opacity-50"
-            >
-              SEND A FRESH LINK
-            </button>
-          </div>
-        )}
 
         <button
           type="submit"

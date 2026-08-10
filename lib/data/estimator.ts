@@ -38,6 +38,7 @@ export interface EstimatorFirm {
   slug: string;
   name: string;
   mark: string;
+  logoUrl: string | null;
   cashbackPct: number;
   discountPct: number;
   plans: string[];
@@ -48,6 +49,7 @@ export const ESTIMATOR_FIRMS: EstimatorFirm[] = FIRMS.map((firm) => ({
   slug: firm.slug,
   name: firm.name,
   mark: firm.mark,
+  logoUrl: firm.logoUrl ?? null,
   cashbackPct: firm.cashback,
   discountPct: firm.discount,
   plans: plansFor(firm.kind),

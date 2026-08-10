@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { PublicStats } from "@/lib/data/deals";
 import type { Receipt } from "@/lib/data/receipts";
 import { CountUp } from "@/components/ui/count-up";
+import { HeroCta } from "./hero-cta";
 import { ReceiptDeck } from "@/components/receipt/receipt-deck";
 import { LiveMarquee } from "@/components/shell/live-marquee";
 import { ImpactProvider } from "./impact-context";
@@ -112,16 +113,13 @@ export function Hero({
                 >
                   Start earning<span className="text-sm">↗</span>
                 </Link>
-                <Link
-                  href="/signup"
+                <HeroCta
                   className="flex flex-[1_1_42%] items-center justify-center whitespace-nowrap rounded-btn border px-3.5 py-[15px] font-mono text-[11px] uppercase tracking-[0.15em] transition hover:border-primary md:flex-none md:text-xs"
                   style={{
                     borderColor: "color-mix(in oklab, var(--text) 26%, transparent)",
                     background: "color-mix(in oklab, var(--surface) 62%, transparent)",
                   }}
-                >
-                  Free account
-                </Link>
+                />
                 <Link
                   href="/#estimator"
                   className="flex flex-[1_1_42%] items-center justify-center gap-2 whitespace-nowrap rounded-btn border px-3 py-[15px] font-mono text-[11px] uppercase tracking-[0.15em] transition hover:border-primary md:flex-none md:text-xs"

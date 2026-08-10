@@ -1,370 +1,316 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/cn";
-import { CloseIcon } from "@/components/ui/icons";
-import { useToast } from "@/components/shell/toast";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-context";
-import { apiErrorMessage } from "@/lib/auth-types";
 import { useAssistant } from "./assistant-context";
+import { supportApi, type QuickOption, type TicketSummary } from "./support-api";
+import { HomeView, loadHome } from "./home-view";
+import { AnswersView } from "./answers-view";
+import { ThreadsView } from "./threads-view";
+import { ThreadView } from "./thread-view";
+import { ArticleView } from "./article-view";
+import {
+  DeskHeader,
+  DetailHeader,
+  Perforation,
+  TabBar,
+  statusLabel,
+  ticketRef,
+  type Tab,
+} from "./widget-ui";
+import type { HelpArticleSummary } from "./support-api";
 
 /**
- * The support assistant (handoff §4.12).
+ * The support desk.
  *
- * The shape of the conversation is deliberate:
+ * A docket with three root tabs and two views that push over them. The panel's
+ * whole identity is the receipt: a raised header, a punched perforation beneath
+ * it, and conversation cards with torn left edges.
  *
- *  1. **Guided options first.** Most questions have an answer already sitting
- *     in the member's own rows — which claim, what status, what date it clears.
- *     Those are answered from the database, not by a model, because a bot that
- *     guesses at somebody's balance creates a complaint rather than closing one.
- *  2. **Then free chat**, with that same data as context and a standing
- *     instruction never to state a figure it was not given.
- *  3. **Then a ticket, only if the member says so.** The assistant proposes
- *     escalation; the member confirms it. A bot that opens tickets on its own
- *     judgement fills the queue with things nobody asked to escalate.
- *
- * Signed out, none of this applies — there is no account to answer about, so
- * it points at sign-in instead of pretending to help.
+ * The flow is deflection-first and stays that way. Home offers the questions
+ * the platform can answer from the member's own rows; Answers expands them in
+ * place; a conversation is reached *through* an attempt, and a ticket only
+ * exists once the assistant has actually failed.
  */
 
-interface Message {
-  from: "bot" | "me" | "agent";
-  text: string;
-  action?: { label: string; href: string } | null;
+interface View {
+  tab: Tab;
+  /** A conversation pushed over the tab — existing ticket, or fresh with a seed. */
+  thread?: { ticketId?: string; seed?: string };
+  /** A help article pushed over the tab. */
+  doc?: string;
 }
-
-interface QuickOption {
-  topic: string;
-  label: string;
-}
-
-const GREETING =
-  "Hi — I can look up your claims, cashback and payouts. Pick one of these, or just tell me what is going on.";
 
 export function Assistant() {
-  const { isOpen, toggle, close } = useAssistant();
-  const { status } = useAuth();
-  const { toast } = useToast();
-
-  const [messages, setMessages] = useState<Message[]>([{ from: "bot", text: GREETING }]);
-  const [options, setOptions] = useState<QuickOption[]>([]);
-  const [freeChat, setFreeChat] = useState(true);
-  const [draft, setDraft] = useState("");
-  const [typing, setTyping] = useState(false);
-  const [canEscalate, setCanEscalate] = useState(false);
-  const [ticketId, setTicketId] = useState<string | null>(null);
-  const bodyRef = useRef<HTMLDivElement>(null);
-
+  const { isOpen, open, close } = useAssistant();
+  const { status, user } = useAuth();
   const signedIn = status === "authenticated";
 
-  // Keep the newest message in view as the thread grows.
-  useEffect(() => {
-    const body = bodyRef.current;
-    if (body) body.scrollTop = body.scrollHeight;
-  }, [messages, typing]);
-
-  useEffect(() => {
-    if (!isOpen || !signedIn) return;
-    const controller = new AbortController();
-
-    void fetch("/api/support/options", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => (response.ok ? await response.json() : null))
-      .then((data: { options: QuickOption[]; freeChat: boolean } | null) => {
-        if (controller.signal.aborted || !data) return;
-        setOptions(data.options);
-        setFreeChat(data.freeChat);
-      })
-      .catch(() => undefined);
-
-    return () => controller.abort();
-  }, [isOpen, signedIn]);
-
-  /** The transcript the API needs, without the opening greeting. */
-  const historyFor = (list: Message[]) =>
-    list
-      .filter((message) => message.text !== GREETING && message.from !== "agent")
-      .map((message) => ({
-        role: message.from === "me" ? ("member" as const) : ("assistant" as const),
-        body: message.text,
-      }));
-
-  const ask = async (payload: { topic?: string; message?: string }, echo?: string) => {
-    const next: Message[] = echo ? [...messages, { from: "me", text: echo }] : messages;
-    if (echo) setMessages(next);
-    setDraft("");
-    setTyping(true);
-
-    try {
-      const response = await fetch("/api/support/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...payload, history: historyFor(next).slice(-18) }),
-      });
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        setMessages((prev) => [
-          ...prev,
-          { from: "bot", text: apiErrorMessage(data, "I could not reach the account service.") },
-        ]);
-        setCanEscalate(true);
-        return;
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        { from: "bot", text: data.body, action: data.action ?? null },
-      ]);
-      if (data.suggestEscalation) setCanEscalate(true);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { from: "bot", text: "I could not reach the account service just now." },
-      ]);
-      setCanEscalate(true);
-    } finally {
-      setTyping(false);
-    }
-  };
-
+  const [view, setView] = useState<View>({ tab: "home" });
+  const [unread, setUnread] = useState(0);
+  const [tickets, setTickets] = useState<TicketSummary[]>([]);
+  const [latest, setLatest] = useState<TicketSummary | null>(null);
+  const [popular, setPopular] = useState<QuickOption[]>([]);
+  const [guides, setGuides] = useState<HelpArticleSummary[]>([]);
   /**
-   * Raises the ticket. Only ever from an explicit click — the assistant can
-   * suggest this, but the member is the one who decides a person gets involved.
+   * Which answer is expanded, held here rather than in the Answers view.
+   *
+   * Tapping a question on Home has to land on Answers with that one already
+   * open — the design's whole point is that Home's popular list is a shortcut
+   * into the index, not a separate screen.
    */
-  const escalate = async () => {
-    const history = historyFor(messages);
-    if (history.length === 0) {
-      setMessages((prev) => [
-        ...prev,
-        { from: "bot", text: "Tell me what is going on first, then I can pass it on with context." },
-      ]);
+  const [openTopic, setOpenTopic] = useState<string | null>(null);
+
+  const refreshUnread = useCallback(async () => {
+    if (!signedIn) {
+      setUnread(0);
       return;
     }
-
-    setTyping(true);
     try {
-      const response = await fetch("/api/support/tickets", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ history }),
-      });
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        setMessages((prev) => [
-          ...prev,
-          { from: "bot", text: apiErrorMessage(data, "I could not raise that ticket.") },
-        ]);
-        return;
-      }
-
-      setTicketId(data.id);
-      setCanEscalate(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          from: "agent",
-          text: `Raised as "${data.subject}". Somebody will reply within one to two working days, and you will get an email when they do.`,
-        },
-      ]);
-      toast("Ticket raised.", "success");
+      setUnread((await supportApi.unread()).unread);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { from: "bot", text: "I could not raise that ticket just now." },
-      ]);
-    } finally {
-      setTyping(false);
+      // A badge is not worth surfacing an error for.
     }
-  };
+  }, [signedIn]);
 
-  const isFresh = messages.length === 1;
+  const refreshHome = useCallback(async () => {
+    const [home, list, help] = await Promise.all([
+      loadHome(signedIn),
+      signedIn ? supportApi.tickets().catch(() => [] as TicketSummary[]) : Promise.resolve([]),
+      supportApi.helpArticles().catch(() => [] as HelpArticleSummary[]),
+    ]);
+    setLatest(home.latest);
+    setPopular(home.popular);
+    setTickets(list);
+    setGuides(help);
+  }, [signedIn]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the setStates are inside the callbacks, behind an await
+    void refreshUnread();
+  }, [refreshUnread]);
+
+  // Home's cards are only worth fetching when the panel is actually open.
+  useEffect(() => {
+    if (!isOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the setStates are inside refreshHome, behind an await
+    void refreshHome();
+  }, [isOpen, refreshHome]);
+
+  /**
+   * Poll while closed.
+   *
+   * Sixty seconds, signed in only: this is a reply arriving within a working
+   * day or two, not a live chat. Polling harder would cost every open tab a
+   * request a second to learn nothing.
+   */
+  useEffect(() => {
+    if (!signedIn || isOpen) return;
+    const timer = window.setInterval(() => void refreshUnread(), 60_000);
+    return () => window.clearInterval(timer);
+  }, [signedIn, isOpen, refreshUnread]);
+
+  /**
+   * `?support=<id>` opens straight onto a thread — what the reply email links
+   * to. Read from `location` rather than `useSearchParams` so this widget,
+   * mounted on every page, does not drag every static route into dynamic
+   * rendering.
+   */
+  useEffect(() => {
+    const ticketId = new URLSearchParams(window.location.search).get("support");
+    if (!ticketId || !signedIn) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reacting to the URL, which is outside React
+    setView({ tab: "threads", thread: { ticketId } });
+    open();
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("support");
+    window.history.replaceState(null, "", url.toString());
+  }, [signedIn, open]);
+
+  const back = () => setView({ tab: view.tab });
+  const pushed = Boolean(view.thread || view.doc);
+
+  /**
+   * The status line.
+   *
+   * Says what is actually true for this member: whether somebody is already on
+   * one of their conversations, or the desk is simply open. A fixed "replies in
+   * ~6 min" would be a promise nothing here can keep.
+   */
+  const deskStatus = (() => {
+    const waiting = tickets.filter((ticket) => ticket.status === "OPEN").length;
+    if (waiting > 0) {
+      return `${waiting} WITH US · REPLIES BY EMAIL`;
+    }
+    return "OPEN · ANSWERS FROM YOUR ACCOUNT";
+  })();
+
+  const detail = (() => {
+    if (view.doc) {
+      const guide = guides.find((row) => row.slug === view.doc);
+      return { title: guide?.title ?? "Guide", meta: "GUIDE" };
+    }
+    if (view.thread?.ticketId) {
+      const ticket = tickets.find((row) => row.id === view.thread?.ticketId);
+      return {
+        title: ticket?.subject ?? "Conversation",
+        // Ref · status · age, the way the design prints it.
+        meta: ticket
+          ? `${ticketRef(ticket.id)} · ${statusLabel(ticket.status)} · ${ago(ticket.updatedAt)}`
+          : undefined,
+      };
+    }
+    if (view.thread) return { title: "Ask the desk", meta: "THE ASSISTANT ANSWERS FIRST" };
+    return null;
+  })();
 
   return (
     <>
       {isOpen && (
         <div
           role="dialog"
-          aria-label="Support chat"
+          aria-label="Jaisara support desk"
           /* dvh, not vh — mobile browser chrome otherwise clips the input. */
-          className="fixed bottom-[calc(var(--chat-bottom)+60px)] right-4 z-[160] flex w-[var(--chat-w)] flex-col overflow-hidden rounded-[18px] border border-hair bg-surface shadow-card [animation:jsUp_.32s_cubic-bezier(.2,.8,.2,1)_both]"
-          style={{ height: "var(--chat-h)", maxHeight: "calc(100dvh - 190px)" }}
+          className="fixed bottom-[calc(var(--chat-bottom)+66px)] right-4 z-[160] flex w-[var(--chat-w)] flex-col overflow-hidden rounded-[20px] border border-hair bg-surface shadow-card [animation:jsUp_.34s_cubic-bezier(.2,.8,.2,1)_both]"
+          style={{ height: "var(--chat-h)", maxHeight: "calc(100dvh - 180px)" }}
         >
-          <header className="flex flex-none items-center gap-3 border-b border-hair-soft px-[18px] py-4">
-            <span
-              className={cn(
-                "grid size-[34px] flex-none place-items-center rounded-[10px] font-display text-[13px] font-black",
-                ticketId ? "bg-club text-bg" : "bg-primary text-on-primary",
-              )}
-            >
-              J
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13.5px] font-semibold">
-                {ticketId ? "Ticket raised" : "Jaisara Assistant"}
-              </p>
-              <p className="mt-0.5 flex items-center gap-1.5">
-                <span className="size-[5px] rounded-[2px] bg-success" />
-                <span className="font-mono text-[9px] tracking-[0.06em] text-muted">
-                  {ticketId
-                    ? "A person will reply by email"
-                    : "Answers from your own account"}
-                </span>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close support chat"
-              className="cursor-pointer p-1 text-muted hover:text-fg"
-            >
-              <CloseIcon size={18} />
-            </button>
-          </header>
+          <DeskHeader status={deskStatus} onClose={close} />
+          <Perforation />
 
-          <div ref={bodyRef} className="flex flex-1 flex-col gap-[11px] overflow-y-auto p-[18px]">
-            {!signedIn ? (
-              <div className="self-start rounded-xl rounded-bl-[4px] border border-hair-soft bg-surface-2 px-3.5 py-[11px] text-[13px] leading-[1.55]">
-                Sign in and I can look up your claims, cashback and payouts directly.
-                <Link
-                  href="/login"
-                  className="mt-2.5 block font-mono text-[10px] tracking-[0.12em] text-primary"
-                >
-                  SIGN IN →
-                </Link>
-              </div>
-            ) : (
-              <>
-                {messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      "max-w-[84%] whitespace-pre-line rounded-xl border px-3.5 py-[11px] text-[13px] leading-[1.55] [animation:jsUp_.3s_both]",
-                      message.from === "me"
-                        ? "self-end rounded-br-[4px] border-transparent bg-primary text-on-primary"
-                        : message.from === "agent"
-                          ? "self-start rounded-bl-[4px] border-club/40 bg-club/10"
-                          : "self-start rounded-bl-[4px] border-hair-soft bg-surface-2",
-                    )}
-                  >
-                    {message.text}
-                    {message.action && (
-                      <Link
-                        href={message.action.href}
-                        onClick={close}
-                        className="mt-2.5 block font-mono text-[10px] tracking-[0.12em] text-primary"
-                      >
-                        {message.action.label.toUpperCase()} →
-                      </Link>
-                    )}
-                  </div>
-                ))}
+          {detail && <DetailHeader title={detail.title} meta={detail.meta} onBack={back} />}
 
-                {typing && (
-                  <div className="flex gap-1 self-start rounded-xl rounded-bl-[4px] bg-surface-2 px-[15px] py-[13px]">
-                    {[0, 0.15, 0.3].map((delay) => (
-                      <span
-                        key={delay}
-                        className="size-[5px] rounded-[2px] bg-muted"
-                        style={{ animation: `jsBlink 1.2s ${delay}s ease-in-out infinite` }}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Guided options under the greeting, not pinned. */}
-                {isFresh && options.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    {options.map((option) => (
-                      <button
-                        key={option.topic}
-                        type="button"
-                        onClick={() => void ask({ topic: option.topic }, option.label)}
-                        className="min-h-9 cursor-pointer rounded-lg border border-hair px-3 py-2 text-[11.5px] text-muted transition hover:border-primary hover:text-fg"
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {signedIn && !ticketId && (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                const message = draft.trim();
-                if (message) void ask({ message }, message);
+          {view.doc ? (
+            <ArticleView slug={view.doc} onAsk={() => setView({ tab: view.tab, thread: {} })} />
+          ) : view.thread ? (
+            <ThreadView
+              userId={user?.id}
+              ticketId={view.thread.ticketId}
+              seed={view.thread.seed}
+              onRead={() => {
+                void refreshUnread();
+                void refreshHome();
               }}
-              className="flex flex-none items-center gap-2 border-t border-hair-soft px-[13px] py-[11px]"
-            >
-              <input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder={
-                  freeChat ? "Ask about a claim, payout, coupon…" : "Pick a question above"
-                }
-                aria-label="Message"
-                className="flex-1 rounded-[10px] border border-hair bg-surface-2 px-[13px] py-[11px] text-[13px] outline-none focus:border-primary"
-              />
-              <button
-                type="submit"
-                disabled={typing}
-                aria-label="Send message"
-                className="grid size-[38px] flex-none cursor-pointer place-items-center rounded-[10px] bg-primary text-sm text-on-primary transition hover:brightness-[1.08] disabled:opacity-50"
-              >
-                ↑
-              </button>
-            </form>
+              onRaised={(ticketId) => {
+                void refreshUnread();
+                void refreshHome();
+                setView({ tab: "threads", thread: { ticketId } });
+              }}
+            />
+          ) : view.tab === "answers" ? (
+            <AnswersView
+              signedIn={signedIn}
+              openTopic={openTopic}
+              setOpenTopic={setOpenTopic}
+              onAskHuman={(question) =>
+                setView({ tab: "answers", thread: { seed: question } })
+              }
+              onOpenGuide={(slug) => setView({ tab: "answers", doc: slug })}
+            />
+          ) : view.tab === "threads" ? (
+            <ThreadsView
+              signedIn={signedIn}
+              onOpen={(id) => setView({ tab: "threads", thread: { ticketId: id } })}
+              onNew={() => setView({ tab: "threads", thread: {} })}
+            />
+          ) : (
+            <HomeView
+              name={signedIn ? (user?.displayName ?? null) : null}
+              latest={latest}
+              popular={popular}
+              onAsk={() => setView({ tab: "home", thread: {} })}
+              onOpenThread={(id) => setView({ tab: "home", thread: { ticketId: id } })}
+              onAnswer={(topic) => {
+                setOpenTopic(topic);
+                setView({ tab: "answers" });
+              }}
+            />
           )}
 
-          {signedIn && (
-            <div className="flex-none border-t border-hair-soft">
-              {ticketId ? (
-                <Link
-                  href={`/dashboard/support/${ticketId}`}
-                  onClick={close}
-                  className="block px-4 py-2.5 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-primary"
-                >
-                  Open the ticket →
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void escalate()}
-                  disabled={typing}
-                  className={cn(
-                    "w-full cursor-pointer px-4 py-2.5 text-center font-mono text-[9px] uppercase tracking-[0.1em] transition-colors disabled:opacity-50",
-                    canEscalate ? "text-primary" : "text-muted hover:text-fg",
-                  )}
-                >
-                  {canEscalate
-                    ? "Raise this with the team →"
-                    : "Not solved? Raise a ticket →"}
-                </button>
-              )}
-            </div>
+          {!pushed && (
+            <TabBar
+              value={view.tab}
+              onChange={(tab) => setView({ tab })}
+              ticketCount={tickets.length}
+            />
           )}
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={isOpen ? "Close support chat" : "Open support chat"}
-        aria-expanded={isOpen}
-        className="fixed bottom-[var(--chat-bottom)] right-4 z-[150] grid size-[46px] cursor-pointer place-items-center rounded-[13px] bg-primary text-on-primary transition-transform duration-[250ms] ease-[cubic-bezier(.2,.8,.2,1)] hover:-translate-y-[3px]"
-        style={{ boxShadow: "0 18px 34px -20px rgba(0,0,0,.45)" }}
-      >
-        <span className="flex gap-[3px]">
-          <span className="size-[5px] rounded-[2px] bg-on-primary" />
-          <span className="size-[5px] rounded-[2px] bg-on-primary opacity-[0.72]" />
-          <span className="size-[5px] rounded-[2px] bg-on-primary opacity-[0.45]" />
-        </span>
-      </button>
+      <Launcher unread={unread} />
     </>
   );
+}
+
+/**
+ * The launcher.
+ *
+ * A receipt with a torn bottom edge, drawn in CSS — the site's own object
+ * rather than the speech bubble every support widget uses.
+ */
+function Launcher({ unread }: { unread: number }) {
+  const { isOpen, toggle } = useAssistant();
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={isOpen ? "Close support desk" : "Open support desk"}
+      aria-expanded={isOpen}
+      className="fixed bottom-[var(--chat-bottom)] right-4 z-[150] grid size-[52px] cursor-pointer place-items-center rounded-2xl bg-primary text-on-primary transition-transform duration-[340ms] ease-[cubic-bezier(.2,.8,.2,1)] hover:brightness-[1.07]"
+      style={{ boxShadow: "0 20px 36px -18px rgba(0,0,0,.5)" }}
+    >
+      {isOpen ? (
+        <span className="text-lg leading-none">×</span>
+      ) : (
+        <span
+          aria-hidden
+          className="flex h-[22px] w-[19px] flex-col justify-center gap-[3px] bg-on-primary px-1"
+          style={{
+            clipPath:
+              "polygon(0 0,100% 0,100% 100%,83% 88%,66% 100%,50% 88%,33% 100%,17% 88%,0 100%)",
+          }}
+        >
+          <span className="h-0.5 rounded-[1px] bg-primary" />
+          <span className="h-0.5 w-[68%] rounded-[1px] bg-primary" />
+          <span className="h-0.5 rounded-[1px] bg-primary" />
+        </span>
+      )}
+
+      {!isOpen && unread > 0 && (
+        <span
+          aria-label={`${unread} unread`}
+          className="absolute -right-[5px] -top-[5px] grid min-w-5 place-items-center rounded-[10px] border-2 border-bg bg-club px-[5px] font-mono text-[9.5px] font-bold leading-4 text-bg"
+        >
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** Shown when a signed-out visitor reaches a view that needs an account. */
+export function SignedOutNote({ what }: { what: string }) {
+  return (
+    <div className="p-[17px]">
+      <p className="text-[13.5px] leading-[1.6] text-muted">Sign in and I can {what}.</p>
+      <Link
+        href="/login"
+        className="mt-3 inline-block border-b pb-0.5 font-mono text-[9.5px] uppercase tracking-[0.14em] text-primary"
+        style={{ borderColor: "color-mix(in oklab, var(--primary) 45%, transparent)" }}
+      >
+        Sign in →
+      </Link>
+    </div>
+  );
+}
+
+function ago(iso: string): string {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 60) return `${Math.max(minutes, 1)}M`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}H`;
+  return `${Math.floor(hours / 24)}D`;
 }

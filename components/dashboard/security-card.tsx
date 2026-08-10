@@ -74,8 +74,18 @@ export function SecuritySection() {
         return;
       }
 
-      toast("Password changed. Sign in again.", "success");
-      router.push("/login");
+      // 205 is the one case the session could not be renewed. Everything else
+      // keeps this tab signed in — the change signs out other devices, not the
+      // person making it.
+      if (response.status === 205) {
+        toast("Password changed. Please sign in again.", "info");
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+
+      close();
+      toast("Password changed. Your other devices have been signed out.", "success");
       router.refresh();
     } catch {
       setError("The authentication service is unavailable. Please try again.");

@@ -8,6 +8,8 @@ import { NotFoundView } from "@/components/shell/not-found-view";
 import { useAccess } from "@/components/console/use-permissions";
 import { CONSOLE_GROUPS, visibleSections } from "@/lib/console-nav";
 import { humanRole } from "@/lib/console-format";
+import { useResource } from "@/lib/console-api";
+import { ADMIN_PERMISSIONS as P } from "@/lib/admin-types";
 import { cn } from "@/lib/cn";
 
 /**
@@ -23,6 +25,20 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const { permissions, roles, email } = useAccess();
   const sections = visibleSections(permissions);
+
+  /**
+   * Waiting work, marked on the rail.
+   *
+   * Support is the one section whose queue nobody is prompted to open — a
+   * claim shows up because somebody is chasing it, a ticket just sits there.
+   * Only fetched for accounts that can read the queue anyway.
+   */
+  const support = useResource<{ OPEN: number }>(
+    permissions.has(P.supportView) ? "/api/admin/support/counts" : null,
+  );
+  const waiting: Record<string, number> = {
+    "/console/support": support.data?.OPEN ?? 0,
+  };
 
   if (status === "loading") {
     return (
@@ -125,19 +141,31 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
                 {items.map((section) => {
                   const active =
                     pathname === section.href || pathname.startsWith(`${section.href}/`);
+                  const pending = waiting[section.href] ?? 0;
                   return (
                     <Link
                       key={section.href}
                       href={section.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "block whitespace-nowrap rounded-[10px] px-3.5 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.13em] transition lg:mb-0.5",
+                        "flex items-center justify-between gap-2 whitespace-nowrap rounded-[10px] px-3.5 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.13em] transition lg:mb-0.5",
                         active
                           ? "bg-primary text-on-primary"
                           : "text-muted hover:bg-surface-2 hover:text-fg",
                       )}
                     >
                       {section.label}
+                      {pending > 0 && (
+                        <span
+                          aria-label={`${pending} waiting`}
+                          className={cn(
+                            "grid min-w-[17px] place-items-center rounded-full px-1 py-0.5 text-[8.5px] leading-none",
+                            active ? "bg-on-primary/25" : "bg-danger text-white",
+                          )}
+                        >
+                          {pending > 99 ? "99+" : pending}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

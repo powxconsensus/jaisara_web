@@ -13,8 +13,10 @@ export interface Firm {
   /** URL slug, e.g. `fundingpips`. */
   slug: string;
   name: string;
-  /** Two-letter monogram, the placeholder for a real logo (handoff §8). */
+  /** Two-letter monogram, shown when the firm has no logo uploaded. */
   mark: string;
+  /** The firm's logo, when the catalogue has one. */
+  logoUrl?: string | null;
   /** Free-text descriptor shown under the name, e.g. "Two-step · instant". */
   kind: string;
   /** Percentage of the order value returned to the buyer. */

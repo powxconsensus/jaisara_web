@@ -30,10 +30,20 @@ export function CompareTray({
               ×
             </button>
           </div>
+          {/* A comparison is only useful if every figure in it is real, so a
+              rate or discount that has not been entered is left blank rather
+              than shown as zero. */}
           <p className="font-mono text-[10px] leading-[1.8] text-muted">
-            CB <span className="text-primary">{firm.cashback}%</span> · OFF {firm.discount}%
+            CB{" "}
+            {firm.cashback > 0 ? (
+              <span className="text-primary">{firm.cashback}%</span>
+            ) : (
+              <span>—</span>
+            )}
+            {firm.discount > 0 && ` · OFF ${firm.discount}%`}
             <br />
-            {firm.split} SPLIT · {firm.payout.toUpperCase()}
+            {firm.split && firm.split !== "—" && `${firm.split} SPLIT · `}
+            {firm.payout.toUpperCase()}
             <br />
             {firm.platform}
           </p>

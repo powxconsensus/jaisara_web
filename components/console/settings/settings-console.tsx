@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { TextInput } from "@/components/ui/field";
+import { FieldLabel, TextInput } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
 import {
   Badge,
@@ -68,57 +68,309 @@ export function SettingsConsole() {
   );
 }
 
+const EMPTY_TIER = {
+  key: "",
+  name: "",
+  rank: "",
+  minQualifiedReferrals: "0",
+  minLifetimeVolumeUsd: "0",
+  buyerPct: "",
+  referrerPct: "",
+  platformPct: "",
+  description: "",
+};
+
+/**
+ * Club tiers, and what reaching one is worth.
+ *
+ * This was read-only, which made the club unusable as a lever: the API could
+ * create and edit tiers but nothing in the console reached it, so changing what
+ * a tier pays meant a database write. A tier's split is the whole point of
+ * having tiers — it is the rate a member is being promised for referring
+ * people — so it has to be editable by the person accountable for it.
+ *
+ * A tier either carries all three split percentages or none. Half a split is
+ * not a thing the ledger can apply, and letting it be saved would leave the
+ * override silently ignored.
+ */
 function TierTable() {
+  const { can } = useAccess();
+  const { toast } = useToast();
   const tiers = useResource<ClubTier[]>("/api/admin/config/tiers");
+  const { mutate, pending, error, setError } = useMutation();
+
+  const [form, setForm] = useState(EMPTY_TIER);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+
+  const canManage = can(P.tierManage);
   const rows = tiers.data ?? [];
 
+  const edit = (tier: ClubTier) => {
+    setEditingKey(tier.key);
+    setError(null);
+    setForm({
+      key: tier.key,
+      name: tier.name,
+      rank: String(tier.rank),
+      minQualifiedReferrals: String(tier.minQualifiedReferrals),
+      minLifetimeVolumeUsd: tier.minLifetimeVolumeUsd,
+      buyerPct: tier.buyerPct ?? "",
+      referrerPct: tier.referrerPct ?? "",
+      platformPct: tier.platformPct ?? "",
+      description: tier.description ?? "",
+    });
+  };
+
+  const split = [form.buyerPct, form.referrerPct, form.platformPct];
+  const splitFilled = split.filter((value) => value.trim()).length;
+  const splitTotal = split.reduce((sum, value) => sum + (Number(value) || 0), 0);
+  const splitPartial = splitFilled > 0 && splitFilled < 3;
+  const splitMisadds = splitFilled === 3 && Math.abs(splitTotal - 100) > 0.001;
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const saved = await mutate<ClubTier>("/api/admin/config/tiers", {
+      body: {
+        key: form.key.trim().toLowerCase(),
+        name: form.name.trim(),
+        rank: Number(form.rank),
+        minQualifiedReferrals: Number(form.minQualifiedReferrals || 0),
+        minLifetimeVolumeUsd: form.minLifetimeVolumeUsd.trim() || "0",
+        buyerPct: form.buyerPct.trim() || undefined,
+        referrerPct: form.referrerPct.trim() || undefined,
+        platformPct: form.platformPct.trim() || undefined,
+        description: form.description.trim() || undefined,
+      },
+    });
+    if (!saved) return;
+
+    toast(editingKey ? "Tier saved." : "Tier created.", "success");
+    setForm(EMPTY_TIER);
+    setEditingKey(null);
+    await tiers.reload();
+  };
+
   return (
-    <Panel className="p-[clamp(18px,3vw,26px)]">
-      <PanelHeader
-        eyebrow="JAISARA CLUB"
-        title="Tiers"
-        description="A tier can carry its own split, which overrides the scope default for members who reach it."
-      />
-      <div className="mt-5">
-        {tiers.loading && rows.length === 0 ? (
-          <LoadingRows rows={3} />
-        ) : rows.length === 0 ? (
-          <EmptyState title="No tiers" message="The club has no tiers configured yet." />
-        ) : (
-          <TableShell
-            columns={["TIER", "RANK", "QUALIFIES AT", "OWN SPLIT", "MEMBERS"]}
-            minWidth={720}
-          >
-            {rows.map((tier) => (
-              <Tr key={tier.key}>
-                <Td>
-                  <strong className="block text-[12.5px]">{tier.name}</strong>
-                  <span className="mt-1 block font-mono text-[10px] text-muted">{tier.key}</span>
-                </Td>
-                <Td data-count className="font-mono">
-                  {tier.rank}
-                </Td>
-                <Td className="text-muted">
-                  {tier.minQualifiedReferrals} referrals · {usd(tier.minLifetimeVolumeUsd)} volume
-                </Td>
-                <Td>
-                  {tier.buyerPct ? (
-                    <span className="font-mono text-[11.5px]">
-                      {tier.buyerPct}/{tier.referrerPct}/{tier.platformPct}
-                    </span>
-                  ) : (
-                    <span className="text-[11.5px] text-muted">Uses the scope default</span>
-                  )}
-                </Td>
-                <Td data-count className="font-mono">
-                  {tier._count?.users ?? 0}
-                </Td>
-              </Tr>
-            ))}
-          </TableShell>
-        )}
-      </div>
-    </Panel>
+    <div className="space-y-4">
+      <Panel className="p-[clamp(18px,3vw,26px)]">
+        <PanelHeader
+          eyebrow="JAISARA CLUB"
+          title="Tiers"
+          description="A tier can carry its own split, which overrides the scope default for members who reach it."
+        />
+        <div className="mt-5">
+          {tiers.loading && rows.length === 0 ? (
+            <LoadingRows rows={3} />
+          ) : rows.length === 0 ? (
+            <EmptyState title="No tiers" message="The club has no tiers configured yet." />
+          ) : (
+            <TableShell
+              columns={["TIER", "RANK", "QUALIFIES AT", "OWN SPLIT", "MEMBERS", ""]}
+              minWidth={760}
+            >
+              {rows.map((tier) => (
+                <Tr key={tier.key}>
+                  <Td>
+                    <strong className="block text-[12.5px]">{tier.name}</strong>
+                    <span className="mt-1 block font-mono text-[10px] text-muted">{tier.key}</span>
+                  </Td>
+                  <Td data-count className="font-mono">
+                    {tier.rank}
+                  </Td>
+                  <Td className="text-muted">
+                    {tier.minQualifiedReferrals} referrals · {usd(tier.minLifetimeVolumeUsd)} volume
+                  </Td>
+                  <Td>
+                    {tier.buyerPct ? (
+                      <span className="font-mono text-[11.5px]">
+                        {tier.buyerPct}/{tier.referrerPct}/{tier.platformPct}
+                      </span>
+                    ) : (
+                      <span className="text-[11.5px] text-muted">Uses the scope default</span>
+                    )}
+                  </Td>
+                  <Td data-count className="font-mono">
+                    {tier._count?.users ?? 0}
+                  </Td>
+                  <Td>
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => edit(tier)}
+                        className="cursor-pointer font-mono text-[9.5px] tracking-[0.13em] text-primary hover:underline"
+                      >
+                        EDIT
+                      </button>
+                    )}
+                  </Td>
+                </Tr>
+              ))}
+            </TableShell>
+          )}
+        </div>
+      </Panel>
+
+      {canManage && (
+        <Panel className="p-[clamp(18px,3vw,26px)]">
+          <form onSubmit={save}>
+            <PanelHeader
+              eyebrow={editingKey ? `EDITING ${editingKey.toUpperCase()}` : "NEW TIER"}
+              title={editingKey ? "Edit tier" : "Add a tier"}
+              description="Members move between tiers automatically as referrals and volume are recalculated. Changing a split changes what everyone on that tier earns from their next approved claim."
+              actions={
+                editingKey ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingKey(null);
+                      setForm(EMPTY_TIER);
+                      setError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                ) : undefined
+              }
+            />
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <FieldLabel htmlFor="tier-key">KEY</FieldLabel>
+                <TextInput
+                  id="tier-key"
+                  required
+                  maxLength={30}
+                  // The key is the identity: editing it would create a second
+                  // tier rather than rename this one.
+                  disabled={editingKey !== null}
+                  placeholder="silver"
+                  value={form.key}
+                  onChange={(event) => setForm({ ...form, key: event.target.value })}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="tier-name">NAME</FieldLabel>
+                <TextInput
+                  id="tier-name"
+                  required
+                  maxLength={40}
+                  placeholder="Silver"
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="tier-rank">RANK</FieldLabel>
+                <TextInput
+                  id="tier-rank"
+                  required
+                  inputMode="numeric"
+                  placeholder="2"
+                  value={form.rank}
+                  onChange={(event) => setForm({ ...form, rank: event.target.value })}
+                />
+                <p className="mt-2 text-[11px] text-muted">Higher outranks lower.</p>
+              </div>
+              <div>
+                <FieldLabel htmlFor="tier-referrals">QUALIFIES AT — REFERRALS</FieldLabel>
+                <TextInput
+                  id="tier-referrals"
+                  inputMode="numeric"
+                  value={form.minQualifiedReferrals}
+                  onChange={(event) =>
+                    setForm({ ...form, minQualifiedReferrals: event.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="tier-volume">QUALIFIES AT — VOLUME (USD)</FieldLabel>
+                <TextInput
+                  id="tier-volume"
+                  inputMode="decimal"
+                  value={form.minLifetimeVolumeUsd}
+                  onChange={(event) =>
+                    setForm({ ...form, minLifetimeVolumeUsd: event.target.value })
+                  }
+                />
+                <p className="mt-2 text-[11px] text-muted">Either threshold qualifies.</p>
+              </div>
+              <div>
+                <FieldLabel htmlFor="tier-buyer">BUYER %</FieldLabel>
+                <TextInput
+                  id="tier-buyer"
+                  inputMode="decimal"
+                  placeholder="—"
+                  value={form.buyerPct}
+                  onChange={(event) => setForm({ ...form, buyerPct: event.target.value })}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="tier-referrer">REFERRER %</FieldLabel>
+                <TextInput
+                  id="tier-referrer"
+                  inputMode="decimal"
+                  placeholder="—"
+                  value={form.referrerPct}
+                  onChange={(event) => setForm({ ...form, referrerPct: event.target.value })}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="tier-platform">PLATFORM %</FieldLabel>
+                <TextInput
+                  id="tier-platform"
+                  inputMode="decimal"
+                  placeholder="—"
+                  value={form.platformPct}
+                  onChange={(event) => setForm({ ...form, platformPct: event.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <FieldLabel htmlFor="tier-description">DESCRIPTION</FieldLabel>
+              <TextInput
+                id="tier-description"
+                maxLength={200}
+                placeholder="What reaching this tier means"
+                value={form.description}
+                onChange={(event) => setForm({ ...form, description: event.target.value })}
+              />
+            </div>
+
+            {/* Caught here rather than at the API, because the API accepts a
+                partial split and simply never applies it — a silent no-op is
+                the worst outcome for a field that decides what people earn. */}
+            {splitPartial && (
+              <p className="mt-4 text-[12px] text-warning">
+                A tier split needs all three percentages, or none. Leave them all blank to use the
+                scope default.
+              </p>
+            )}
+            {splitMisadds && (
+              <p className="mt-4 text-[12px] text-warning">
+                The three shares total {splitTotal}%. They have to add up to 100.
+              </p>
+            )}
+            {error && (
+              <div className="mt-4">
+                <ErrorNote>{error}</ErrorNote>
+              </div>
+            )}
+
+            <div className="mt-5">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={pending || splitPartial || splitMisadds}
+              >
+                {pending ? "Saving…" : editingKey ? "Save tier" : "Create tier"}
+              </Button>
+            </div>
+          </form>
+        </Panel>
+      )}
+    </div>
   );
 }
 
@@ -136,8 +388,14 @@ function SettingsTable() {
   const save = async (key: string) => {
     // Numbers and booleans are stored as such; only fall back to a string when
     // the input is neither, so a "30" does not become the string "30".
+    //
+    // The test is on shape, not truthiness. Truthiness sent zero through as the
+    // string "0" — so setting a hold period or a minimum to 0 stored a type the
+    // API then had to guess at. Blank stays blank rather than becoming 0.
+    const trimmed = draft.trim();
+    const numeric = trimmed !== "" && Number.isFinite(Number(trimmed));
     const parsed =
-      draft === "true" ? true : draft === "false" ? false : Number(draft) ? Number(draft) : draft;
+      trimmed === "true" ? true : trimmed === "false" ? false : numeric ? Number(trimmed) : draft;
 
     const saved = await mutate(`/api/admin/config/settings/${encodeURIComponent(key)}`, {
       method: "PATCH",

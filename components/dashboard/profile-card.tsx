@@ -1,11 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/auth/auth-context";
 import { useToast } from "@/components/shell/toast";
 import { SecuritySection } from "@/components/dashboard/security-card";
 import { apiErrorMessage } from "@/lib/auth-types";
+
+/**
+ * Matched to the API's own cap on a profile photo.
+ *
+ * Checked here as well as there so somebody who picks a 6MB photo is told
+ * immediately instead of after uploading it — the server remains the one that
+ * decides, since nothing in the browser can be trusted to enforce it.
+ */
+const PHOTO_MAX_BYTES = 500 * 1024;
+
+const PHOTO_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 
 /** Initials from the display name, for the avatar monogram. */
 function initials(name: string): string {
@@ -38,15 +49,104 @@ export function ProfileCard() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [emailError, setEmailError] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
+  const [nameBusy, setNameBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  /**
+   * The URL that failed to load, not a boolean.
+   *
+   * A flag would have to be cleared whenever the photo changes, and clearing
+   * state from an effect is exactly the pattern the compiler rules forbid.
+   * Holding the URL means a newly uploaded photo is simply not the failed one.
+   */
+  const [photoFailed, setPhotoFailed] = useState<string | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
   const nameId = useId();
   const emailId = useId();
   const newEmailId = useId();
   const passwordId = useId();
 
   const accountEmail = user?.email ?? "";
+  const avatarUrl = user?.avatarUrl ?? null;
   const referralCode = user?.referralCode ?? "";
   const pending = user?.pendingEmailChange;
   const displayName = name ?? user?.displayName ?? "";
+
+  /** Only offered once the name actually differs from what is saved. */
+  const nameChanged = displayName.trim().length > 0 && displayName.trim() !== user?.displayName;
+
+  const saveName = async () => {
+    setNameBusy(true);
+    try {
+      const response = await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ displayName: displayName.trim() }),
+      });
+      const body: unknown = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        toast(apiErrorMessage(body, "Could not save your name."), "warning");
+        return;
+      }
+
+      // Drop the local override so the field reads from the session again —
+      // otherwise it would keep showing the typed value even after a refresh
+      // returned something different.
+      setName(null);
+      await refresh();
+      toast("Name updated");
+    } catch {
+      toast("The account service is unavailable. Please try again.", "warning");
+    } finally {
+      setNameBusy(false);
+    }
+  };
+
+  const uploadPhoto = async (file: File) => {
+    if (file.size > PHOTO_MAX_BYTES) {
+      toast(`That image is ${Math.round(file.size / 1024)}KB — the limit is 500KB.`, "warning");
+      return;
+    }
+
+    setPhotoBusy(true);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const response = await fetch("/api/auth/me/photo", { method: "POST", body });
+      const payload: unknown = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        toast(apiErrorMessage(payload, "Could not upload that photo."), "warning");
+        return;
+      }
+
+      await refresh();
+      toast("Photo updated");
+    } catch {
+      toast("The account service is unavailable. Please try again.", "warning");
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const removePhoto = async () => {
+    setPhotoBusy(true);
+    try {
+      const response = await fetch("/api/auth/me/photo", { method: "DELETE" });
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        toast(apiErrorMessage(payload, "Could not remove that photo."), "warning");
+        return;
+      }
+
+      await refresh();
+      toast("Photo removed");
+    } catch {
+      toast("The account service is unavailable. Please try again.", "warning");
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
 
   const copyCode = async () => {
     try {
@@ -115,12 +215,47 @@ export function ProfileCard() {
       <h2 className="mb-5 font-mono text-[9.5px] tracking-[0.22em] text-muted">PROFILE</h2>
 
       <div className="mb-6 flex items-center gap-4">
-        <span
-          className="grid size-14 flex-none place-items-center rounded-[16px] font-display text-[19px] font-black text-primary"
+        {/* The photo replaces the monogram in the same 56px square rather than
+            sitting beside it, so the layout does not shift when one loads.
+            `onError` falls back to initials: a Google avatar copied at sign-in
+            lives on a CDN we do not control and can stop resolving. */}
+        <button
+          type="button"
+          disabled={photoBusy}
+          onClick={() => photoInput.current?.click()}
+          aria-label={avatarUrl ? "Change your profile photo" : "Add a profile photo"}
+          className="group relative grid size-14 flex-none cursor-pointer place-items-center overflow-hidden rounded-[16px] font-display text-[19px] font-black text-primary disabled:cursor-wait"
           style={{ background: "color-mix(in oklab, var(--primary) 18%, var(--surface-2))" }}
         >
-          {initials(displayName) || "?"}
-        </span>
+          {avatarUrl && photoFailed !== avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              className="size-full object-cover"
+              onError={() => setPhotoFailed(avatarUrl)}
+            />
+          ) : (
+            <span>{initials(displayName) || "?"}</span>
+          )}
+          <span className="absolute inset-0 grid place-items-center bg-[color-mix(in_oklab,var(--surface)_72%,transparent)] font-mono text-[8px] tracking-[0.12em] text-primary opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+            {photoBusy ? "…" : "EDIT"}
+          </span>
+        </button>
+
+        <input
+          ref={photoInput}
+          type="file"
+          accept={PHOTO_TYPES}
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            // Reset first, so picking the same file after a failure still
+            // fires a change event — which is exactly when you would retry.
+            event.target.value = "";
+            if (file) void uploadPhoto(file);
+          }}
+        />
+
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-semibold tracking-[-0.01em]">
             {displayName || "Your name"}
@@ -131,6 +266,29 @@ export function ProfileCard() {
           <p className="mt-[5px] truncate font-mono text-[10px] tracking-[0.1em] text-muted">
             {accountEmail}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button
+              type="button"
+              disabled={photoBusy}
+              onClick={() => photoInput.current?.click()}
+              className="cursor-pointer font-mono text-[9px] tracking-[0.14em] text-primary disabled:cursor-wait disabled:opacity-50"
+            >
+              {photoBusy ? "WORKING…" : avatarUrl ? "CHANGE PHOTO" : "ADD PHOTO"}
+            </button>
+            {avatarUrl && (
+              <button
+                type="button"
+                disabled={photoBusy}
+                onClick={() => void removePhoto()}
+                className="cursor-pointer font-mono text-[9px] tracking-[0.14em] text-muted transition hover:text-danger disabled:cursor-wait disabled:opacity-50"
+              >
+                REMOVE
+              </button>
+            )}
+            <span className="font-mono text-[9px] tracking-[0.1em] text-muted">
+              JPG, PNG, WEBP · MAX 500KB
+            </span>
+          </div>
         </div>
       </div>
 
@@ -142,12 +300,18 @@ export function ProfileCard() {
           >
             DISPLAY NAME
           </label>
-          <input
-            id={nameId}
-            value={displayName}
-            onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-[10px] border border-hair bg-surface-2 px-3.5 py-3 text-sm outline-none focus:border-primary"
-          />
+          <div className="flex gap-2">
+            <input
+              id={nameId}
+              value={displayName}
+              maxLength={80}
+              onChange={(event) => setName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && nameChanged && !nameBusy) void saveName();
+              }}
+              className="min-w-0 flex-1 rounded-[10px] border border-hair bg-surface-2 px-3.5 py-3 text-sm outline-none focus:border-primary"
+            />
+          </div>
         </div>
 
         <div>
@@ -205,12 +369,18 @@ export function ProfileCard() {
         </div>
       </div>
 
+      {/* The only save in this grid, and it does the work. It used to sit
+          beside a second inline Save while itself only firing a toast — so the
+          obvious button was the one that saved nothing. Disabled rather than
+          hidden: a button that vanishes reads as a bug when you are looking
+          for it. */}
       <button
         type="button"
-        onClick={() => toast("Changes saved")}
-        className="mt-5 cursor-pointer rounded-[10px] bg-primary px-[22px] py-3 font-mono text-[11px] tracking-[0.14em] text-on-primary transition hover:brightness-[1.06]"
+        onClick={() => void saveName()}
+        disabled={!nameChanged || nameBusy}
+        className="mt-5 cursor-pointer rounded-[10px] bg-primary px-[22px] py-3 font-mono text-[11px] tracking-[0.14em] text-on-primary transition hover:brightness-[1.06] disabled:cursor-not-allowed disabled:opacity-45"
       >
-        SAVE CHANGES
+        {nameBusy ? "SAVING…" : "SAVE CHANGES"}
       </button>
 
       <div className="my-6 h-px bg-hair" />

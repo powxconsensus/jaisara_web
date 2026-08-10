@@ -15,7 +15,9 @@ import type { Receipt } from "@/lib/data/receipts";
  * server, and nothing can push to a browser that has not asked.)
  */
 
-const REVALIDATE_SECONDS = 60;
+/** A minute for visitors; five seconds while developing, so an approved claim
+ *  shows up on the home deck while you are still looking at it. */
+const REVALIDATE_SECONDS = process.env.NODE_ENV === "development" ? 5 : 60;
 
 /**
  * A build must never hang on a service being slow.

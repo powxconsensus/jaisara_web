@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FooterBand } from "@/components/shell/footer-band";
 import { FOOTER_COLUMNS } from "@/lib/nav";
 import { Logo } from "@/components/ui/logo";
 
@@ -16,22 +17,7 @@ const SOCIALS = [
 export function Footer() {
   return (
     <footer className="relative mt-[60px] overflow-hidden">
-      <Link href="/signup" className="group block cursor-pointer border-t border-hair text-fg">
-        <div className="mx-auto flex max-w-[var(--maxw)] flex-wrap items-center justify-between gap-[18px] px-[var(--pad)] py-[clamp(34px,7vw,84px)] transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:translate-x-3">
-          <div>
-            <p className="mb-[18px] font-mono text-[10px] tracking-[0.24em] text-muted">
-              [ 07 ] NO CARD, NO MINIMUM
-            </p>
-            <p className="font-display text-[clamp(40px,8vw,104px)] font-black uppercase leading-[0.9] tracking-[-0.025em]">
-              Get <span className="text-primary">paid</span>
-              <span className="font-serif text-primary italic font-normal normal-case">.</span>
-            </p>
-          </div>
-          <span className="grid size-[clamp(56px,7vw,84px)] flex-none place-items-center rounded-[18px] border border-hair text-[clamp(22px,3vw,32px)] text-primary">
-            ↗
-          </span>
-        </div>
-      </Link>
+      <FooterBand />
 
       <div className="mx-auto grid max-w-[var(--maxw)] grid-cols-2 gap-[clamp(28px,4vw,52px)] border-t border-hair px-[var(--pad)] pb-5 pt-[clamp(40px,5vw,60px)] md:grid-cols-3 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
         <div className="col-span-2 max-w-[34ch] md:col-span-3 lg:col-span-1">

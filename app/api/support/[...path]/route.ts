@@ -11,14 +11,20 @@ async function forward(request: NextRequest, context: { params: Promise<{ path: 
     const { path } = await context.params;
     const suffix = path.map(encodeURIComponent).join("/");
     const method = request.method;
+    const hasBody = !["GET", "HEAD"].includes(method);
+    // Forwarded rather than hardcoded to JSON: an attachment is multipart, and
+    // replacing its content type drops the boundary the API needs to parse it.
+    const contentType = request.headers.get("content-type");
 
     const result = await authenticatedRequest(
       request,
       `/support/${suffix}${request.nextUrl.search}`,
       {
         method,
-        headers: { "content-type": "application/json" },
-        body: method === "GET" ? undefined : await request.arrayBuffer(),
+        headers: contentType ? { "content-type": contentType } : undefined,
+        // Bytes, not text: an image that is not valid UTF-8 would be corrupted
+        // by a round trip through a string.
+        body: hasBody ? await request.arrayBuffer() : undefined,
       },
     );
 

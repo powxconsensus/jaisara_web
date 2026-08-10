@@ -2,6 +2,8 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName?: string | null;
+  /** Absolute URL. Null or absent means show the monogram. */
+  avatarUrl?: string | null;
   emailVerified: boolean;
   hasPassword?: boolean;
   referralCode?: string;

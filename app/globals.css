@@ -114,7 +114,10 @@
   --rcpt-tf: none;
   --rcpt-tfh: none;
   --rcpt-float: none;
-  /* Support panel — dvh, never vh, or mobile browser chrome clips the input. */
+  /* Support panel — dvh, never vh, or mobile browser chrome clips the input.
+     Three tiers, matching the design file: phone below 780, tablet to 1024,
+     desktop above. The launcher clears the bottom tab bar on a phone, which is
+     why `--chat-bottom` is so much larger there. */
   --chat-bottom: 96px;
   --chat-w: calc(100vw - 24px);
   --chat-h: calc(100dvh - 170px);
@@ -123,9 +126,10 @@
 @media (min-width: 780px) {
   :root {
     --pad: 32px;
-    --chat-bottom: 18px;
-    --chat-w: 400px;
-    --chat-h: min(620px, calc(100dvh - 210px));
+    /* Tablet: the panel is inset from the edge rather than pinned to it. */
+    --chat-bottom: 74px;
+    --chat-w: calc(100% - 32px);
+    --chat-h: min(72dvh, 540px);
 
     --display: clamp(38px, 6.2vw, 58px);
     --groundh: 262px;
@@ -144,6 +148,18 @@
     --rcpt-float: jsFloat 9s 1.4s ease-in-out infinite;
   }
 }
+
+/* Desktop: the support panel takes its fixed size, matching the design file.
+   Its own breakpoint at 1024 rather than 1180 — the panel is a floating
+   408px card, and it has room for that long before the page layout does. */
+@media (min-width: 1024px) {
+  :root {
+    --chat-bottom: 18px;
+    --chat-w: 408px;
+    --chat-h: min(690px, calc(100dvh - 176px));
+  }
+}
+
 @media (min-width: 1180px) {
   :root {
     --pad: 56px;

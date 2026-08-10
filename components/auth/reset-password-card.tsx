@@ -60,13 +60,14 @@ export function ResetPasswordCard({ token }: { token?: string }) {
       {complete ? (
         <>
           <p className="mt-3 text-sm leading-[1.65] text-muted">
-            Your old sessions were closed. Sign in again with your new password.
+            Your password has been changed and every other session was signed out. You can sign in
+            with it now.
           </p>
           <Link
             href="/login"
-            className="mt-6 inline-flex rounded-[10px] bg-primary px-5 py-3 font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary"
+            className="mt-6 inline-flex rounded-[10px] bg-primary px-5 py-3 font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary transition hover:brightness-[1.07]"
           >
-            Go to login
+            Sign in
           </Link>
         </>
       ) : (

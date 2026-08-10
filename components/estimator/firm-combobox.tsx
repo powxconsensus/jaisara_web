@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { type EstimatorFirm } from "@/lib/data/estimator";
+import { FirmMark } from "@/components/ui/firm-mark";
 import { cn } from "@/lib/cn";
 
 /**
@@ -92,9 +93,13 @@ export function FirmCombobox({
         className="flex min-h-12 w-full cursor-pointer items-center gap-[11px] rounded-[11px] border bg-surface-2 px-[15px] py-[13px] transition hover:border-primary"
         style={{ borderColor: value ? "var(--primary)" : "var(--hair)" }}
       >
-        <span className="grid size-[26px] flex-none place-items-center rounded-lg bg-surface font-mono text-[8px] text-muted">
-          {value?.mark ?? "??"}
-        </span>
+        <FirmMark
+          name={value?.name ?? ""}
+          mark={value?.mark ?? "??"}
+          logoUrl={value?.logoUrl}
+          size={26}
+          className="rounded-lg"
+        />
         <span
           className={cn("flex-1 text-left text-sm font-medium", !value && "text-muted")}
         >
@@ -150,9 +155,13 @@ export function FirmCombobox({
                   index === highlight && "bg-surface-2",
                 )}
               >
-                <span className="grid size-[26px] flex-none place-items-center rounded-lg bg-surface-2 font-mono text-[8px] text-muted">
-                  {firm.mark}
-                </span>
+                <FirmMark
+                  name={firm.name}
+                  mark={firm.mark}
+                  logoUrl={firm.logoUrl}
+                  size={26}
+                  className="rounded-lg"
+                />
                 <span className="flex-1 text-[13.5px] font-medium">{firm.name}</span>
                 <span className="font-mono text-[11.5px] tabular-nums text-primary">
                   {firm.cashbackPct}%

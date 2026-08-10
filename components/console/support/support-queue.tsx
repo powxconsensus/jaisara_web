@@ -48,6 +48,8 @@ const FILTERS: { value: Status | ""; label: string }[] = [
   { value: "", label: "All" },
 ];
 
+type Counts = Record<Status, number> & { total: number };
+
 interface TicketSummary {
   id: string;
   subject: string;
@@ -74,6 +76,8 @@ interface TicketDetail extends Omit<TicketSummary, "_count"> {
     createdAt: string;
     author: { displayName: string | null } | null;
   }[];
+  /** Ids only — the file is fetched through a permission-checked route. */
+  attachments: { id: string; fileName: string; contentType: string; sizeBytes: number }[];
 }
 
 export function SupportQueue() {
@@ -87,12 +91,30 @@ export function SupportQueue() {
   const tickets = useResource<TicketSummary[]>("/api/admin/support/tickets", {
     query: { status: status || undefined, take: 50 },
   });
+  const counts = useResource<Counts>("/api/admin/support/counts");
   const ticket = useResource<TicketDetail>(
     selectedId ? `/api/admin/support/tickets/${selectedId}` : null,
   );
   const { mutate, pending, error, setError } = useMutation();
 
+  /**
+   * Opens an attachment in a new tab.
+   *
+   * The signed URL is fetched on click rather than rendered into the list:
+   * these expire in five minutes, and a page left open for an afternoon would
+   * otherwise be a screen of dead links.
+   */
+  const openAttachment = async (ticketId: string, attachmentId: string) => {
+    const result = await mutate<{ url: string }>(
+      `/api/admin/support/tickets/${ticketId}/attachments/${attachmentId}`,
+      { method: "GET" },
+    );
+    if (result?.url) window.open(result.url, "_blank", "noopener,noreferrer");
+  };
+
   const rows = tickets.data ?? [];
+  /** Tickets this filter is hiding, which is what an empty list has to explain. */
+  const elsewhere = counts.data ? counts.data.total - rows.length : 0;
 
   const reply = async () => {
     if (!selectedId || !draft.trim()) return;
@@ -107,7 +129,7 @@ export function SupportQueue() {
       result.emailed ? "Replied — the member has been emailed." : "Replied. The email did not send.",
       result.emailed ? "success" : "warning",
     );
-    await Promise.all([ticket.reload(), tickets.reload()]);
+    await Promise.all([ticket.reload(), tickets.reload(), counts.reload()]);
   };
 
   const setTicketStatus = async (next: Status) => {
@@ -117,7 +139,7 @@ export function SupportQueue() {
     });
     if (!result) return;
     toast(`Marked ${next.toLowerCase().replaceAll("_", " ")}.`, "success");
-    await Promise.all([ticket.reload(), tickets.reload()]);
+    await Promise.all([ticket.reload(), tickets.reload(), counts.reload()]);
   };
 
   return (
@@ -128,19 +150,34 @@ export function SupportQueue() {
         description="Tickets the assistant could not resolve, oldest first. Replying emails the member the text you wrote — they do not have to log in to read it."
       />
 
+      {/* The counts are the point of this row, not decoration. The queue opens
+          filtered to "needs a reply", and with everything answered that view is
+          legitimately empty — which read as a broken console until the other
+          filters could say how many tickets they were holding. */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {FILTERS.map((filter) => (
-          <FilterChip
-            key={filter.label}
-            active={status === filter.value}
-            onClick={() => {
-              setStatus(filter.value);
-              setSelectedId(null);
-            }}
-          >
-            {filter.label}
-          </FilterChip>
-        ))}
+        {FILTERS.map((filter) => {
+          const count = counts.data
+            ? filter.value === ""
+              ? counts.data.total
+              : counts.data[filter.value]
+            : null;
+
+          return (
+            <FilterChip
+              key={filter.label}
+              active={status === filter.value}
+              onClick={() => {
+                setStatus(filter.value);
+                setSelectedId(null);
+              }}
+            >
+              {filter.label}
+              {count !== null && (
+                <span className="ml-1.5 font-mono text-[10px] opacity-70">{count}</span>
+              )}
+            </FilterChip>
+          );
+        })}
       </div>
 
       {tickets.error && (
@@ -154,14 +191,32 @@ export function SupportQueue() {
           {tickets.loading && rows.length === 0 ? (
             <LoadingRows rows={4} />
           ) : rows.length === 0 ? (
-            <EmptyState
-              title="Nothing waiting"
-              message={
-                status === "OPEN"
-                  ? "No tickets need a reply. The assistant is handling what comes in."
-                  : "No tickets with this status."
-              }
-            />
+            <div>
+              <EmptyState
+                title="Nothing waiting"
+                message={
+                  status === "OPEN"
+                    ? "No tickets need a reply. The assistant is handling what comes in."
+                    : "No tickets with this status."
+                }
+              />
+              {/* An empty filter over a non-empty queue is the exact state that
+                  made this page look broken. Say so, and offer the way out. */}
+              {elsewhere > 0 && (
+                <div className="px-4 pb-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatus("");
+                      setSelectedId(null);
+                    }}
+                    className="cursor-pointer font-mono text-[9.5px] tracking-[0.13em] text-primary underline-offset-4 hover:underline"
+                  >
+                    {elsewhere} {elsewhere === 1 ? "TICKET" : "TICKETS"} UNDER ANOTHER STATUS →
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             rows.map((row) => (
               <RecordButton
@@ -255,6 +310,38 @@ export function SupportQueue() {
                   </div>
                 ))}
               </div>
+
+              {/* What the member attached while the assistant was gathering
+                  detail. Fetched through a signed, short-lived link rather
+                  than linked by storage key, so the permission check happens
+                  per click and a copied URL stops working. */}
+              {ticket.data.attachments && ticket.data.attachments.length > 0 && (
+                <div className="mt-5 rounded-[13px] border border-hair p-4">
+                  <p className="font-mono text-[9px] tracking-[0.14em] text-muted">
+                    ATTACHED BY THE MEMBER
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {ticket.data.attachments.map((file) => (
+                      <button
+                        key={file.id}
+                        type="button"
+                        onClick={() => void openAttachment(ticket.data!.id, file.id)}
+                        className="flex cursor-pointer items-center gap-2.5 rounded-[10px] border border-hair bg-surface-2 px-3 py-2 transition hover:border-primary"
+                      >
+                        <span className="font-mono text-[9px] tracking-[0.1em] text-primary">
+                          {file.contentType === "application/pdf" ? "PDF" : "IMG"}
+                        </span>
+                        <span className="max-w-[220px] truncate text-[12.5px]">
+                          {file.fileName}
+                        </span>
+                        <span className="font-mono text-[9px] text-muted">
+                          {Math.max(1, Math.round(file.sizeBytes / 1024))}KB
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {ticket.data.transcript && ticket.data.transcript.length > 0 && (
                 <details className="mt-5 rounded-[13px] border border-hair p-4">

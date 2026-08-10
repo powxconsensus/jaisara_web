@@ -14,23 +14,34 @@ export interface UploadedImage {
  * Uploads an image and hands back its permanent URL.
  *
  * The API returns a stable `/journal/images/<key>` URL rather than a signed
- * one, because this string is written into a published post body — a URL that
- * expired would break every article a few minutes after publishing.
+ * one, because this string is written into a published post body or onto a
+ * platform row — a URL that expired would break every article and every logo a
+ * few minutes after publishing.
+ *
+ * `endpoint` chooses which upload route, and by extension which storage prefix
+ * and which permission: post images need `post:write`, logos `platform:manage`.
+ *
+ * An empty endpoint means the target does not exist yet — a firm's logo is
+ * filed under the firm's slug, so there is nowhere to put one until the firm
+ * has been saved. The picker is disabled in that state; this refuses as well,
+ * so a stray call cannot POST at the current page instead.
  */
-export function useImageUpload() {
+export function useImageUpload(endpoint: string = "/api/journal/images") {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const upload = async (file: File): Promise<UploadedImage | null> => {
+    if (!endpoint) {
+      setError("Save this record first, then add an image.");
+      return null;
+    }
+
     setUploading(true);
     setError(null);
     try {
       const body = new FormData();
       body.set("file", file);
-      return await consoleApi<UploadedImage>("/api/journal/images", {
-        method: "POST",
-        body,
-      });
+      return await consoleApi<UploadedImage>(endpoint, { method: "POST", body });
     } catch (caught) {
       setError(errorMessage(caught));
       return null;

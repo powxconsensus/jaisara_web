@@ -6,7 +6,13 @@ import { money } from "@/lib/format";
 import { useToast } from "@/components/shell/toast";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage } from "@/lib/auth-types";
-import { ClaimField, EMPTY_CLAIM, type ClaimFields } from "./claim-form";
+import {
+  ClaimDate,
+  ClaimField,
+  ClaimSelect,
+  EMPTY_CLAIM,
+  type ClaimFields as ClaimFieldValues,
+} from "./claim-form";
 
 /** A firm the member can claim against, with the id the API needs. */
 export interface ClaimPlatform {
@@ -15,7 +21,20 @@ export interface ClaimPlatform {
   name: string;
   cashbackPct: number;
   supportsSubId: boolean;
+  /** What the firm sells, grouped by its own account type. */
+  plans: { name: string; family: string | null; listPrice: string | null }[];
+  /** Coupon codes in force for this firm. */
+  coupons: string[];
 }
+
+/**
+ * Every firm ships under the house coupon unless it has its own.
+ *
+ * Fixed for now because it is always true, and a text box invites a typo into
+ * the one field attribution depends on. The moment a firm has several, they
+ * are already in `coupons` and the select fills itself in.
+ */
+const HOUSE_COUPON = "JAISARA";
 
 type Mode = "auto" | "upload" | "manual";
 type Stage = "idle" | "parsing" | "parsed";
@@ -36,7 +55,7 @@ const DEFAULT_RATE = 10;
  * commission the firm reports, which nobody knows until the report lands.
  */
 function estimate(
-  fields: ClaimFields,
+  fields: ClaimFieldValues,
   platforms: ClaimPlatform[],
 ): { amount: number; rate: number } | null {
   const paid = Number.parseFloat(fields.amount);
@@ -57,7 +76,7 @@ function EstimateBar({
   submitLabel,
   busy,
 }: {
-  fields: ClaimFields;
+  fields: ClaimFieldValues;
   platforms: ClaimPlatform[];
   onSubmit: () => void;
   onReset?: () => void;
@@ -109,7 +128,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
   const [stage, setStage] = useState<Stage>("idle");
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState("");
-  const [fields, setFields] = useState<ClaimFields>(EMPTY_CLAIM);
+  const [fields, setFields] = useState<ClaimFieldValues>(EMPTY_CLAIM);
   const [storageKey, setStorageKey] = useState<string | null>(null);
   const [concerns, setConcerns] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -224,7 +243,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
     }
   };
 
-  const set = (key: keyof ClaimFields) => (value: string) =>
+  const set = (key: keyof ClaimFieldValues) => (value: string) =>
     setFields((prev) => ({ ...prev, [key]: value }));
 
   const notices = (
@@ -444,32 +463,12 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
           <p className="mb-4 font-mono text-[9.5px] tracking-[0.22em] text-muted">
             CONFIRM THE DETAILS
           </p>
-          <div className="grid gap-[13px] md:grid-cols-2">
-            <ClaimField label="FIRM" badge="AI" value={fields.firm} onChange={set("firm")} />
-            <ClaimField label="PLAN" badge="AI" value={fields.plan} onChange={set("plan")} />
-            <ClaimField
-              label="AMOUNT PAID"
-              badge="AI"
-              mono
-              value={fields.amount}
-              onChange={set("amount")}
-            />
-            <ClaimField
-              label="ORDER DATE"
-              badge="AI"
-              mono
-              value={fields.date}
-              onChange={set("date")}
-            />
-            <ClaimField
-              label="ORDER ID"
-              badge="CHECK THIS"
-              mono
-              full
-              value={fields.order}
-              onChange={set("order")}
-            />
-          </div>
+          <ClaimFields
+            fields={fields}
+            set={set}
+            platforms={platforms}
+            badges={true}
+          />
 
           {notices}
           <EstimateBar
@@ -488,25 +487,12 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
           <p className="mb-4 font-mono text-[9.5px] tracking-[0.22em] text-muted">
             ENTER THE ORDER YOURSELF
           </p>
-          <div className="grid gap-[13px] md:grid-cols-2">
-            <ClaimField label="FIRM" value={fields.firm} onChange={set("firm")} />
-            <ClaimField label="PLAN" value={fields.plan} onChange={set("plan")} />
-            <ClaimField
-              label="AMOUNT PAID (USD)"
-              mono
-              value={fields.amount}
-              onChange={set("amount")}
-            />
-            <ClaimField label="ORDER DATE" mono value={fields.date} onChange={set("date")} />
-            <ClaimField label="ORDER ID" mono full value={fields.order} onChange={set("order")} />
-            <ClaimField
-              label="COUPON USED"
-              mono
-              full
-              value={fields.coupon}
-              onChange={set("coupon")}
-            />
-          </div>
+          <ClaimFields
+            fields={fields}
+            set={set}
+            platforms={platforms}
+            badges={false}
+          />
 
           <button
             type="button"
@@ -532,6 +518,113 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The six fields, wherever they appear.
+ *
+ * One component for the parsed-confirm and manual paths because they ask for
+ * exactly the same things — the only difference is whether the values arrived
+ * from a receipt, which is what `badges` says.
+ *
+ * Firm, plan and coupon come from the catalogue. That is not a convenience: a
+ * mistyped firm cannot be matched against its report and a mistyped coupon
+ * cannot be attributed at all, so every field whose answer we already hold is
+ * a field nobody should be typing.
+ */
+function ClaimFields({
+  fields,
+  set,
+  platforms,
+  badges,
+}: {
+  fields: ClaimFieldValues;
+  set: (key: keyof ClaimFieldValues) => (value: string) => void;
+  platforms: ClaimPlatform[];
+  /** True on the confirm-what-we-read path, where the values came from a scan. */
+  badges: boolean;
+}) {
+  const firm = platforms.find(
+    (entry) => entry.name.toLowerCase() === fields.firm.trim().toLowerCase(),
+  );
+
+  // Plans belong to a firm, so the list is empty until one is chosen — and
+  // picking a different firm has to clear a plan that no longer exists.
+  const plans = (firm?.plans ?? []).map((plan) => ({
+    value: plan.name,
+    label: plan.listPrice ? `${plan.name} — $${Math.round(Number(plan.listPrice))}` : plan.name,
+    group: plan.family,
+  }));
+
+  const coupons = [...new Set([...(firm?.coupons ?? []), HOUSE_COUPON])].map((code) => ({
+    value: code,
+    label: code,
+  }));
+
+  return (
+    <div className="grid gap-[13px] md:grid-cols-2">
+      <ClaimSelect
+        label="FIRM"
+        badge={badges ? "AI" : undefined}
+        value={fields.firm}
+        options={platforms.map((entry) => ({ value: entry.name, label: entry.name }))}
+        placeholder="Which firm did you buy from?"
+        allowOther
+        otherLabel="Another firm — type it in"
+        onChange={(value) => {
+          set("firm")(value);
+          // The old plan belonged to the old firm. Keeping it would submit a
+          // plan this firm does not sell.
+          if (value !== fields.firm) set("plan")("");
+        }}
+      />
+
+      <ClaimSelect
+        label={firm ? "PLAN / ACCOUNT TYPE" : "PLAN"}
+        badge={badges ? "AI" : undefined}
+        value={fields.plan}
+        options={plans}
+        placeholder={firm ? "Which account did you buy?" : "Choose a firm first"}
+        allowOther
+        otherLabel="Not listed — type it in"
+        onChange={set("plan")}
+      />
+
+      <ClaimField
+        label="AMOUNT PAID (USD)"
+        badge={badges ? "AI" : undefined}
+        mono
+        placeholder="299.00"
+        value={fields.amount}
+        onChange={set("amount")}
+      />
+
+      <ClaimDate
+        label="ORDER DATE"
+        badge={badges ? "AI" : undefined}
+        value={fields.date}
+        onChange={set("date")}
+      />
+
+      <ClaimField
+        label="ORDER ID"
+        badge={badges ? "CHECK THIS" : undefined}
+        mono
+        placeholder="As printed on the receipt"
+        value={fields.order}
+        onChange={set("order")}
+      />
+
+      <ClaimSelect
+        label="COUPON USED"
+        value={fields.coupon || HOUSE_COUPON}
+        options={coupons}
+        allowOther
+        otherLabel="A different code — type it in"
+        onChange={set("coupon")}
+      />
     </div>
   );
 }

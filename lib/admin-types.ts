@@ -488,6 +488,8 @@ export interface BlogPost {
   excerpt?: string | null;
   body: string;
   coverUrl?: string | null;
+  /** Journal post or help article — the same object, two audiences. */
+  kind: "JOURNAL" | "HELP";
   tags: string[];
   seoTitle?: string | null;
   seoDescription?: string | null;

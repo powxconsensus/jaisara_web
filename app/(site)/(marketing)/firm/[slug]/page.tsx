@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchDeals, fetchFirms, toFirm } from "@/lib/data/deals";
 import { CopyCoupon } from "@/components/deals/copy-coupon";
+import { FirmMark } from "@/components/ui/firm-mark";
 
 /**
  * Pre-render every firm page — they are the SEO surface.
@@ -74,9 +75,13 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
       <div className="grid items-start gap-[clamp(28px,4vw,56px)] lg:grid-cols-[1.35fr_.9fr]">
         <div>
           <div className="mb-7 flex items-center gap-[18px]">
-            <span className="grid size-[60px] flex-none place-items-center rounded-card bg-surface-2 font-mono text-base text-muted">
-              {firm.mark}
-            </span>
+            <FirmMark
+              name={firm.name}
+              mark={firm.mark}
+              logoUrl={firm.logoUrl}
+              size={60}
+              className="rounded-card"
+            />
             <div>
               <h1 className="m-0 font-display text-[clamp(26px,3.4vw,40px)] font-black uppercase leading-none tracking-[-0.025em]">
                 {firm.name}
@@ -174,19 +179,24 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
 
             <CopyCoupon code={firm.coupon} />
 
+            {/* Goes through our own tracked redirect, which records the click
+                against the signed-in member and attaches their sub-id before
+                handing off to the firm. That click is the corroboration for a
+                later claim, so linking straight to the firm would throw away
+                the evidence that makes a thin report reviewable. */}
             <a
-              href={`https://${firm.slug}.example.com/?coupon=${firm.coupon}`}
+              href={`/go/${firm.slug}?coupon=${encodeURIComponent(firm.coupon)}`}
               target="_blank"
               rel="noopener noreferrer sponsored"
               className="block rounded-[11px] bg-primary p-[15px] text-center font-mono text-[11.5px] font-semibold uppercase tracking-[0.16em] text-on-primary transition hover:-translate-y-px hover:brightness-[1.08]"
             >
-              Activate deal
+              Buy at {firm.name}
             </a>
             <Link
               href="/dashboard/claim"
               className="mt-[9px] block rounded-[11px] border border-hair p-3.5 text-center font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted transition hover:border-primary hover:text-fg"
             >
-              Buy here instead
+              Already bought? Submit the receipt
             </Link>
 
             <p className="mt-4 text-xs leading-[1.6] text-muted">

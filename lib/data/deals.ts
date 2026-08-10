@@ -15,7 +15,16 @@ import { ESTIMATOR_FIRMS, type EstimatorFirm } from "@/lib/data/estimator";
  * an admin edits it, not per request, and every visitor should get cached HTML.
  */
 
-const REVALIDATE_SECONDS = 300;
+/**
+ * Five minutes in production; five seconds while developing.
+ *
+ * The long window is right for visitors — the catalogue changes when an admin
+ * edits it, not per request. It is wrong for the person doing the editing: a
+ * challenge published in the console stayed invisible on the storefront for
+ * five minutes, which reads as "the save did not work" rather than "the page
+ * is cached".
+ */
+const REVALIDATE_SECONDS = process.env.NODE_ENV === "development" ? 5 : 300;
 
 /**
  * A build must never hang on a service being slow.
@@ -107,6 +116,7 @@ export function toFirm(deal: Deal): Firm {
     slug: deal.slug,
     name: deal.name,
     mark: monogram(deal.name),
+    logoUrl: deal.logoUrl,
     kind: describeKind(deal),
     cashback: Number(cashback.toFixed(1)),
     discount: Number(coupon?.discountPct ?? 0),
@@ -199,6 +209,7 @@ export function toEstimatorFirms(deals: Deal[]): EstimatorFirm[] {
         slug: deal.slug,
         name: deal.name,
         mark: monogram(deal.name),
+        logoUrl: deal.logoUrl,
         cashbackPct: Number(best.toFixed(1)),
         discountPct: Number(coupon?.discountPct ?? 0),
         plans: [...new Set(priced.map((product) => planLabel(product.kind)))].slice(0, 3),
@@ -242,5 +253,24 @@ export function toClaimPlatforms(deals: Deal[]) {
       deal.products.reduce((best, product) => Math.max(best, product.estCashbackPct ?? 0), 0).toFixed(1),
     ),
     supportsSubId: Boolean(deal.supportsSubId),
+    /**
+     * What this firm actually sells, so the claim form can offer it rather
+     * than asking somebody to retype it.
+     *
+     * `family` is the firm's own account type — LucidPro, LucidFlex and so on.
+     * It groups the list, which is how a member finds their plan: they
+     * remember the type they bought long before the exact size.
+     */
+    plans: deal.products.map((product) => ({
+      name: product.name,
+      family: product.family,
+      listPrice: product.listPrice,
+    })),
+    /**
+     * Whose coupon was used. Almost always exactly one, which is why the
+     * field is a select and not a text box — a mistyped code is a claim that
+     * cannot be attributed.
+     */
+    coupons: deal.coupons.map((coupon) => coupon.code),
   }));
 }

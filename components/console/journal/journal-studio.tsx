@@ -22,6 +22,7 @@ import {
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
 import { useMutation, useResource } from "@/lib/console-api";
+import { cn } from "@/lib/cn";
 import { readingStats, relativeTime, slugify } from "@/lib/console-format";
 import { ADMIN_PERMISSIONS as P, type BlogPost, type PostStatus } from "@/lib/admin-types";
 import { EditorToolbar } from "./editor-toolbar";
@@ -51,12 +52,28 @@ const EMPTY = {
   excerpt: "",
   body: "",
   coverUrl: "",
+  kind: "JOURNAL" as PostKind,
   tags: "",
   seoTitle: "",
   seoDescription: "",
 };
 
 type View = "write" | "preview" | "details";
+type PostKind = "JOURNAL" | "HELP";
+
+/**
+ * Where a piece is published to.
+ *
+ * The same editor writes both because they are the same object: markdown, a
+ * title, a publish permission. What differs is only who reads it — a journal
+ * post is a page on the marketing site, a help article is an answer inside the
+ * support widget. Making that a dropdown rather than a second screen means the
+ * help centre gets the toolbar, the preview and the image upload for free.
+ */
+const KINDS: { value: PostKind; label: string; note: string }[] = [
+  { value: "JOURNAL", label: "Journal post", note: "Published to /journal" },
+  { value: "HELP", label: "Help article", note: "Shown in the support widget" },
+];
 
 export function JournalStudio() {
   const { can } = useAccess();
@@ -74,7 +91,10 @@ export function JournalStudio() {
 
   const canPublish = can(P.postPublish);
   const stats = readingStats(form.body);
-  const cover = useImageUpload();
+  // `slot=covers` files this under `journal/covers/` rather than with the
+  // illustrations pasted into a body, so a post's card image is findable in the
+  // bucket without reading the row that points at it.
+  const cover = useImageUpload("/api/journal/images?slot=covers");
 
   const uploadCover = async (file: File) => {
     const uploaded = await cover.upload(file);
@@ -93,6 +113,7 @@ export function JournalStudio() {
       excerpt: post.excerpt ?? "",
       body: post.body,
       coverUrl: post.coverUrl ?? "",
+      kind: post.kind ?? "JOURNAL",
       tags: post.tags.join(", "),
       seoTitle: post.seoTitle ?? "",
       seoDescription: post.seoDescription ?? "",
@@ -120,6 +141,7 @@ export function JournalStudio() {
           excerpt: form.excerpt || undefined,
           body: form.body,
           coverUrl: form.coverUrl || undefined,
+          kind: form.kind,
           tags: form.tags
             .split(",")
             .map((tag) => tag.trim())
@@ -154,11 +176,11 @@ export function JournalStudio() {
     <div>
       <PageHeader
         eyebrow="GROWTH"
-        title="Journal"
+        title="Journal & help"
         description={
           canPublish
-            ? "Write, preview and publish. The preview is rendered by the same component the public post uses, so what you see is what ships."
-            : "Write and edit your posts. Publishing is a separate permission — an admin or owner takes it live."
+            ? "Write, preview and publish — journal posts for the site, help articles for the support widget. The preview uses the same renderer readers get, so what you see is what ships."
+            : "Write and edit your posts and help articles. Publishing is a separate permission — an admin or owner takes it live."
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -202,7 +224,12 @@ export function JournalStudio() {
                   active={selectedId === post.id}
                   onClick={() => choose(post)}
                 >
-                  <Badge tone={STATUS_TONE[post.status]}>{post.status.replaceAll("_", " ")}</Badge>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <Badge tone={STATUS_TONE[post.status]}>
+                      {post.status.replaceAll("_", " ")}
+                    </Badge>
+                    {post.kind === "HELP" && <Badge tone="info">HELP</Badge>}
+                  </span>
                   <strong className="mt-2 block text-[12.5px] leading-5">{post.title}</strong>
                   <span className="mt-1 block text-[10px] text-muted">
                     {post.author.displayName ?? "Unnamed author"} ·{" "}
@@ -225,7 +252,7 @@ export function JournalStudio() {
                   {stats.words.toLocaleString("en-US")} WORDS · {stats.minutes} MIN READ
                 </span>
               </div>
-              {status === "PUBLISHED" && form.slug && (
+              {status === "PUBLISHED" && form.slug && form.kind === "JOURNAL" && (
                 <Link
                   href={`/journal/${form.slug}`}
                   target="_blank"
@@ -233,6 +260,11 @@ export function JournalStudio() {
                 >
                   VIEW LIVE ↗
                 </Link>
+              )}
+              {status === "PUBLISHED" && form.kind === "HELP" && (
+                <span className="font-mono text-[9.5px] tracking-[0.12em] text-muted">
+                  LIVE IN THE SUPPORT WIDGET
+                </span>
               )}
             </div>
 
@@ -291,6 +323,33 @@ export function JournalStudio() {
 
               {view === "details" && (
                 <div className="grid gap-4">
+                  {/* First, because it changes what every field below means —
+                      a slug that is a URL versus one nobody ever types. */}
+                  <div>
+                    <FieldLabel htmlFor="post-kind">PUBLISH AS</FieldLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {KINDS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setForm({ ...form, kind: option.value })}
+                          aria-pressed={form.kind === option.value}
+                          className={cn(
+                            "cursor-pointer rounded-[11px] border px-3.5 py-2.5 text-left transition",
+                            form.kind === option.value
+                              ? "border-primary bg-[color-mix(in_oklab,var(--primary)_10%,transparent)]"
+                              : "border-hair hover:border-primary",
+                          )}
+                        >
+                          <span className="block text-[12.5px] font-semibold">{option.label}</span>
+                          <span className="mt-0.5 block font-mono text-[9px] tracking-[0.1em] text-muted">
+                            {option.note.toUpperCase()}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
                     <div>
                       <FieldLabel htmlFor="post-title">TITLE</FieldLabel>
@@ -314,7 +373,8 @@ export function JournalStudio() {
                         }}
                       />
                       <p className="mt-2 break-all text-[11px] text-muted">
-                        /journal/{form.slug || "…"}
+                        {form.kind === "HELP" ? "help/" : "/journal/"}
+                        {form.slug || "…"}
                         {status === "PUBLISHED" && (
                           <span className="text-warning">
                             {" "}
@@ -327,7 +387,9 @@ export function JournalStudio() {
 
                   <div>
                     <FieldLabel htmlFor="post-excerpt">
-                      EXCERPT — SHOWN ON THE JOURNAL INDEX
+                      {form.kind === "HELP"
+                        ? "EXCERPT — THE ONE-LINE ANSWER SHOWN UNDER THE TITLE"
+                        : "EXCERPT — SHOWN ON THE JOURNAL INDEX"}
                     </FieldLabel>
                     <Textarea
                       id="post-excerpt"

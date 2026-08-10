@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Firm } from "@/lib/data/firms";
+import { FirmMark } from "@/components/ui/firm-mark";
 import { cn } from "@/lib/cn";
 
 /**
@@ -27,29 +28,48 @@ export function DealRow({
       <Link
         href={`/firm/${firm.slug}`}
         className="absolute inset-0 z-0"
-        aria-label={`${firm.name} — ${firm.cashback}% cashback, ${firm.discount}% off`}
+        aria-label={
+          firm.cashback > 0
+            ? `${firm.name} — ${firm.cashback}% cashback, ${firm.discount}% off`
+            : `${firm.name} — cashback rate coming, ${firm.discount}% off`
+        }
       />
 
       <span className="pointer-events-none z-10 font-mono text-[11px] text-muted">
         {String(rank).padStart(2, "0")}
       </span>
 
-      <span className="pointer-events-none z-10 hidden size-10 items-center justify-center rounded-[11px] bg-surface-2 font-mono text-[11px] text-muted lg:flex">
-        {firm.mark}
+      <span className="pointer-events-none z-10 hidden lg:block">
+        <FirmMark
+          name={firm.name}
+          mark={firm.mark}
+          logoUrl={firm.logoUrl}
+          size={40}
+          className="rounded-[11px]"
+        />
       </span>
 
       <div className="pointer-events-none z-10 col-start-2 min-w-0 md:col-start-auto">
         <p className="truncate font-display text-[17px] font-black uppercase leading-[1.02] tracking-[-0.02em] md:text-[clamp(19px,2.8vw,30px)]">
           {firm.name}
         </p>
+        {/* Only facts we have. A firm with no coupon discount and no recorded
+            profit split used to render "0% OFF · — SPLIT", which states two
+            things that are not true rather than saying nothing. */}
         <p
           className={cn(
             "mt-0.5 truncate font-mono text-[8.5px] uppercase leading-[1.5] tracking-[0.12em]",
             firm.tag ? "text-primary" : "text-muted",
           )}
         >
-          {firm.tag ? `${firm.tag} · ` : ""}
-          {firm.discount}% off · {firm.split} split
+          {[
+            firm.tag,
+            firm.discount > 0 ? `${firm.discount}% off` : null,
+            firm.split && firm.split !== "—" ? `${firm.split} split` : null,
+            firm.payout,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
       </div>
 
@@ -62,12 +82,23 @@ export function DealRow({
       </span>
 
       <div className="pointer-events-none z-10 self-center text-right">
-        <p className="font-mono text-[19px] leading-none tabular-nums tracking-[-0.02em] text-primary md:text-[clamp(20px,2.6vw,27px)]">
-          {firm.cashback}%
-        </p>
-        <p className="mt-[5px] whitespace-nowrap font-mono text-[8.5px] tracking-[0.12em] text-muted">
-          cashback
-        </p>
+        {/* Never a zero: a firm whose commission rate has not been entered has
+            no rate to show, and "0% cashback" reads as an offer rather than as
+            missing data. */}
+        {firm.cashback > 0 ? (
+          <>
+            <p className="font-mono text-[19px] leading-none tabular-nums tracking-[-0.02em] text-primary md:text-[clamp(20px,2.6vw,27px)]">
+              {firm.cashback}%
+            </p>
+            <p className="mt-[5px] whitespace-nowrap font-mono text-[8.5px] tracking-[0.12em] text-muted">
+              cashback
+            </p>
+          </>
+        ) : (
+          <p className="whitespace-nowrap font-mono text-[8.5px] tracking-[0.12em] text-muted">
+            RATE COMING
+          </p>
+        )}
       </div>
 
       <button

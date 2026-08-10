@@ -100,9 +100,9 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   },
   {
     href: "/console/blog",
-    label: "Journal",
+    label: "Journal & help",
     description:
-      "Write and publish journal posts. Writing and publishing are separate permissions.",
+      "Write and publish journal posts and the help articles the support widget searches. Writing and publishing are separate permissions.",
     permissions: [P.postWrite],
     group: "Growth",
   },
