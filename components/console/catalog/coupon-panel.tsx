@@ -73,16 +73,16 @@ export function CouponPanel({ platforms }: { platforms: Resource<Platform[]> }) 
   const rows = coupons.data ?? [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {canManage && (
-        <Panel className="p-[clamp(18px,3vw,26px)]">
+        <Panel className="p-[var(--ct-pad)]">
           <PanelHeader
             eyebrow="ADD"
             title="New coupon"
             description="Create it at the firm first. This row only records what already exists on their side — it does not make the code work at their checkout."
           />
-          <form onSubmit={create} className="mt-5 grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
+          <form onSubmit={create} className="mt-3 grid gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <FieldLabel htmlFor="coupon-platform">FIRM</FieldLabel>
                 <Select
@@ -119,7 +119,7 @@ export function CouponPanel({ platforms }: { platforms: Resource<Platform[]> }) 
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <FieldLabel htmlFor="coupon-code">CODE</FieldLabel>
                 <TextInput

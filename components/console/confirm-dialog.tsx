@@ -63,7 +63,7 @@ export function ConfirmDialog({
     >
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[190] bg-black/55 backdrop-blur-[2px]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[200] w-[min(520px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-modal border border-hair bg-surface p-[clamp(20px,3vw,30px)] shadow-card">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[200] w-[min(520px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-modal border border-hair bg-surface p-[var(--ct-pad)] shadow-card">
           <Dialog.Title className="font-display text-[22px] font-black uppercase leading-none">
             {title}
           </Dialog.Title>
@@ -73,7 +73,7 @@ export function ConfirmDialog({
           </Dialog.Description>
 
           {reason && (
-            <div className="mt-5">
+            <div className="mt-3">
               <label
                 htmlFor="confirm-reason"
                 className="mb-2 block font-mono text-[9.5px] tracking-[0.16em] text-muted"

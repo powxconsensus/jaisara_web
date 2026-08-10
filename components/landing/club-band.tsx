@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { Reveal } from "@/components/ui/reveal";
 
-/** Illustrative Club earnings, shown as a proof panel. */
+/**
+ * Worked examples of a Club payout — invented numbers, not member activity.
+ *
+ * The code always said "illustrative"; the page did not. Two named people with
+ * exact amounts read as real earnings to anybody looking at it, which is a
+ * claim we cannot support. The panel is now labelled, so it reads as the
+ * arithmetic it is.
+ */
 const EXAMPLES = [
   { mark: "AV", name: "Ava referred 3 traders", amount: "+$41.20" },
   { mark: "DK", name: "Dev referred 11 traders", amount: "+$168.90" },
@@ -51,6 +58,9 @@ export function ClubBand() {
         </div>
 
         <div className="flex flex-col gap-2.5">
+          <p className="font-mono text-[9px] tracking-[0.18em] text-muted">
+            [ EXAMPLE — HOW A CLUB PAYOUT ADDS UP ]
+          </p>
           {EXAMPLES.map((example) => (
             <div
               key={example.mark}

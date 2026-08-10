@@ -107,6 +107,14 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     group: "Growth",
   },
   {
+    href: "/console/ai",
+    label: "AI providers",
+    description:
+      "Which model reads receipts and answers support, in what order, and the keys behind them. Editing is owner-only.",
+    permissions: [P.aiView],
+    group: "Administration",
+  },
+  {
     href: "/console/people",
     label: "People & roles",
     description:
@@ -115,6 +123,27 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     group: "Administration",
   },
 ];
+
+/**
+ * Two letters per section, for the collapsed rail.
+ *
+ * Kept here rather than on `ConsoleSection` so they stay visibly unique — the
+ * whole value of a code is that `CL` and `CA` cannot be confused, and that is
+ * only checkable when they are written in one list.
+ */
+export const SECTION_CODE: Record<string, string> = {
+  "/console/claims": "CL",
+  "/console/imports": "IM",
+  "/console/orders": "OR",
+  "/console/support": "SU",
+  "/console/catalog": "CA",
+  "/console/payouts": "PO",
+  "/console/settings": "SP",
+  "/console/campaigns": "ES",
+  "/console/blog": "JR",
+  "/console/ai": "AI",
+  "/console/people": "PR",
+};
 
 /** Sections the holder of `granted` may open. */
 export function visibleSections(granted: Iterable<string>): ConsoleSection[] {

@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useAccess } from "@/components/console/use-permissions";
 import { PageHeader, Panel, StatTile, Badge } from "@/components/console/ui";
+import { useAccess } from "@/components/console/use-permissions";
 import { useResource } from "@/lib/console-api";
-import { CONSOLE_GROUPS, visibleSections } from "@/lib/console-nav";
-import { humanRole } from "@/lib/console-format";
+import { pointsToUsd, relativeTime, usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
   type ClaimSummary,
@@ -17,10 +16,13 @@ import {
 /**
  * Where a reviewer lands.
  *
- * The point of this screen is the top row: what is waiting. A grid of links to
- * sections the person can already see in the sidebar tells them nothing, so
- * every tile here is a live count, fetched only when the permission for it is
- * actually held.
+ * Two things only: what is waiting, and the oldest of it. The previous version
+ * spent two thirds of the screen on a grid of cards linking to sections that
+ * are already listed in the rail, one row away — a menu printed twice. The
+ * queue below replaces it, because the useful question on opening a console is
+ * never "what sections exist", it is "what has been sitting here longest".
+ *
+ * Every tile is a live count, fetched only when the permission for it is held.
  */
 
 /** The list endpoints cap their page size, so a full page means "at least". */
@@ -31,9 +33,18 @@ function atLeast(rows: unknown[] | null): string {
   return rows.length >= CAP ? `${CAP}+` : String(rows.length);
 }
 
+/** One line of work, whatever kind of work it is. */
+interface QueueRow {
+  kind: "CLAIM" | "PAYOUT";
+  href: string;
+  title: string;
+  meta: string;
+  at: string;
+  tone: "warning" | "info";
+}
+
 export function ConsoleOverview() {
   const { can, roles, permissions } = useAccess();
-  const sections = visibleSections(permissions);
 
   const claims = useResource<ClaimSummary[]>("/api/admin/claims", {
     query: { status: "MATCHED", take: CAP },
@@ -54,25 +65,30 @@ export function ConsoleOverview() {
     enabled: can(P.marketingView),
   });
 
+  const owedPoints = (payouts.data ?? []).reduce(
+    (total, row) => total + Number(row.points || 0),
+    0,
+  );
+
   const tiles = [
     can(P.claimViewAll) && {
       label: "CLAIMS TO REVIEW",
       value: atLeast(claims.data),
-      hint: "Matched to an order and waiting on a decision.",
+      hint: "Matched to an order, waiting on a decision.",
       tone: (claims.data?.length ?? 0) > 0 ? ("warning" as const) : ("neutral" as const),
       href: "/console/claims",
     },
     can(P.claimViewAll) && {
       label: "AWAITING REPORT",
       value: atLeast(waiting.data),
-      hint: "Submitted, but the firm has not reported the order yet.",
+      hint: "Submitted; the firm has not reported the order yet.",
       tone: "neutral" as const,
       href: "/console/claims?status=AWAITING_REPORT",
     },
     can(P.withdrawalView) && {
       label: "PAYOUTS REQUESTED",
       value: atLeast(payouts.data),
-      hint: "Members waiting to be paid.",
+      hint: owedPoints > 0 ? `${pointsToUsd(owedPoints)} in total.` : "Nobody is waiting to be paid.",
       tone: (payouts.data?.length ?? 0) > 0 ? ("info" as const) : ("neutral" as const),
       href: "/console/payouts",
     },
@@ -98,27 +114,66 @@ export function ConsoleOverview() {
     href: string;
   }[];
 
-  const groups = CONSOLE_GROUPS.map((group) => ({
-    group,
-    items: sections.filter((section) => section.group === group),
-  })).filter((entry) => entry.items.length > 0);
+  /**
+   * Claims and payouts interleaved, oldest first.
+   *
+   * Merged rather than shown as two lists because they compete for the same
+   * attention and the same person: a payout that has waited two days outranks
+   * a claim from this morning, and two separate lists hide that ordering.
+   */
+  const queue: QueueRow[] = [
+    ...(claims.data ?? []).map(
+      (claim): QueueRow => ({
+        kind: "CLAIM",
+        href: `/console/claims?claim=${claim.id}`,
+        title: `${claim.platform.name} · ${claim.claimedExternalId}`,
+        meta: [claim.user.email, claim.claimedAmount ? usd(claim.claimedAmount) : null]
+          .filter(Boolean)
+          .join(" · "),
+        at: claim.createdAt,
+        tone: "warning",
+      }),
+    ),
+    ...(payouts.data ?? []).map(
+      (payout): QueueRow => ({
+        kind: "PAYOUT",
+        href: "/console/payouts",
+        title: `Withdrawal · ${pointsToUsd(payout.points)}`,
+        meta: [payout.user.email, payout.payoutAddress?.chain ?? payout.kind]
+          .filter(Boolean)
+          .join(" · "),
+        at: payout.requestedAt,
+        tone: "info",
+      }),
+    ),
+  ]
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+    .slice(0, 14);
+
+  const loading = claims.loading || payouts.loading;
 
   return (
     <div>
       <PageHeader
         eyebrow="OVERVIEW"
         title="What needs you"
-        description="Counts are live and scoped to your permissions. Anything hidden here is refused by the API too, so a role change takes effect immediately."
+        description="Counts are live and scoped to your permissions — anything hidden here is refused by the API too, so a role change takes effect immediately."
+        actions={
+          <div className="flex items-center gap-1.5">
+            {roles.map((role) => (
+              <Badge key={role} tone="primary">
+                {role.replace(/_/g, " ")}
+              </Badge>
+            ))}
+            <Badge tone="neutral">{permissions.size} PERMS</Badge>
+          </div>
+        }
       />
 
       {tiles.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
           {tiles.map((tile) => (
-            <Link
-              key={tile.label}
-              href={tile.href}
-              className="rounded-[14px] transition hover:-translate-y-0.5"
-            >
+            <Link key={tile.label} href={tile.href} className="block h-full transition hover:opacity-90">
               <StatTile
                 label={tile.label}
                 value={tile.value}
@@ -130,44 +185,53 @@ export function ConsoleOverview() {
         </div>
       )}
 
-      <Panel className="mb-5 p-[clamp(18px,3vw,26px)]">
-        <p className="font-mono text-[9px] tracking-[0.2em] text-muted">YOUR ACCESS</p>
-        <div className="mt-3.5 flex flex-wrap gap-2">
-          {roles.map((role) => (
-            <Badge key={role} tone="primary">
-              {humanRole(role)}
-            </Badge>
-          ))}
-          <Badge tone="neutral">{permissions.size} PERMISSIONS</Badge>
+      <Panel>
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--console-hair)] px-3 py-2">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-[length:var(--ct-title)] font-semibold leading-none">Your queue</h2>
+            <span className="font-mono text-[length:var(--ct-label)] tracking-[0.16em] text-muted">
+              OLDEST FIRST
+            </span>
+          </div>
+          <span className="font-mono text-[length:var(--ct-label)] tracking-[0.14em] text-muted">
+            {queue.length > 0 ? `${queue.length} SHOWN` : ""}
+          </span>
         </div>
-      </Panel>
 
-      {groups.map(({ group, items }) => (
-        <div key={group} className="mb-6 last:mb-0">
-          <p className="mb-3 font-mono text-[9px] tracking-[0.2em] text-primary">
-            {group.toUpperCase()}
-          </p>
-          <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-            {items.map((section) => (
-              <Link
-                key={section.href}
-                href={section.href}
-                className="group rounded-[16px] border border-hair bg-surface p-5 transition hover:-translate-y-0.5 hover:border-primary"
-              >
-                <p className="flex items-center justify-between gap-3 font-display text-lg font-black uppercase group-hover:text-primary">
-                  {section.label}
-                  <span className="text-primary transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
-                </p>
-                <p className="mt-2.5 text-[12.5px] leading-6 text-muted">
-                  {section.description}
-                </p>
-              </Link>
+        {loading && queue.length === 0 ? (
+          <div aria-hidden className="space-y-1.5 p-1.5">
+            {Array.from({ length: 5 }, (_, index) => (
+              <div key={index} className="h-[34px] animate-pulse rounded-[7px] bg-surface-2" />
             ))}
           </div>
-        </div>
-      ))}
+        ) : queue.length === 0 ? (
+          <p className="px-3 py-8 text-center text-[length:var(--ct-small)] text-muted">
+            Nothing is waiting. Claims and payouts appear here the moment they arrive.
+          </p>
+        ) : (
+          <ul>
+            {queue.map((row, index) => (
+              <li key={`${row.kind}-${row.href}-${index}`}>
+                <Link
+                  href={row.href}
+                  className="flex items-center gap-3 border-b border-hair-soft px-3 py-[7px] transition last:border-b-0 hover:bg-surface-2/60"
+                >
+                  <Badge tone={row.tone}>{row.kind}</Badge>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[length:var(--ct-body)]">{row.title}</span>
+                    <span className="block truncate font-mono text-[length:var(--ct-label)] tracking-[0.06em] text-muted">
+                      {row.meta}
+                    </span>
+                  </span>
+                  <span className="flex-none font-mono text-[length:var(--ct-label)] tracking-[0.1em] text-muted">
+                    {relativeTime(row.at)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
     </div>
   );
 }

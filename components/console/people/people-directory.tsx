@@ -71,7 +71,7 @@ export function PeopleDirectory() {
         description="Find one member, then act on them. Granting a role is owner-only, and the API additionally refuses to grant at or above your own rank or to remove the last owner."
       />
 
-      <Panel className="mb-4 p-[clamp(16px,2.5vw,22px)]">
+      <Panel className="mb-4 p-[var(--ct-pad)]">
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[260px] flex-1">
             <label
@@ -119,13 +119,13 @@ export function PeopleDirectory() {
       </Panel>
 
       {results.error && (
-        <div className="mb-4">
+        <div className="mb-2">
           <ErrorNote>{results.error}</ErrorNote>
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[330px_minmax(0,1fr)] xl:items-start">
-        <RecordList className="max-h-[70vh] xl:sticky xl:top-[86px]">
+      <div className="grid gap-2 xl:grid-cols-[300px_minmax(0,1fr)] xl:items-start">
+        <RecordList className="max-h-[70vh] xl:sticky xl:top-0 xl:max-h-[calc(100dvh-var(--topbar-h)-2*var(--console-pad))]">
           {!searching ? (
             <EmptyState
               title="Search for a member"
@@ -179,7 +179,7 @@ export function PeopleDirectory() {
             onChanged={() => void results.reload()}
           />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <Panel>
               <EmptyState
                 title="No member selected"
@@ -187,7 +187,7 @@ export function PeopleDirectory() {
               />
             </Panel>
             {can(P.userView) && catalog.data && (
-              <Panel className="p-[clamp(18px,3vw,26px)]">
+              <Panel className="p-[var(--ct-pad)]">
                 <PanelHeader
                   eyebrow="REFERENCE"
                   title="What each role can do"

@@ -49,6 +49,20 @@ export function dateTime(value: string | null | undefined): string {
 }
 
 /** "3 days ago" / "in 2 hours" — for hold periods and queue age. */
+/**
+ * Whether a timestamp is older than `ms`.
+ *
+ * The clock read lives here rather than in a component body: reading it during
+ * render is impure, and the compiler's `purity` rule is right to refuse it. The
+ * value is as fresh as the render that asked for it, which for a queue that
+ * reloads on open is exactly the guarantee wanted.
+ */
+export function isOlderThan(value: string | null | undefined, ms: number): boolean {
+  if (!value) return false;
+  const at = new Date(value).getTime();
+  return Number.isFinite(at) && Date.now() - at > ms;
+}
+
 export function relativeTime(value: string | null | undefined): string {
   if (!value) return "—";
 

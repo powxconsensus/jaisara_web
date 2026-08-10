@@ -39,6 +39,33 @@ const HOUSE_COUPON = "JAISARA";
 type Mode = "auto" | "upload" | "manual";
 type Stage = "idle" | "parsing" | "parsed";
 
+/** A receipt attached to a hand-typed claim, and where its upload has got to. */
+interface AttachedReceipt {
+  state: "uploading" | "done";
+  name: string;
+  size: number;
+}
+
+function fileSize(bytes: number): string {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)}MB`
+    : `${Math.max(1, Math.round(bytes / 1024))}KB`;
+}
+
+/**
+ * How many of the six a receipt could possibly fill.
+ *
+ * Derived from the empty shape rather than written as `6`, so adding a field
+ * to a claim cannot leave this badge quietly reporting a stale denominator.
+ */
+const FIELD_COUNT = Object.keys(EMPTY_CLAIM).length;
+
+/** The extension shown on the file chip — from the name, not assumed. */
+function fileKindOf(name: string): string {
+  const extension = /\.([a-z0-9]{1,5})$/i.exec(name)?.[1];
+  return extension ? extension.toUpperCase() : "FILE";
+}
+
 const MODES: { key: Mode; label: string }[] = [
   { key: "auto", label: "Auto-claim" },
   { key: "upload", label: "Upload receipt" },
@@ -130,12 +157,21 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
   const [fileName, setFileName] = useState("");
   const [fields, setFields] = useState<ClaimFieldValues>(EMPTY_CLAIM);
   const [storageKey, setStorageKey] = useState<string | null>(null);
+  /** The manual tab's attachment: null, mid-upload, or done. */
+  const [attached, setAttached] = useState<AttachedReceipt | null>(null);
+  /** Measured, not guessed — see the parsed-file header below. */
+  const [parseMs, setParseMs] = useState<number | null>(null);
   const [concerns, setConcerns] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const attachRef = useRef<HTMLInputElement>(null);
 
   const autoFirms = platforms.filter((platform) => platform.supportsSubId);
+
+  /** What the parser actually filled in, counted from the form it produced. */
+  const filledCount = Object.values(fields).filter((value) => value.trim().length > 0).length;
+  const fileKind = fileKindOf(fileName);
 
   /**
    * Uploads the receipt and shows what the parser made of it.
@@ -150,12 +186,16 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
     setDragging(false);
     setError(null);
     setConcerns([]);
+    setParseMs(null);
+
+    const startedAt = performance.now();
 
     try {
       const body = new FormData();
       body.set("file", file);
       const response = await fetch("/api/claims/receipt", { method: "POST", body });
       const result = await response.json().catch(() => null);
+      setParseMs(performance.now() - startedAt);
 
       if (!response.ok) {
         setError(apiErrorMessage(result, "That receipt could not be uploaded."));
@@ -187,11 +227,52 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
     }
   };
 
+  /**
+   * Attaches a receipt to a claim being typed by hand.
+   *
+   * Deliberately *not* `startParse`. That one overwrites every field with what
+   * the parser read, which is right when the receipt is the source of the
+   * claim and destructive here — it would wipe what somebody had just finished
+   * typing. This uploads for the reviewer's benefit and touches nothing else.
+   */
+  const attachReceipt = async (file: File) => {
+    setAttached({ state: "uploading", name: file.name, size: file.size });
+    setError(null);
+
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const response = await fetch("/api/claims/receipt", { method: "POST", body });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setAttached(null);
+        setError(apiErrorMessage(result, "That receipt could not be attached."));
+        return;
+      }
+
+      setStorageKey(result.storageKey ?? null);
+      setAttached({ state: "done", name: file.name, size: file.size });
+    } catch {
+      setAttached(null);
+      setError("The claims service is unavailable. Please try again.");
+    }
+  };
+
+  const detachReceipt = () => {
+    // The object stays in the bucket — it counts against the day's uploads
+    // either way, and pretending otherwise would need a delete endpoint that
+    // exists only to make a number look better.
+    setAttached(null);
+    setStorageKey(null);
+  };
+
   const reset = () => {
     setStage("idle");
     setFields(EMPTY_CLAIM);
     setFileName("");
     setStorageKey(null);
+    setAttached(null);
     setConcerns([]);
     setError(null);
   };
@@ -268,6 +349,10 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
 
   return (
     <div className="max-w-[660px]">
+      {/* Two inputs, because the two paths do different things with the file:
+          the dropzone parses it into the form, the manual tab attaches it as
+          evidence without touching what was typed. One shared input meant the
+          manual attach silently overwrote every field. */}
       <input
         ref={inputRef}
         type="file"
@@ -275,7 +360,19 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
+          event.target.value = "";
           if (file) void startParse(file);
+        }}
+      />
+      <input
+        ref={attachRef}
+        type="file"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void attachReceipt(file);
         }}
       />
 
@@ -442,21 +539,38 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
 
       {mode === "upload" && stage === "parsed" && (
         <div className="rounded-card border border-hair bg-surface p-[clamp(20px,3vw,28px)] [animation:jsIn_.3s_ease_both]">
+          {/* Both figures here were once fixed strings — "PARSED IN 1.4S" and
+              "5 FIELDS FOUND" — printed whatever actually happened. They are a
+              claim about the member's own file, so a wrong one is not a
+              cosmetic issue: somebody who saw "5 fields found" above two blank
+              boxes would reasonably conclude the form had lost their data. */}
           <div className="mb-[22px] flex items-center gap-[13px] border-b border-hair-soft pb-5">
-            <span className="grid size-9 flex-none place-items-center rounded-[10px] bg-surface-2 font-mono text-[9px] text-muted">
-              PDF
+            <span className="grid size-9 flex-none place-items-center rounded-[10px] bg-surface-2 font-mono text-[9px] uppercase text-muted">
+              {fileKind}
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13.5px] font-medium">{fileName}</p>
               <p className="mt-[3px] font-mono text-[9.5px] tracking-[0.06em] text-muted">
-                PARSED IN 1.4S
+                {parseMs === null ? "READ" : `READ IN ${(parseMs / 1000).toFixed(1)}S`}
               </p>
             </div>
             <span
-              className="flex-none rounded-md px-[9px] py-[5px] font-mono text-[8.5px] tracking-[0.12em] text-success"
-              style={{ background: "color-mix(in oklab, var(--success) 14%, transparent)" }}
+              className="flex-none rounded-md px-[9px] py-[5px] font-mono text-[8.5px] tracking-[0.12em]"
+              style={
+                filledCount > 0
+                  ? {
+                      background: "color-mix(in oklab, var(--success) 14%, transparent)",
+                      color: "var(--success)",
+                    }
+                  : {
+                      background: "color-mix(in oklab, var(--warning) 14%, transparent)",
+                      color: "var(--warning)",
+                    }
+              }
             >
-              5 FIELDS FOUND
+              {filledCount === 0
+                ? "NOTHING READ — TYPE IT IN"
+                : `${filledCount} OF ${FIELD_COUNT} FIELDS FOUND`}
             </span>
           </div>
 
@@ -494,19 +608,72 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
             badges={false}
           />
 
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="mt-3.5 flex w-full cursor-pointer items-center gap-3 rounded-[12px] border border-dashed px-4 py-3.5 text-left transition hover:border-primary"
-            style={{ borderColor: "color-mix(in oklab, var(--text) 20%, transparent)" }}
-          >
-            <span className="grid size-7 flex-none place-items-center rounded-lg bg-surface-2 text-primary">
-              ↑
-            </span>
-            <span className="text-[12.5px] text-muted">
-              Attach the receipt too (optional, speeds up review)
-            </span>
-          </button>
+          {/* Three states in one slot, same height throughout, so attaching a
+              receipt never shifts the Submit button out from under a cursor.
+              Before this there was no state at all: the file uploaded in
+              silence and the row still read "attach the receipt", which is
+              indistinguishable from nothing having happened. */}
+          {attached === null ? (
+            <button
+              type="button"
+              onClick={() => attachRef.current?.click()}
+              className="mt-3.5 flex w-full cursor-pointer items-center gap-3 rounded-[12px] border border-dashed px-4 py-3.5 text-left transition hover:border-primary"
+              style={{ borderColor: "color-mix(in oklab, var(--text) 20%, transparent)" }}
+            >
+              <span className="grid size-7 flex-none place-items-center rounded-lg bg-surface-2 text-primary">
+                ↑
+              </span>
+              <span className="text-[12.5px] text-muted">
+                Attach the receipt too (optional, speeds up review)
+              </span>
+            </button>
+          ) : (
+            <div
+              className="mt-3.5 flex items-center gap-3 rounded-[12px] border border-hair bg-surface-2 px-4 py-3.5"
+              aria-live="polite"
+            >
+              <span className="grid size-7 flex-none place-items-center rounded-lg bg-surface">
+                {attached.state === "uploading" ? (
+                  <span className="size-[15px] rounded-full border-2 border-hair border-t-primary [animation:jsSpin_.8s_linear_infinite]" />
+                ) : (
+                  <span className="text-[13px] leading-none text-success">✓</span>
+                )}
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12.5px] font-medium">{attached.name}</p>
+                {attached.state === "uploading" ? (
+                  <span
+                    className="mt-[5px] block h-[3px] w-full overflow-hidden rounded-full"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, var(--surface) 0%, var(--primary) 50%, var(--surface) 100%)",
+                      backgroundSize: "220px 100%",
+                      animation: "jsShim 1.1s linear infinite",
+                    }}
+                  />
+                ) : (
+                  <p className="mt-[3px] font-mono text-[9px] tracking-[0.12em] text-muted">
+                    ATTACHED · {fileSize(attached.size)}
+                  </p>
+                )}
+              </div>
+
+              {attached.state === "uploading" ? (
+                <span className="flex-none font-mono text-[9px] tracking-[0.14em] text-muted">
+                  UPLOADING…
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={detachReceipt}
+                  className="flex-none cursor-pointer font-mono text-[9px] tracking-[0.14em] text-muted transition hover:text-danger"
+                >
+                  REMOVE
+                </button>
+              )}
+            </div>
+          )}
 
           {notices}
           <EstimateBar

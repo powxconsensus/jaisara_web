@@ -81,11 +81,11 @@ export function OrderBrowser() {
       <PageHeader
         eyebrow="OPERATIONS"
         title="Orders"
-        description="Every sale, refund and adjustment imported from any firm, normalised into one table. This is the source the matcher joins claims against."
+        description="Every imported sale, refund and adjustment across all firms — the table the matcher joins claims against."
       />
 
       {can(P.analyticsView) && sales.length > 0 && (
-        <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <div className="mb-2 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           <StatTile label="SALES ON FILE" value={totalOrders.toLocaleString("en-US")} />
           <StatTile label="COMMISSION TOTAL" value={usd(totalCommission)} />
           <StatTile label="CONFIRMED" value={usd(confirmed)} tone="success" />
@@ -98,7 +98,7 @@ export function OrderBrowser() {
         </div>
       )}
 
-      <Panel className="mb-4 p-[clamp(16px,2.5vw,22px)]">
+      <Panel className="mb-4 p-[var(--ct-pad)]">
         <div className="flex flex-wrap items-center gap-2">
           {[
             { value: "", label: "Any status" },
@@ -157,7 +157,7 @@ export function OrderBrowser() {
       </Panel>
 
       {orders.error && (
-        <div className="mb-4">
+        <div className="mb-2">
           <ErrorNote>{orders.error}</ErrorNote>
         </div>
       )}
@@ -227,13 +227,13 @@ export function OrderBrowser() {
       </Panel>
 
       {can(P.analyticsView) && sales.length > 0 && (
-        <Panel className="mt-4 p-[clamp(18px,3vw,26px)]">
+        <Panel className="mt-4 p-[var(--ct-pad)]">
           <PanelHeader
             eyebrow="ANALYTICS"
             title="By firm and status"
             description="Grouped straight from the orders table, so it reconciles against the reports you imported."
           />
-          <div className="mt-5">
+          <div className="mt-3">
             <TableShell columns={["FIRM", "KIND", "STATUS", "ORDERS", "COMMISSION"]} minWidth={640}>
               {(stats.data ?? []).map((row, index) => (
                 <Tr key={`${row.platform}-${row.kind}-${row.status}-${index}`}>

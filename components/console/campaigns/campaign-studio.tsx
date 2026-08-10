@@ -20,6 +20,14 @@ import {
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
+import { cn } from "@/lib/cn";
+import {
+  compileHtml,
+  compileText,
+  isEmailDesign,
+  starterDesign,
+  type EmailDesign,
+} from "@/lib/email-blocks";
 import { consoleApi, errorMessage, useMutation, useResource } from "@/lib/console-api";
 import { dateTime, relativeTime } from "@/lib/console-format";
 import {
@@ -30,7 +38,8 @@ import {
   type CampaignSummary,
   type SubscriberSummary,
 } from "@/lib/admin-types";
-import { CampaignEditor, SubjectFields } from "./campaign-editor";
+import { BlockComposer } from "./block-composer";
+import { SubjectFields } from "./campaign-editor";
 import { CampaignStatsPanel } from "./campaign-stats";
 import { SuppressionList } from "./suppression-list";
 
@@ -56,14 +65,14 @@ const STATUS_TONE: Record<CampaignStatus, Tone> = {
   FAILED: "danger",
 };
 
-const EMPTY = {
-  name: "",
-  subject: "",
-  bodyHtml:
-    '<h1>Hello {{firstName}},</h1>\n<p>Write your update here.</p>\n<p><a href="{{unsubscribeUrl}}">Unsubscribe</a></p>',
-  bodyText: "Hello {{firstName}},\n\nWrite your update here.\n\nUnsubscribe: {{unsubscribeUrl}}",
-  testEmails: "",
-};
+/**
+ * A new campaign starts from blocks, not from a string of HTML.
+ *
+ * `bodyHtml` and `bodyText` are no longer edited directly — they are compiled
+ * from `design` when the draft is saved. Keeping them out of this shape is what
+ * stops the two drifting: there is now exactly one thing an author edits.
+ */
+const EMPTY = { name: "", subject: "", testEmails: "" };
 
 export function CampaignStudio() {
   const { can } = useAccess();
@@ -79,6 +88,7 @@ export function CampaignStudio() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<CampaignStatus>("DRAFT");
   const [form, setForm] = useState(EMPTY);
+  const [design, setDesign] = useState<EmailDesign>(starterDesign);
   const [preview, setPreview] = useState<AudiencePreview | null>(null);
   const [scheduledFor, setScheduledFor] = useState("");
   const [dialog, setDialog] = useState<"send" | "schedule" | "cancel" | null>(null);
@@ -101,10 +111,13 @@ export function CampaignStudio() {
       setForm({
         name: campaign.name,
         subject: campaign.subject,
-        bodyHtml: campaign.bodyHtml,
-        bodyText: campaign.bodyText,
         testEmails: campaign.audience?.testEmails?.join(", ") ?? "",
       });
+      // A campaign drafted before the composer existed has no design. Rather
+      // than reverse-engineering blocks out of its HTML — which would quietly
+      // rewrite what somebody already approved — it opens on a fresh starter
+      // and the stored HTML stays untouched until they save.
+      setDesign(isEmailDesign(campaign.design) ? campaign.design : starterDesign());
     } catch (caught) {
       setLoadError(errorMessage(caught));
     }
@@ -114,6 +127,7 @@ export function CampaignStudio() {
     setSelectedId(null);
     setStatus("DRAFT");
     setForm(EMPTY);
+    setDesign(starterDesign());
     setPreview(null);
     setScheduledFor("");
     setLoadError(null);
@@ -125,8 +139,10 @@ export function CampaignStudio() {
     const body = {
       name: form.name,
       subject: form.subject,
-      bodyHtml: form.bodyHtml,
-      bodyText: form.bodyText,
+      // Compiled here, once, from the one thing the author edited.
+      bodyHtml: compileHtml(design),
+      bodyText: compileText(design),
+      design,
       audience: form.testEmails.trim()
         ? {
             testEmails: form.testEmails
@@ -201,11 +217,11 @@ export function CampaignStudio() {
   };
 
   return (
-    <div>
+    <div className={cn("flex flex-col", tab === "campaigns" && "console-fill")}>
       <PageHeader
         eyebrow="GROWTH"
         title="Email studio"
-        description="Every send is restricted to active, verified, opted-in members and excludes suppressed addresses — the audience is resolved again at send time, so a fresh opt-out is always honoured."
+        description="Audience is resolved again at send time, so a fresh opt-out is always honoured."
         actions={
           <Segmented
             label="Studio section"
@@ -222,10 +238,10 @@ export function CampaignStudio() {
       {tab === "suppressions" ? (
         <SuppressionList />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:items-start">
-          <aside className="space-y-3 xl:sticky xl:top-[86px]">
+        <div className="grid min-h-0 flex-1 gap-2 xl:grid-cols-[268px_minmax(0,1fr)]">
+          <aside className="flex min-h-0 flex-col gap-2">
             {subscribers.data && (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid flex-none grid-cols-2 gap-2">
                 <StatTile
                   label="REACHABLE"
                   value={subscribers.data.reachable.toLocaleString("en-US")}
@@ -249,12 +265,12 @@ export function CampaignStudio() {
             )}
 
             {canManage && (
-              <Button className="w-full" size="lg" onClick={startNew}>
+              <Button className="w-full flex-none" onClick={startNew}>
                 + New email
               </Button>
             )}
 
-            <RecordList className="max-h-[52vh]">
+            <RecordList className="min-h-0 flex-1 max-xl:max-h-[36vh]">
               {campaigns.loading && !campaigns.data ? (
                 <LoadingRows rows={4} />
               ) : (campaigns.data ?? []).length === 0 ? (
@@ -290,7 +306,10 @@ export function CampaignStudio() {
             </RecordList>
           </aside>
 
-          <div className="min-w-0 space-y-4">
+          {/* The editing pane scrolls on its own, so the campaign list and the
+              audience figures stay visible while a long body is written —
+              those numbers are the check somebody makes before sending. */}
+          <div className="console-scroll min-h-0 min-w-0 space-y-2 overflow-y-auto pr-0.5">
             {loadError && <ErrorNote>{loadError}</ErrorNote>}
 
             {!selectedId && !canManage ? (
@@ -301,7 +320,7 @@ export function CampaignStudio() {
                 />
               </Panel>
             ) : (
-              <Panel className="p-[clamp(18px,3vw,26px)]">
+              <Panel className="p-[var(--ct-pad)]">
                 <PanelHeader
                   eyebrow={selectedId ? status : "NEW DRAFT"}
                   title={selectedId ? form.name || "Untitled email" : "Compose an email"}
@@ -310,7 +329,7 @@ export function CampaignStudio() {
                   }
                 />
 
-                <form onSubmit={save} className="mt-6 grid gap-5">
+                <form onSubmit={save} className="mt-3 grid gap-3">
                   <SubjectFields
                     name={form.name}
                     subject={form.subject}
@@ -318,12 +337,14 @@ export function CampaignStudio() {
                     onChange={(next) => setForm({ ...form, ...next })}
                   />
 
-                  <CampaignEditor
-                    html={form.bodyHtml}
-                    text={form.bodyText}
-                    disabled={!editable && Boolean(selectedId)}
-                    onChange={(next) => setForm({ ...form, ...next })}
-                  />
+                  <div>
+                    <FieldLabel>MESSAGE</FieldLabel>
+                    <BlockComposer
+                      design={design}
+                      disabled={!editable && Boolean(selectedId)}
+                      onChange={setDesign}
+                    />
+                  </div>
 
                   <div>
                     <FieldLabel htmlFor="campaign-tests">
@@ -406,7 +427,7 @@ export function CampaignStudio() {
 
             {selectedId && canSend && (status === "DRAFT" || status === "SCHEDULED") && (
               <Panel
-                className="p-[clamp(18px,3vw,26px)]"
+                className="p-[var(--ct-pad)]"
                 style={{ borderColor: "color-mix(in oklab, var(--warning) 40%, transparent)" }}
               >
                 <PanelHeader
@@ -466,9 +487,9 @@ export function CampaignStudio() {
             )}
 
             {selectedId && (status === "SENT" || status === "SENDING" || status === "FAILED") && (
-              <Panel className="p-[clamp(18px,3vw,26px)]">
+              <Panel className="p-[var(--ct-pad)]">
                 <PanelHeader eyebrow="RESULTS" title="Delivery outcomes" />
-                <div className="mt-5">
+                <div className="mt-3">
                   <CampaignStatsPanel campaignId={selectedId} />
                 </div>
               </Panel>

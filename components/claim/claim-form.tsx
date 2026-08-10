@@ -21,16 +21,6 @@ export const EMPTY_CLAIM: ClaimFields = {
   coupon: "",
 };
 
-/** What the parser proposes from a sample receipt. */
-export const PARSED_CLAIM: ClaimFields = {
-  firm: "FTMO",
-  plan: "$25K Swing",
-  amount: "349.00",
-  date: "2026-07-28",
-  order: "FT-8842190",
-  coupon: "JAISARA20",
-};
-
 /**
  * One claim field. Parsed fields carry an `AI` badge; low-confidence ones get
  * `CHECK THIS` in warning. Every field stays editable — the parser proposes,

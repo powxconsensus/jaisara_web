@@ -102,8 +102,8 @@ export function MemberPanel({
   };
 
   return (
-    <div className="space-y-4">
-      <Panel className="p-[clamp(18px,3vw,26px)]">
+    <div className="space-y-2">
+      <Panel className="p-[var(--ct-pad)]">
         <PanelHeader
           eyebrow="MEMBER"
           title={record.displayName ?? "Unnamed member"}
@@ -168,7 +168,7 @@ export function MemberPanel({
         </div>
       </Panel>
 
-      <Panel className="p-[clamp(18px,3vw,26px)]">
+      <Panel className="p-[var(--ct-pad)]">
         <PanelHeader
           eyebrow="ACCESS"
           title="Roles"
@@ -228,7 +228,7 @@ export function MemberPanel({
       </Panel>
 
       {canManageUser && !isSelf && (
-        <Panel className="p-[clamp(18px,3vw,26px)]">
+        <Panel className="p-[var(--ct-pad)]">
           <PanelHeader
             eyebrow="ACCOUNT"
             title="Account actions"

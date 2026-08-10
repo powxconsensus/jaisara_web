@@ -10,14 +10,16 @@ import { ConfirmDialog } from "@/components/console/confirm-dialog";
 import {
   Badge,
   EmptyState,
-  ErrorNote,
   LoadingRows,
   PageHeader,
   Panel,
   RecordButton,
   RecordList,
   Segmented,
+  TableShell,
+  Td,
   Textarea,
+  Tr,
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
@@ -58,7 +60,7 @@ const EMPTY = {
   seoDescription: "",
 };
 
-type View = "write" | "preview" | "details";
+type View = "write" | "preview" | "details" | "posts";
 type PostKind = "JOURNAL" | "HELP";
 
 /**
@@ -87,10 +89,20 @@ export function JournalStudio() {
   const [view, setView] = useState<View>("write");
   const [dialog, setDialog] = useState<"publish" | "unpublish" | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
+  /**
+   * The form as the server last saw it.
+   *
+   * Compared against the live form to decide whether there is anything to
+   * save. Held as state rather than a ref so the indicator re-renders with the
+   * typing, and serialised rather than compared field by field so adding a
+   * field to the form cannot quietly leave it out of the check.
+   */
+  const [saved, setSaved] = useState(() => JSON.stringify(EMPTY));
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const canPublish = can(P.postPublish);
   const stats = readingStats(form.body);
+  const dirty = JSON.stringify(form) !== saved;
   // `slot=covers` files this under `journal/covers/` rather than with the
   // illustrations pasted into a body, so a post's card image is findable in the
   // bucket without reading the row that points at it.
@@ -107,7 +119,7 @@ export function JournalStudio() {
     setSlugTouched(true);
     setView("write");
     setError(null);
-    setForm({
+    const loaded = {
       title: post.title,
       slug: post.slug,
       excerpt: post.excerpt ?? "",
@@ -117,13 +129,16 @@ export function JournalStudio() {
       tags: post.tags.join(", "),
       seoTitle: post.seoTitle ?? "",
       seoDescription: post.seoDescription ?? "",
-    });
+    };
+    setForm(loaded);
+    setSaved(JSON.stringify(loaded));
   };
 
   const startNew = () => {
     setSelectedId(null);
     setStatus("DRAFT");
     setForm(EMPTY);
+    setSaved(JSON.stringify(EMPTY));
     setSlugTouched(false);
     setView("write");
     setError(null);
@@ -131,7 +146,7 @@ export function JournalStudio() {
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    const saved = await mutate<BlogPost>(
+    const result = await mutate<BlogPost>(
       selectedId ? `/api/journal/${selectedId}` : "/api/journal",
       {
         method: selectedId ? "PATCH" : "POST",
@@ -151,11 +166,15 @@ export function JournalStudio() {
         },
       },
     );
-    if (!saved) return;
+    if (!result) return;
 
-    setSelectedId(saved.id);
-    setStatus(saved.status);
-    setForm((previous) => ({ ...previous, slug: saved.slug }));
+    setSelectedId(result.id);
+    setStatus(result.status);
+    // The server may have normalised the slug, so the snapshot is taken from
+    // what the form becomes — not from what was sent.
+    const stored = { ...form, slug: result.slug };
+    setForm(stored);
+    setSaved(JSON.stringify(stored));
     setSlugTouched(true);
     toast(selectedId ? "Saved." : "Draft created.", "success");
     await posts.reload();
@@ -173,15 +192,10 @@ export function JournalStudio() {
   };
 
   return (
-    <div>
+    <div className="console-fill flex flex-col">
       <PageHeader
         eyebrow="GROWTH"
         title="Journal & help"
-        description={
-          canPublish
-            ? "Write, preview and publish — journal posts for the site, help articles for the support widget. The preview uses the same renderer readers get, so what you see is what ships."
-            : "Write and edit your posts and help articles. Publishing is a separate permission — an admin or owner takes it live."
-        }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {/* Formatting sits beside the view switch, directly above the
@@ -201,18 +215,23 @@ export function JournalStudio() {
                 { value: "write", label: "Write" },
                 { value: "preview", label: "Preview" },
                 { value: "details", label: "Details & SEO" },
+                { value: "posts", label: "All posts" },
               ]}
             />
           </div>
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)] xl:items-start">
-        <aside className="space-y-3 xl:sticky xl:top-[86px]">
-          <Button className="w-full" size="lg" onClick={startNew}>
+      {/* Two panes filling the frame, each scrolling on its own. Before this
+          the post list capped at 62vh and the editor pushed the page down, so
+          writing a long post scrolled the list, the toolbar and the title out
+          of reach — in a tool where the list is how you switch between drafts. */}
+      <div className="grid min-h-0 flex-1 gap-2 xl:grid-cols-[248px_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col gap-2">
+          <Button className="w-full" onClick={startNew}>
             + New post
           </Button>
-          <RecordList className="max-h-[62vh]">
+          <RecordList className="min-h-0 flex-1 max-xl:max-h-[38vh]">
             {posts.loading && !posts.data ? (
               <LoadingRows rows={4} />
             ) : (posts.data ?? []).length === 0 ? (
@@ -241,44 +260,128 @@ export function JournalStudio() {
           </RecordList>
         </aside>
 
-        <Panel className="min-w-0 p-[clamp(14px,1.6vw,22px)]">
-          <form onSubmit={save}>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <Badge tone={STATUS_TONE[status]}>
-                  {selectedId ? status.replaceAll("_", " ") : "NEW DRAFT"}
-                </Badge>
-                <span data-count className="font-mono text-[10px] tracking-[0.1em] text-muted">
-                  {stats.words.toLocaleString("en-US")} WORDS · {stats.minutes} MIN READ
+        {/* A document editor, not a page that happens to contain a textarea.
+            Three fixed regions — a meta strip, the writing surface, and the
+            actions — so the Save button is always where you left it and the
+            surface takes exactly the height that is left. The previous version
+            let the textarea define the panel's height and put the actions
+            below it after a rule, which on an empty draft rendered as a title,
+            a wall of nothing, and a button floating in the middle of it. */}
+        <Panel className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <form onSubmit={save} className="flex min-h-0 flex-1 flex-col">
+            {/* One bar, not two. State on the left, actions on the right —
+                the previous version put the save button in its own row along
+                the bottom, which cost a second border and 40px on every screen
+                to separate two things that are read together: "what is this
+                draft" and "what can I do with it".
+
+                Hidden entirely while browsing the list: a Create draft button
+                above a table of existing posts is an offer to do something
+                else. */}
+            <div
+              className={cn(
+                "flex flex-none flex-wrap items-center gap-x-2.5 gap-y-1.5 border-b border-[var(--console-hair)] px-3 py-1.5",
+                view === "posts" && "hidden",
+              )}
+            >
+              <Badge tone={STATUS_TONE[status]}>
+                {selectedId ? status.replaceAll("_", " ") : "NEW DRAFT"}
+              </Badge>
+
+              {/* Unsaved is the one thing an editor must never be coy about.
+                  Shown as a word rather than only a dot, because a dot alone
+                  is a decoration until somebody has lost work to it once. */}
+              {dirty && (
+                <span
+                  className="rounded-[5px] px-1.5 py-[3px] font-mono text-[length:var(--ct-label)] tracking-[0.11em] text-warning"
+                  style={{ background: "color-mix(in oklab, var(--warning) 15%, transparent)" }}
+                >
+                  UNSAVED
                 </span>
-              </div>
+              )}
+
+              <span
+                data-count
+                data-num
+                className="font-mono text-[length:var(--ct-label)] tracking-[0.1em] text-muted"
+              >
+                {stats.words.toLocaleString("en-US")} WORDS
+                {/* No read time on an empty draft: "1 MIN READ" over zero
+                    words is a figure the page invented. */}
+                {stats.words > 0 && ` · ${stats.minutes} MIN READ`}
+              </span>
+
               {status === "PUBLISHED" && form.slug && form.kind === "JOURNAL" && (
                 <Link
                   href={`/journal/${form.slug}`}
                   target="_blank"
-                  className="font-mono text-[9.5px] tracking-[0.12em] text-primary hover:underline"
+                  className="font-mono text-[length:var(--ct-label)] tracking-[0.12em] text-primary hover:underline"
                 >
-                  VIEW LIVE ↗
+                  /{form.slug} ↗
                 </Link>
               )}
               {status === "PUBLISHED" && form.kind === "HELP" && (
-                <span className="font-mono text-[9.5px] tracking-[0.12em] text-muted">
+                <span className="font-mono text-[length:var(--ct-label)] tracking-[0.12em] text-muted">
                   LIVE IN THE SUPPORT WIDGET
                 </span>
               )}
+
+              {error && (
+                <span role="alert" className="text-[length:var(--ct-small)] text-danger">
+                  {error}
+                </span>
+              )}
+
+              <span className="ml-auto flex flex-wrap items-center gap-1.5">
+                {!canPublish && selectedId && (
+                  <span className="mr-1 text-[length:var(--ct-small)] text-muted">
+                    An admin publishes your post.
+                  </span>
+                )}
+                {canPublish && selectedId && status !== "PUBLISHED" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-success text-success"
+                    onClick={() => setDialog("publish")}
+                  >
+                    Publish
+                  </Button>
+                )}
+                {canPublish && selectedId && status === "PUBLISHED" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-warning text-warning"
+                    onClick={() => setDialog("unpublish")}
+                  >
+                    Take down
+                  </Button>
+                )}
+                <Button type="submit" size="sm" disabled={pending || !dirty}>
+                  {pending ? "Saving…" : selectedId ? "Save changes" : "Create draft"}
+                </Button>
+              </span>
             </div>
 
-            {/* Writing gets the full panel width — you paste into it, and a
-                narrow column with wide empty gutters wastes the console's
-                space. Preview caps at the published measure instead, so the
-                width change itself shows you what a reader gets. */}
-            <div className={view === "preview" ? "mx-auto max-w-[760px]" : ""}>
-              {view !== "details" && (
+            {/* The scrolling middle. Padding lives here rather than on the
+                panel so the meta strip and the action bar sit flush against
+                their own edges. */}
+            <div
+              className={cn(
+                "console-scroll min-h-0 flex-1 overflow-y-auto p-3",
+                view === "preview" && "flex justify-center",
+              )}
+            >
+              <div className={view === "preview" ? "w-full max-w-[720px]" : "flex h-full flex-col"}>
+              {view !== "details" && view !== "posts" && (
                 <input
                   aria-label="Post title"
                   required
                   maxLength={160}
-                  placeholder="Title"
+                  placeholder="Post title"
                   value={form.title}
                   onChange={(event) => {
                     const title = event.target.value;
@@ -290,7 +393,11 @@ export function JournalStudio() {
                       slug: slugTouched ? previous.slug : slugify(title),
                     }));
                   }}
-                  className="mb-6 w-full border-0 bg-transparent font-display text-[clamp(28px,4.4vw,46px)] font-black uppercase leading-[1.02] tracking-[-0.025em] outline-none placeholder:text-muted/40"
+                  // A field, and visibly one. Set in the display face at a
+                  // document size rather than the 32px black uppercase it was:
+                  // at that weight an empty input reads as a broken heading
+                  // rather than as somewhere to type.
+                  className="mb-2 w-full flex-none rounded-[8px] border border-[var(--console-hair)] bg-surface-2 px-3 py-2 font-display text-[19px] font-bold leading-[1.25] tracking-[-0.015em] outline-none transition placeholder:font-sans placeholder:text-[15px] placeholder:font-normal placeholder:tracking-normal placeholder:text-muted focus:border-primary"
                 />
               )}
 
@@ -304,12 +411,18 @@ export function JournalStudio() {
                   placeholder={
                     "Write here.\n\n## A section heading\n\nMarkdown works: **bold**, *italic*, `code`, [links](https://example.com) and > pull quotes."
                   }
-                  className="min-h-[62vh] resize-y border-0 bg-transparent p-0 text-[16.5px] leading-[1.75] focus:border-0 focus:shadow-none"
+                  // Fills whatever is left rather than declaring its own
+                  // height. A viewport-relative minimum plus a drag handle let
+                  // the field outgrow the frame it lives in, which is what put
+                  // the save button below the fold on an empty draft.
+                  className="min-h-[220px] w-full flex-1 resize-none text-[14.5px] leading-[1.7]"
                 />
               )}
 
+              {view === "posts" && <PostTable posts={posts.data ?? []} onOpen={choose} />}
+
               {view === "preview" && (
-                <div className="min-h-[58vh] border-t border-hair pt-8">
+                <div className="rounded-[8px] border border-[var(--console-hair)] bg-surface-2 p-5">
                   {form.body.trim() ? (
                     <MarkdownBody body={form.body} />
                   ) : (
@@ -402,7 +515,7 @@ export function JournalStudio() {
                     <p className="mt-2 text-[11px] text-muted">{form.excerpt.length}/400</p>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <div>
                       <FieldLabel htmlFor="post-cover">COVER IMAGE</FieldLabel>
                       <div className="flex gap-2">
@@ -444,7 +557,7 @@ export function JournalStudio() {
                     />
                   )}
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <div>
                       <FieldLabel htmlFor="post-seo-title">
                         SEO TITLE — DEFAULTS TO THE POST TITLE
@@ -470,47 +583,9 @@ export function JournalStudio() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {error && (
-              <div className="mt-5">
-                <ErrorNote>{error}</ErrorNote>
               </div>
-            )}
-
-            <div className="mt-7 flex flex-wrap items-center gap-2 border-t border-hair pt-5">
-              <Button type="submit" size="lg" disabled={pending}>
-                {pending ? "Saving…" : selectedId ? "Save changes" : "Create draft"}
-              </Button>
-
-              {canPublish && selectedId && status !== "PUBLISHED" && (
-                <Button
-                  type="button"
-                  size="lg"
-                  variant="outline"
-                  className="border-success text-success"
-                  onClick={() => setDialog("publish")}
-                >
-                  Publish
-                </Button>
-              )}
-              {canPublish && selectedId && status === "PUBLISHED" && (
-                <Button
-                  type="button"
-                  size="lg"
-                  variant="outline"
-                  className="border-warning text-warning"
-                  onClick={() => setDialog("unpublish")}
-                >
-                  Take down
-                </Button>
-              )}
-              {!canPublish && selectedId && (
-                <span className="text-[11.5px] text-muted">
-                  An admin or owner publishes your post.
-                </span>
-              )}
             </div>
+
           </form>
         </Panel>
       </div>
@@ -543,6 +618,96 @@ export function JournalStudio() {
           )
         }
       />
+    </div>
+  );
+}
+
+/**
+ * Every post, with everything it carries.
+ *
+ * The rail beside the editor shows a title, a status and a timestamp, which is
+ * enough to switch drafts and not enough to answer "what have we published",
+ * "which of these has no excerpt", or "what is this one's URL". This is that
+ * answer — and clicking a row opens it in the editor, so it is a way in rather
+ * than a dead end.
+ */
+function PostTable({ posts, onOpen }: { posts: BlogPost[]; onOpen: (post: BlogPost) => void }) {
+  if (posts.length === 0) {
+    return (
+      <EmptyState
+        title="Nothing written yet"
+        message="Drafts and published pieces both appear here."
+      />
+    );
+  }
+
+  const journal = posts.filter((post) => (post.kind ?? "JOURNAL") === "JOURNAL").length;
+  const help = posts.length - journal;
+
+  return (
+    <div>
+      <p className="mb-2 font-mono text-[length:var(--ct-label)] tracking-[0.14em] text-muted">
+        {posts.length} TOTAL · {journal} JOURNAL · {help} HELP
+      </p>
+
+      <TableShell
+        columns={["TITLE", "WHERE", "STATUS", "URL", "TAGS", "AUTHOR", "UPDATED", ""]}
+        minWidth={980}
+      >
+        {posts.map((post) => {
+          const kind = post.kind ?? "JOURNAL";
+          return (
+            <Tr key={post.id}>
+              <Td>
+                <span className="block max-w-[280px] truncate font-medium">{post.title}</span>
+                {/* An empty excerpt is not an error, but it is what the card on
+                    /journal falls back to — worth seeing at a glance. */}
+                <span className="mt-0.5 block max-w-[280px] truncate text-[length:var(--ct-label)] text-muted">
+                  {post.excerpt?.trim() || "No excerpt"}
+                </span>
+              </Td>
+              <Td>
+                <Badge tone={kind === "HELP" ? "info" : "neutral"}>
+                  {kind === "HELP" ? "HELP" : "JOURNAL"}
+                </Badge>
+              </Td>
+              <Td>
+                <Badge tone={STATUS_TONE[post.status]}>{post.status.replaceAll("_", " ")}</Badge>
+              </Td>
+              <Td className="font-mono text-[length:var(--ct-label)] text-muted">
+                /{post.slug}
+              </Td>
+              <Td className="text-[length:var(--ct-label)] text-muted">
+                {post.tags.length > 0 ? post.tags.join(", ") : "—"}
+              </Td>
+              <Td className="whitespace-nowrap text-muted">
+                {post.author.displayName ?? "Unnamed"}
+              </Td>
+              <Td className="whitespace-nowrap text-muted">{relativeTime(post.updatedAt)}</Td>
+              <Td className="whitespace-nowrap">
+                <span className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpen(post)}
+                    className="cursor-pointer font-mono text-[length:var(--ct-label)] tracking-[0.12em] text-primary hover:underline"
+                  >
+                    EDIT
+                  </button>
+                  {post.status === "PUBLISHED" && kind === "JOURNAL" && (
+                    <Link
+                      href={`/journal/${post.slug}`}
+                      target="_blank"
+                      className="font-mono text-[length:var(--ct-label)] tracking-[0.12em] text-muted hover:text-fg"
+                    >
+                      VIEW ↗
+                    </Link>
+                  )}
+                </span>
+              </Td>
+            </Tr>
+          );
+        })}
+      </TableShell>
     </div>
   );
 }

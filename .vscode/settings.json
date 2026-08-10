@@ -1,0 +1,12 @@
+{
+  // `railway.json` carries `"$schema": "https://railway.com/railway.schema.json"`
+  // for autocomplete. VS Code will not fetch a schema from a host you have not
+  // allowed, and reports the refusal as "Location ... is untrusted" — which
+  // reads like a security finding and is really just a prompt nobody answered.
+  //
+  // Both entries are needed: the first turns downloading on, the second says
+  // this host is fine. Railway redirects that URL to backboard.railway.app, and
+  // an allow-list entry does not cover a redirect target, so both are listed.
+  "json.schemaDownload.enable": true,
+  "json.trustedSchemaDownloadHosts": ["railway.com", "backboard.railway.app"]
+}

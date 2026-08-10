@@ -89,9 +89,9 @@ export function SuppressionList() {
   const rows = suppressions.data ?? [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {canManage && (
-        <Panel className="p-[clamp(18px,3vw,26px)]">
+        <Panel className="p-[var(--ct-pad)]">
           <PanelHeader
             eyebrow="ADD"
             title="Suppress an address"
@@ -130,7 +130,7 @@ export function SuppressionList() {
         </Panel>
       )}
 
-      <Panel className="p-[clamp(18px,3vw,26px)]">
+      <Panel className="p-[var(--ct-pad)]">
         <PanelHeader
           eyebrow="DO NOT MAIL"
           title="Suppression list"

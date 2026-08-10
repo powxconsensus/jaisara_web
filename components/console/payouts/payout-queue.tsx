@@ -21,7 +21,7 @@ import {
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
 import { useMutation, useResource } from "@/lib/console-api";
-import { pointsToUsd, relativeTime } from "@/lib/console-format";
+import { isOlderThan, pointsToUsd, relativeTime } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
   type Withdrawal,
@@ -55,6 +55,15 @@ const STATUS_TONE: Record<WithdrawalStatus, Tone> = {
   CANCELLED: "neutral",
 };
 
+/**
+ * When a waiting payout stops being normal and starts being a problem.
+ *
+ * Two days. Members are told withdrawals are reviewed within a couple of
+ * working days, so this is the point at which the queue is failing the promise
+ * rather than simply having work in it.
+ */
+const STALE_MS = 2 * 24 * 60 * 60 * 1000;
+
 type Action = { kind: "paid" | "refund"; row: Withdrawal } | null;
 
 export function PayoutQueue() {
@@ -72,6 +81,17 @@ export function PayoutQueue() {
 
   const rows = payouts.data ?? [];
   const canProcess = can(P.withdrawalProcess);
+  /**
+   * The oldest request nobody has acted on.
+   *
+   * `REQUESTED` only: a payout that has been marked paid is finished, and
+   * including it would make the number stop moving after the first payout of
+   * the day and look stuck.
+   */
+  const oldestWaiting = (payouts.data ?? [])
+    .filter((row) => row.status === "REQUESTED")
+    .map((row) => row.requestedAt)
+    .sort()[0];
 
   // Summed as BigInt because points arrive as strings precisely so they never
   // pass through a float. (Constructor rather than a `0n` literal — the
@@ -111,10 +131,11 @@ export function PayoutQueue() {
       <PageHeader
         eyebrow="MONEY"
         title="Payouts"
-        description="Withdrawal requests, oldest first. The balance has already left the member's available wallet when the request was made — marking one paid records that the transfer went out, and refunding returns it."
+        description="Oldest first. The balance left the member's wallet when they requested — marking paid records that the transfer went out."
+        actions={!canProcess ? <Badge tone="neutral">READ ONLY</Badge> : undefined}
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      <div className="mb-2 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <StatTile
           label="AWAITING PAYOUT"
           value={rows.filter((row) => row.status === "REQUESTED").length}
@@ -122,11 +143,16 @@ export function PayoutQueue() {
         />
         <StatTile label="OWED IN QUEUE" value={pointsToUsd(owed.toString())} />
         <StatTile label="SHOWN" value={rows.length} hint="Capped at 100 per status." />
+        {/* How long the person who has waited longest has been waiting.
+            This slot used to restate the reader's own permissions — which the
+            buttons already say by being present or absent, and which does not
+            change from one visit to the next. A payout queue has exactly one
+            urgent question, and this is it. */}
         <StatTile
-          label="YOUR ACCESS"
-          value={canProcess ? "RELEASE" : "READ"}
-          tone={canProcess ? "success" : "neutral"}
-          hint={canProcess ? "You can release funds." : "Owner-level permission required."}
+          label="LONGEST WAIT"
+          value={oldestWaiting ? relativeTime(oldestWaiting).replace(/^in /, "") : "—"}
+          tone={isOlderThan(oldestWaiting, STALE_MS) ? "warning" : "neutral"}
+          hint={oldestWaiting ? "Oldest request still unpaid." : "Nothing is waiting."}
         />
       </div>
 
@@ -143,7 +169,7 @@ export function PayoutQueue() {
       </div>
 
       {payouts.error && (
-        <div className="mb-4">
+        <div className="mb-2">
           <ErrorNote>{payouts.error}</ErrorNote>
         </div>
       )}

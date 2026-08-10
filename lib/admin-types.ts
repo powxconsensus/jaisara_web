@@ -49,6 +49,9 @@ export const ADMIN_PERMISSIONS = {
   supportView: "support:view",
   supportReply: "support:reply",
 
+  aiView: "ai:view",
+  aiManage: "ai:manage",
+
   auditView: "audit:view",
   analyticsView: "analytics:view",
 } as const;
@@ -174,6 +177,16 @@ export interface ImportBatch {
   createdAt: string;
   parsedAt?: string | null;
   committedAt?: string | null;
+  /**
+   * Whether the uploaded file itself was archived to storage.
+   *
+   * A boolean rather than the storage key: the key is an internal detail, and
+   * the only legitimate way to reach the bytes is the signed link from
+   * `GET /admin/imports/:id/file`.
+   */
+  archived?: boolean;
+  uploadedByUserId?: string;
+  committedByUserId?: string | null;
   platform: { id: string; name: string; slug: string };
   _count?: { rows: number };
 }
@@ -358,6 +371,13 @@ export interface CommissionRule {
   holdDays: number;
   holdAnchor: "PURCHASE_DATE" | "APPROVAL_DATE";
   effectiveFrom: string;
+  /**
+   * True when `effectiveFrom` is the sentinel the seeded default carries
+   * rather than a date somebody chose. The API decides this, so the boundary
+   * is defined once — printing the sentinel as a date showed a start date the
+   * business did not exist on.
+   */
+  alwaysApplied?: boolean;
   effectiveTo?: string | null;
   note?: string | null;
 }
@@ -420,6 +440,12 @@ export interface CampaignSummary {
 export interface CampaignDetail extends CampaignSummary {
   bodyHtml: string;
   bodyText: string;
+  /**
+   * The studio's block document, if this campaign was written with it.
+   * `unknown` on purpose — the API stores it verbatim without interpreting it,
+   * and `isEmailDesign` is what narrows it before use.
+   */
+  design?: unknown;
   audience: CampaignAudience;
   updatedAt: string;
   error?: string | null;
@@ -546,3 +572,63 @@ export interface RoleCatalogItem {
 /** Roles the console offers to grant. `owner` is never in this list. */
 export const ASSIGNABLE_ROLES = ["admin", "admin_edit", "admin_view", "author"] as const;
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
+
+// ── AI providers ─────────────────────────────────────────────────────────────
+
+/**
+ * A provider as the console is allowed to see it.
+ *
+ * There is no field here from which a key could be reconstructed, and that is
+ * deliberate rather than incidental: the API's response type is a different
+ * shape from its database row, so a `select` gaining `ciphertext` cannot leak
+ * one by accident. `tail` is four characters — enough to match a row against
+ * the provider's own dashboard, useless to anyone else.
+ */
+export interface AiProviderKeyView {
+  id: string;
+  label: string;
+  tail: string;
+  status: "ACTIVE" | "REVOKED";
+  createdAt: string;
+  lastUsedAt?: string | null;
+}
+
+export interface AiProviderView {
+  id: string;
+  slug: string;
+  name: string;
+  baseUrl: string;
+  chatModel: string;
+  visionModel: string;
+  priority: number;
+  enabled: boolean;
+  chatRequestOptions?: Record<string, unknown> | null;
+  visionRequestOptions?: Record<string, unknown> | null;
+  visionMaxTokens?: number | null;
+  lastCheckedAt?: string | null;
+  lastCheckOk?: boolean | null;
+  lastCheckNote?: string | null;
+  keys: AiProviderKeyView[];
+}
+
+export interface AiConfigOverview {
+  providers: AiProviderView[];
+  /** Which list the API is serving from right now, not which one exists. */
+  activeSource: "database" | "environment" | "none";
+  environmentProviders: string[];
+  /** False when AI_KEY_ENCRYPTION_KEY is unset — no key can be stored. */
+  canStoreKeys: boolean;
+  warnings: string[];
+}
+
+export interface AiCheckStep {
+  ok: boolean;
+  ms: number;
+  detail?: string;
+  error?: string;
+}
+
+export interface AiTestResult {
+  chat: AiCheckStep;
+  vision: AiCheckStep;
+}

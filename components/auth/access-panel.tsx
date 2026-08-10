@@ -50,7 +50,11 @@ export function AccessPanel() {
           </span>
           <span>
             <span className="block whitespace-nowrap text-[12.5px] font-medium">
-              Cashback approved
+              {/* "Example" is not decoration. Without it this card states that
+                  a specific payout was approved at a named firm, on a screen
+                  where nothing has been approved and no such firm is
+                  necessarily a partner. */}
+              Cashback approved · example
             </span>
             <span className="mt-0.5 block font-mono text-[9px] tracking-[0.08em] text-muted">
               FUNDINGPIPS $10K

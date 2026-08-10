@@ -164,14 +164,14 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)] xl:items-start">
-      <aside className="space-y-3 xl:sticky xl:top-[86px]">
+    <div className="grid gap-2 xl:grid-cols-[248px_minmax(0,1fr)] xl:items-start">
+      <aside className="space-y-2 xl:sticky xl:top-0">
         {canManage && (
           <Button className="w-full" size="lg" onClick={startNew}>
             + New firm
           </Button>
         )}
-        <RecordList className="max-h-[62vh]">
+        <RecordList className="max-h-[62vh] xl:max-h-[calc(100dvh-var(--topbar-h)-140px)]">
           {platforms.loading && rows.length === 0 ? (
             <LoadingRows rows={4} />
           ) : rows.length === 0 ? (
@@ -197,16 +197,16 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
         </RecordList>
       </aside>
 
-      <div className="min-w-0 space-y-4">
-        <Panel className="p-[clamp(18px,3vw,26px)]">
+      <div className="min-w-0 space-y-2">
+        <Panel className="p-[var(--ct-pad)]">
           <PanelHeader
             eyebrow={selectedId ? "EDIT FIRM" : "NEW FIRM"}
             title={selectedId ? form.name || "Untitled firm" : "Add a prop firm"}
             actions={!canManage ? <Badge tone="neutral">READ ONLY</Badge> : undefined}
           />
 
-          <form onSubmit={save} className="mt-6 grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
+          <form onSubmit={save} className="mt-3 grid gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <FieldLabel htmlFor="platform-name">NAME</FieldLabel>
                 <TextInput
@@ -246,7 +246,7 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <FieldLabel htmlFor="platform-adapter">REPORT PARSER</FieldLabel>
                 <Select
@@ -285,7 +285,7 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <FieldLabel htmlFor="platform-website">WEBSITE URL</FieldLabel>
                 <TextInput
@@ -496,14 +496,14 @@ function StatusMapEditor({
   const mappings = platform.statusMappings ?? [];
 
   return (
-    <Panel className="p-[clamp(18px,3vw,26px)]">
+    <Panel className="p-[var(--ct-pad)]">
       <PanelHeader
         eyebrow="STATUS MAP"
         title={`How ${platform.name} words its statuses`}
         description="The firm writes its own vocabulary in the export. Each word has to map onto one of our four states before a row can affect a wallet."
       />
 
-      <div className="mt-5">
+      <div className="mt-3">
         {mappings.length === 0 ? (
           <EmptyState
             title="No mappings yet"

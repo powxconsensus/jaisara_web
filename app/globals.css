@@ -81,12 +81,10 @@
   --shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.6);
 
   /* Layout */
+  /* Marketing and dashboard measure. The console does not use it: it has its
+     own frame, sized to the viewport rather than to a reading width — see
+     `.console-root` at the end of this file. */
   --maxw: 1240px;
-  /* The console is a working surface, not a reading one: its screens are
-     tables and side-by-side comparisons that a reading measure squeezes.
-     Console routes swap `--maxw` for this on the page *and* the navbar, so the
-     floating bar never sits as a narrow island above much wider content. */
-  --maxw-console: min(94vw, 1720px);
   --pad: 18px; /* mobile gutter; widened below */
   --secpt: clamp(44px, 6vw, 84px);
   --secpb: clamp(24px, 4vw, 40px);
@@ -958,3 +956,175 @@
     transform: translateX(360%);
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The console
+   ─────────────────────────────────────────────────────────────────────────────
+   A separate density from the rest of the site, because it is a different kind
+   of surface. The marketing pages are read once at arm's length and use display
+   type to set a tone; the console is worked in for hours, and every pixel of
+   chrome is a row of a table somebody cannot see.
+
+   So: no display weights on headings, no uppercase page titles, tighter line
+   heights, and a hairline that is quieter than the one used out front — at this
+   density a full-strength border turns a table into a grid of boxes.
+
+   The mono-caps eyebrows stay. They are the house voice, they cost 9px, and
+   dropping them would leave the console looking like a different product.
+   ────────────────────────────────────────────────────────────────────────── */
+.console-root {
+  /* Rail width, animated when it collapses. */
+  --rail: 218px;
+  --rail-collapsed: 56px;
+  --topbar-h: 52px;
+
+  /* One gutter for the whole surface — panels sit on it, nothing is centred. */
+  --console-pad: 14px;
+
+  /* Type. Four sizes and no more; a fifth always turns out to be one of these. */
+  --ct-title: 15px; /* page and panel headings */
+  --ct-body: 12.5px; /* prose, table cells, inputs */
+  --ct-small: 11.5px; /* secondary values, hints */
+  --ct-label: 9px; /* mono caps: eyebrows, column heads, badges */
+
+  /* Rhythm. Table rows and controls key off these so density is adjustable in
+     one place rather than in forty className strings. */
+  --ct-row-y: 7px;
+  /* Panel padding. One token instead of the 34 `clamp(18px,3vw,26px)` literals
+     this replaced — those came from the marketing scale, where a panel is a
+     page section rather than one of six on screen at once. */
+  --ct-pad: 12px;
+  --ct-gap: 10px;
+  --ct-radius: 10px;
+
+  /* Quieter than --hair: see above. */
+  --console-hair: color-mix(in oklab, var(--text) 9%, transparent);
+}
+
+@media (min-width: 1024px) {
+  .console-root {
+    --console-pad: 18px;
+  }
+}
+
+/* Numbers in a table must line up, or a column of money cannot be scanned. */
+.console-root [data-num] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/*
+   The rail's own scrollbar, and the main pane's.
+
+   Both panes scroll independently so the rail and the top bar never leave —
+   which is the entire point of a fixed frame. A visible scrollbar in the rail
+   would eat 15px of a 218px column, so it is thinned rather than hidden: a
+   hidden one leaves no clue that a long section list continues below.
+*/
+.console-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--text) 18%, transparent) transparent;
+}
+.console-scroll::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.console-scroll::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 99px;
+  background-color: color-mix(in oklab, var(--text) 18%, transparent);
+}
+.console-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--text) 30%, transparent);
+}
+
+/*
+   Shared form primitives, at console density.
+
+   `TextInput`, `FieldLabel` and the rest are used by the marketing pages too,
+   where 14px text and 14px of vertical padding are right — a signup form is
+   filled in once. In a console the same control appears eight to a panel and
+   the padding is what pushes the table below the fold.
+
+   Scoped by ancestor rather than forked into console-only components: two
+   implementations of a text input drift, and the drift always shows up as one
+   surface having the focus ring and the other not.
+
+   IN `@layer components`, AND THAT IS THE IMPORTANT PART. Unlayered CSS wins
+   over everything Tailwind emits, so the first version of this silently beat
+   the utilities on every input in the console — including the journal's title
+   field, which deliberately wants a 46px display face and got 12.5px instead.
+   Inside this layer these are defaults: anything with an explicit class on the
+   element still overrides them, which is what a default should mean.
+*/
+@layer components {
+  .console-root input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .console-root textarea,
+  .console-root select {
+    font-size: var(--ct-body);
+    padding-block: 6px;
+    padding-inline: 10px;
+    border-radius: 7px;
+  }
+
+  .console-root textarea {
+    padding-block: 8px;
+    line-height: 1.65;
+  }
+
+  /* The label above them shrinks to match, or it outweighs its own field. */
+  .console-root label {
+    font-size: var(--ct-label);
+  }
+
+  /* Buttons keep their shape but lose a size: a 44px control is a landing-page
+     height, and nothing in here is a call to action. */
+  .console-root button.h-11 {
+    height: 32px;
+    font-size: 10px;
+    padding-inline: 14px;
+  }
+  .console-root button.h-9 {
+    height: 30px;
+  }
+  .console-root button.h-8 {
+    height: 27px;
+  }
+
+  /*
+     Filter chips, at console density.
+
+     Shared with the storefront, where a row of five filters above a grid of
+     deal cards is a primary control and reads at 12.5px. In the console the
+     same row sits above a table of two hundred orders as a secondary control,
+     and at full size it was the loudest thing on the screen.
+  */
+  .console-root button[aria-pressed] {
+    padding-block: 4px;
+    padding-inline: 9px;
+    font-size: 11px;
+    border-radius: 7px;
+  }
+}
+
+/*
+   A screen that fills the frame instead of scrolling the page.
+
+   Right for the two editors and the queues: a list and an editing surface side
+   by side, each scrolling on its own, with the toolbar always where you left
+   it. Wrong below `md`, where the panes stack and a fixed height would trap a
+   1200px form inside 600px of viewport — so the height only applies once there
+   is room for two columns.
+
+   Subtracts the top bar and the gutter above and below; the page's own header
+   is handled by making the element a flex column, so the body claims whatever
+   the header did not.
+*/
+@media (min-width: 768px) {
+  .console-fill {
+    height: calc(100dvh - var(--topbar-h) - (2 * var(--console-pad)));
+    min-height: 460px;
+  }
+}
+

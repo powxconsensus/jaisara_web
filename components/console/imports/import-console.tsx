@@ -68,6 +68,21 @@ export function ImportConsole() {
   const adapter = adapters.data?.find((entry) => entry.key === platform?.adapterKey);
   const ready = Boolean(platformId && accountId && file);
 
+  /**
+   * Opens the archived report in a new tab.
+   *
+   * The signed link is fetched on click rather than rendered into the table:
+   * these expire in five minutes, so a page left open would otherwise be a
+   * column of dead links.
+   */
+  const openArchive = async (batchId: string) => {
+    const result = await commit.mutate<{ url: string }>(
+      `/api/admin/imports/${batchId}/file`,
+      { method: "GET" },
+    );
+    if (result?.url) window.open(result.url, "_blank", "noopener,noreferrer");
+  };
+
   const upload = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!file) return;
@@ -122,7 +137,7 @@ export function ImportConsole() {
       <PageHeader
         eyebrow="OPERATIONS"
         title="Imports"
-        description="Upload a firm's commission report. Parsing is a dry run — it works out exactly what a commit would change and writes nothing until you approve the diff."
+        description="Parsing is a dry run: it works out what a commit would change and writes nothing until you approve the diff."
       />
 
       {!can(P.importUpload) ? (
@@ -133,15 +148,15 @@ export function ImportConsole() {
           />
         </Panel>
       ) : (
-        <Panel className="mb-4 p-[clamp(18px,3vw,26px)]">
+        <Panel className="mb-4 p-[var(--ct-pad)]">
           <PanelHeader
             eyebrow="STEP 1"
             title="Upload a report"
             description="The parser is chosen from the firm's configured adapter, so uploading a Tradeify export against LUCID fails on the columns rather than importing nonsense."
           />
 
-          <form onSubmit={upload} className="mt-6 grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
+          <form onSubmit={upload} className="mt-3 grid gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <FieldLabel htmlFor="import-platform">FIRM</FieldLabel>
                 <Select
@@ -242,7 +257,7 @@ export function ImportConsole() {
       )}
 
       {preview && diff && (
-        <Panel className="mb-4 p-[clamp(18px,3vw,26px)]">
+        <Panel className="mb-4 p-[var(--ct-pad)]">
           <PanelHeader
             eyebrow="STEP 2 · NOTHING WRITTEN YET"
             title="What committing would do"
@@ -299,7 +314,7 @@ export function ImportConsole() {
               />
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               {diff.unmappedProducts.length > 0 && (
                 <Warning
                   title={`${diff.unmappedProducts.length} unmapped product${diff.unmappedProducts.length === 1 ? "" : "s"}`}
@@ -353,13 +368,13 @@ export function ImportConsole() {
         </Panel>
       )}
 
-      <Panel className="p-[clamp(18px,3vw,26px)]">
+      <Panel className="p-[var(--ct-pad)]">
         <PanelHeader eyebrow="HISTORY" title="Recent batches" />
-        <div className="mt-5">
+        <div className="mt-3">
           {(batches.data ?? []).length === 0 ? (
             <EmptyState title="No imports yet" message="Uploaded reports appear here." />
           ) : (
-            <TableShell columns={["FILE", "FIRM", "PARSER", "ROWS", "STATUS", "UPLOADED"]}>
+            <TableShell columns={["FILE", "FIRM", "PARSER", "ROWS", "STATUS", "UPLOADED", ""]}>
               {(batches.data ?? []).map((batch) => (
                 <Tr key={batch.id}>
                   <Td>
@@ -391,6 +406,27 @@ export function ImportConsole() {
                     </Badge>
                   </Td>
                   <Td className="whitespace-nowrap text-muted">{dateTime(batch.createdAt)}</Td>
+                  {/* The original file is the evidence behind every commission
+                      this batch created. It has been archived since the import
+                      ran; until now there was no way to get it back out. */}
+                  <Td className="whitespace-nowrap">
+                    {batch.archived ? (
+                      <button
+                        type="button"
+                        onClick={() => void openArchive(batch.id)}
+                        className="cursor-pointer font-mono text-[length:var(--ct-label)] tracking-[0.12em] text-primary hover:underline"
+                      >
+                        DOWNLOAD
+                      </button>
+                    ) : (
+                      <span
+                        title="Imported before archiving existed, or the upload to storage failed."
+                        className="font-mono text-[length:var(--ct-label)] tracking-[0.12em] text-muted"
+                      >
+                        NO FILE
+                      </span>
+                    )}
+                  </Td>
                 </Tr>
               ))}
             </TableShell>

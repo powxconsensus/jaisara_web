@@ -92,7 +92,7 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
       <PageHeader
         eyebrow="OPERATIONS"
         title="Claims"
-        description="Compare the receipt a member uploaded against the firm's own report. Approving is what credits a wallet, so it is refused unless an order backs the claim — and you can never approve your own."
+        description="Approving credits a wallet, so it is refused unless an order backs the claim — and never on your own claim."
         actions={
           can(P.claimViewAll) && platformId ? (
             <button
@@ -141,13 +141,13 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
       </div>
 
       {claims.error && (
-        <div className="mb-4">
+        <div className="mb-2">
           <ErrorNote>{claims.error}</ErrorNote>
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)] xl:items-start">
-        <RecordList className="max-h-[70vh] xl:sticky xl:top-[86px]">
+      <div className="grid gap-2 xl:grid-cols-[310px_minmax(0,1fr)] xl:items-start">
+        <RecordList className="max-h-[70vh] xl:sticky xl:top-0 xl:max-h-[calc(100dvh-var(--topbar-h)-2*var(--console-pad))]">
           {claims.loading && rows.length === 0 ? (
             <LoadingRows rows={5} />
           ) : rows.length === 0 ? (

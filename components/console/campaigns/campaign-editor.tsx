@@ -123,7 +123,7 @@ export function SubjectFields({
   onChange: (next: { name?: string; subject?: string }) => void;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2">
       <div>
         <FieldLabel htmlFor="campaign-name">INTERNAL NAME</FieldLabel>
         <TextInput

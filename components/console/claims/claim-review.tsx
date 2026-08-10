@@ -81,8 +81,8 @@ export function ClaimReview({
   const reportedGross = order?.grossAmount ?? null;
 
   return (
-    <div className="space-y-4">
-      <Panel className="p-[clamp(18px,3vw,26px)]">
+    <div className="space-y-2">
+      <Panel className="p-[var(--ct-pad)]">
         <PanelHeader
           eyebrow={`CLAIM · ${record.platform.name.toUpperCase()}`}
           title={orNone(record.claimedExternalId)}
@@ -172,7 +172,7 @@ export function ClaimReview({
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr] lg:items-start">
-        <Panel className="p-[clamp(18px,3vw,26px)]">
+        <Panel className="p-[var(--ct-pad)]">
           <p className="mb-4 font-mono text-[9px] tracking-[0.18em] text-muted">
             UPLOADED RECEIPT
           </p>
@@ -187,7 +187,7 @@ export function ClaimReview({
           />
         </Panel>
 
-        <Panel className="p-[clamp(18px,3vw,26px)]">
+        <Panel className="p-[var(--ct-pad)]">
           <p className="mb-4 font-mono text-[9px] tracking-[0.18em] text-muted">MEMBER</p>
           <DefinitionList
             rows={[
@@ -230,7 +230,7 @@ export function ClaimReview({
       {error && <ErrorNote>{error}</ErrorNote>}
 
       {!decided && (
-        <Panel className="flex flex-wrap items-center gap-2.5 p-[clamp(16px,2.5vw,22px)]">
+        <Panel className="flex flex-wrap items-center gap-2.5 p-[var(--ct-pad)]">
           {canApprove ? (
             <Button size="lg" onClick={() => setDialog("approve")}>
               Approve &amp; credit

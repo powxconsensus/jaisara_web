@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Jaisara web
 
-## Getting Started
+Next.js App Router front end for the prop-firm affiliate cashback and referral
+platform — the marketing site, the member dashboard and the admin console.
 
-First, run the development server:
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local     # point API_BASE_URL at your running API
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Opens on <http://localhost:3000>. The API must be running separately — see
+`../api/README.md`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **pnpm only.** The lockfile is `pnpm-lock.yaml` and the version is pinned by
+> the `packageManager` field, which both Corepack and the Docker build honour.
+> An `npm install` here produces a second lockfile and a different dependency
+> tree from the one that gets deployed.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment
 
-## Learn More
+| Variable | Purpose |
+| --- | --- |
+| `API_BASE_URL` | Server-only origin of the NestJS API, including the `/api` prefix. |
 
-To learn more about Next.js, take a look at the following resources:
+There are no `NEXT_PUBLIC_*` variables and that is deliberate: the browser never
+talks to the API directly. Every call goes through this app's own `/app/api/*`
+route handlers, which attach the session cookie server-side — so no token and no
+API origin is ever shipped into the client bundle.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`API_BASE_URL` **is read at build time as well as at runtime**: `next.config.ts`
+derives the Content-Security-Policy `img-src` and `connect-src` from its origin.
+A production image built without it composes a policy that names `localhost`.
+The Dockerfile takes it as a build argument for exactly this reason.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | dev server with hot reload |
+| `pnpm build` | production build (`output: "standalone"`) |
+| `pnpm start` | serve a completed build |
+| `pnpm lint` | ESLint — run with `--max-warnings=0` in CI |
+| `pnpm exec tsc --noEmit` | typecheck |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Layout
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/
+  (site)/          marketing pages, auth, dashboard — public shell
+  (console)/       admin console — its own full-page shell, no marketing navbar
+  api/             route handlers that proxy to the API and hold the cookies
+  go/              outbound affiliate redirects
+components/        UI, grouped by the surface that owns it
+lib/               data fetching, formatting, types shared across surfaces
+proxy.ts           redirects unauthenticated visitors away from /dashboard and /console
+```
+
+## Deploying
+
+Railway, from a Dockerfile in this repo — see `../docs/10-railway-deployment.md`.

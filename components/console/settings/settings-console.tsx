@@ -152,14 +152,14 @@ function TierTable() {
   };
 
   return (
-    <div className="space-y-4">
-      <Panel className="p-[clamp(18px,3vw,26px)]">
+    <div className="space-y-2">
+      <Panel className="p-[var(--ct-pad)]">
         <PanelHeader
           eyebrow="JAISARA CLUB"
           title="Tiers"
           description="A tier can carry its own split, which overrides the scope default for members who reach it."
         />
-        <div className="mt-5">
+        <div className="mt-3">
           {tiers.loading && rows.length === 0 ? (
             <LoadingRows rows={3} />
           ) : rows.length === 0 ? (
@@ -212,7 +212,7 @@ function TierTable() {
       </Panel>
 
       {canManage && (
-        <Panel className="p-[clamp(18px,3vw,26px)]">
+        <Panel className="p-[var(--ct-pad)]">
           <form onSubmit={save}>
             <PanelHeader
               eyebrow={editingKey ? `EDITING ${editingKey.toUpperCase()}` : "NEW TIER"}
@@ -358,7 +358,7 @@ function TierTable() {
               </div>
             )}
 
-            <div className="mt-5">
+            <div className="mt-3">
               <Button
                 type="submit"
                 size="lg"
@@ -408,7 +408,7 @@ function SettingsTable() {
   };
 
   return (
-    <Panel className="p-[clamp(18px,3vw,26px)]">
+    <Panel className="p-[var(--ct-pad)]">
       <PanelHeader
         eyebrow="KNOBS"
         title="Settings"
@@ -421,7 +421,7 @@ function SettingsTable() {
         </div>
       )}
 
-      <div className="mt-5">
+      <div className="mt-3">
         {settings.loading && rows.length === 0 ? (
           <LoadingRows rows={4} />
         ) : rows.length === 0 ? (
@@ -497,7 +497,7 @@ function AuditLog() {
   const rows = entries.data ?? [];
 
   return (
-    <Panel className="p-[clamp(18px,3vw,26px)]">
+    <Panel className="p-[var(--ct-pad)]">
       <PanelHeader
         eyebrow="OVERSIGHT"
         title="Audit log"
@@ -514,7 +514,7 @@ function AuditLog() {
         }
       />
 
-      <div className="mt-5">
+      <div className="mt-3">
         {entries.loading && rows.length === 0 ? (
           <LoadingRows rows={5} />
         ) : rows.length === 0 ? (

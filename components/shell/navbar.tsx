@@ -57,14 +57,10 @@ export function Navbar() {
 
   return (
     <div className="sticky top-3.5 z-[90] px-[var(--pad)]">
-      {/* Console screens run wider than the marketing measure, so the bar
-          widens with them rather than floating narrow above them. */}
-      <div
-        className={cn(
-          "relative mx-auto",
-          pathname.startsWith("/console") ? "max-w-[var(--maxw-console)]" : "max-w-[var(--maxw)]",
-        )}
-      >
+      {/* No console branch here any more. The console lives in its own route
+          group with its own fixed frame, so this bar never renders there —
+          widening it for a surface it cannot appear on was dead code. */}
+      <div className="relative mx-auto max-w-[var(--maxw)]">
         <div
           className="relative z-[96] flex h-[58px] items-center gap-2.5 rounded-[14px] border border-hair py-0 pl-4 pr-2.5 [backdrop-filter:blur(22px)_saturate(1.3)]"
           style={{ background: "color-mix(in oklab, var(--bg) 72%, transparent)" }}

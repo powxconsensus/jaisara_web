@@ -122,7 +122,7 @@ export function ProductForm({
   return (
     <div ref={panel}>
       <Panel
-        className="p-[clamp(18px,3vw,26px)]"
+        className="p-[var(--ct-pad)]"
         style={{ borderColor: "color-mix(in oklab, var(--primary) 45%, transparent)" }}
       >
         <PanelHeader
@@ -136,13 +136,13 @@ export function ProductForm({
         />
 
         <form
-          className="mt-6 grid gap-4"
+          className="mt-3 grid gap-3"
           onSubmit={(event) => {
             event.preventDefault();
             onSubmit();
           }}
         >
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             <div>
               <FieldLabel htmlFor="product-platform">FIRM</FieldLabel>
               <Select
@@ -261,7 +261,7 @@ export function ProductForm({
             share of the commission the firm actually reports, never of these numbers.
           </p>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             <div>
               <FieldLabel htmlFor="product-family">FAMILY</FieldLabel>
               <TextInput

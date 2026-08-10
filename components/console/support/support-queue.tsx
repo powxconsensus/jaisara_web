@@ -181,13 +181,13 @@ export function SupportQueue() {
       </div>
 
       {tickets.error && (
-        <div className="mb-4">
+        <div className="mb-2">
           <ErrorNote>{tickets.error}</ErrorNote>
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[330px_minmax(0,1fr)] xl:items-start">
-        <RecordList className="max-h-[70vh] xl:sticky xl:top-[80px]">
+      <div className="grid gap-2 xl:grid-cols-[300px_minmax(0,1fr)] xl:items-start">
+        <RecordList className="max-h-[70vh] xl:sticky xl:top-0 xl:max-h-[calc(100dvh-var(--topbar-h)-2*var(--console-pad))]">
           {tickets.loading && rows.length === 0 ? (
             <LoadingRows rows={4} />
           ) : rows.length === 0 ? (
@@ -258,8 +258,8 @@ export function SupportQueue() {
             <div aria-busy className="h-[420px] animate-pulse rounded-[13px] bg-surface-2" />
           </Panel>
         ) : ticket.data ? (
-          <div className="space-y-4">
-            <Panel className="p-[clamp(18px,3vw,26px)]">
+          <div className="space-y-2">
+            <Panel className="p-[var(--ct-pad)]">
               <PanelHeader
                 eyebrow={`${ticket.data.category} · ${ticket.data.user.email}`}
                 title={ticket.data.subject}
@@ -284,31 +284,48 @@ export function SupportQueue() {
               )}
             </Panel>
 
-            <Panel className="p-[clamp(18px,3vw,26px)]">
-              <p className="mb-4 font-mono text-[9px] tracking-[0.18em] text-muted">CONVERSATION</p>
-              <div className="flex flex-col gap-2.5">
-                {ticket.data.messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={
-                      message.role === "MEMBER"
-                        ? "max-w-[88%] self-start whitespace-pre-line rounded-xl rounded-bl-[4px] border border-hair bg-surface-2 px-4 py-3 text-[13px] leading-6"
-                        : "max-w-[88%] self-end whitespace-pre-line rounded-xl rounded-br-[4px] border border-transparent bg-primary px-4 py-3 text-[13px] leading-6 text-on-primary"
-                    }
-                  >
-                    {message.body}
-                    <span
-                      className={`mt-2 block font-mono text-[9px] tracking-[0.1em] ${
-                        message.role === "MEMBER" ? "text-muted" : "text-on-primary/70"
-                      }`}
+            <Panel className="p-[var(--ct-pad)]">
+              <p className="mb-2.5 font-mono text-[length:var(--ct-label)] tracking-[0.18em] text-muted">
+                CONVERSATION
+              </p>
+              {/* Who said it and when used to print under every single bubble,
+                  which doubled the height of a ten-message thread and buried
+                  the words in metadata. It now sits beside the bubble and fades
+                  in on hover — the space is reserved either way, so nothing
+                  jumps — with the exact timestamp on the `title` for anyone who
+                  needs the minute rather than "2 hours ago". */}
+              <div className="flex flex-col gap-1.5">
+                {ticket.data.messages.map((message) => {
+                  const fromMember = message.role === "MEMBER";
+                  const who = fromMember
+                    ? "Member"
+                    : (message.author?.displayName ?? "Agent");
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={`group flex items-end gap-2 ${fromMember ? "" : "flex-row-reverse"}`}
                     >
-                      {message.role === "MEMBER"
-                        ? "MEMBER"
-                        : (message.author?.displayName ?? "AGENT").toUpperCase()}{" "}
-                      · {dateTime(message.createdAt)}
-                    </span>
-                  </div>
-                ))}
+                      <div
+                        title={`${who} · ${dateTime(message.createdAt)}`}
+                        className={
+                          fromMember
+                            ? "max-w-[76%] whitespace-pre-line rounded-[10px] rounded-bl-[3px] border border-[var(--console-hair)] bg-surface-2 px-2.5 py-1.5 text-[length:var(--ct-body)] leading-[1.5]"
+                            : "max-w-[76%] whitespace-pre-line rounded-[10px] rounded-br-[3px] bg-primary px-2.5 py-1.5 text-[length:var(--ct-body)] leading-[1.5] text-on-primary"
+                        }
+                      >
+                        {message.body}
+                      </div>
+                      <time
+                        dateTime={message.createdAt}
+                        title={`${who} · ${dateTime(message.createdAt)}`}
+                        className="flex-none whitespace-nowrap pb-0.5 font-mono text-[length:var(--ct-label)] tracking-[0.08em] text-muted opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        {who} · {relativeTime(message.createdAt)}
+                      </time>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* What the member attached while the assistant was gathering
@@ -365,7 +382,7 @@ export function SupportQueue() {
             {error && <ErrorNote>{error}</ErrorNote>}
 
             {canReply ? (
-              <Panel className="p-[clamp(18px,3vw,26px)]">
+              <Panel className="p-[var(--ct-pad)]">
                 <PanelHeader
                   eyebrow="REPLY"
                   title="Answer the member"

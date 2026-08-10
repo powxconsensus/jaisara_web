@@ -1,0 +1,27 @@
+# An image layer keeps whatever it was given. A secret copied in and deleted
+# later is still readable by anyone who pulls the image — hence the first group.
+
+# ── never ────────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+.git
+.git/**
+
+# ── rebuilt in the image ─────────────────────────────────────────────────────
+node_modules
+.next
+out
+build
+next-env.d.ts
+*.tsbuildinfo
+
+# ── not needed to build or serve ─────────────────────────────────────────────
+.vercel
+coverage
+*.log
+
+# ── editor / os ──────────────────────────────────────────────────────────────
+.idea
+.vscode
+.DS_Store

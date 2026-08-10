@@ -115,14 +115,14 @@ export function SplitEditor() {
         `${rule.scope} ${rule.scopeId?.slice(0, 8) ?? ""}`);
 
   return (
-    <div className="space-y-4">
-      <Panel className="p-[clamp(18px,3vw,26px)]">
+    <div className="space-y-2">
+      <Panel className="p-[var(--ct-pad)]">
         <PanelHeader
           eyebrow="IN FORCE"
           title="Current splits"
           description="A rule on a firm, product or coupon overrides the global one. Cashback is always a share of the commission we are paid, never of the buyer's price."
         />
-        <div className="mt-5">
+        <div className="mt-3">
           {rules.loading && current.length === 0 ? (
             <LoadingRows rows={3} />
           ) : current.length === 0 ? (
@@ -162,7 +162,13 @@ export function SplitEditor() {
                     {rule.holdAnchor === "PURCHASE_DATE" ? "purchase" : "approval"}
                   </Td>
                   <Td className="whitespace-nowrap text-muted">
-                    {shortDate(rule.effectiveFrom)}
+                    {rule.alwaysApplied ? (
+                      <span title="The default split — it has applied to every order since launch.">
+                        Always
+                      </span>
+                    ) : (
+                      shortDate(rule.effectiveFrom)
+                    )}
                   </Td>
                   <Td>
                     {canManage && (
@@ -179,7 +185,7 @@ export function SplitEditor() {
       </Panel>
 
       {canManage ? (
-        <Panel className="p-[clamp(18px,3vw,26px)]">
+        <Panel className="p-[var(--ct-pad)]">
           <PanelHeader
             eyebrow="CHANGE"
             title="Set a new split"
@@ -187,14 +193,14 @@ export function SplitEditor() {
           />
 
           <form
-            className="mt-6 grid gap-5"
+            className="mt-3 grid gap-3"
             onSubmit={(event) => {
               event.preventDefault();
               setError(null);
               setConfirming(true);
             }}
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <FieldLabel htmlFor="split-scope">APPLIES TO</FieldLabel>
                 <Select

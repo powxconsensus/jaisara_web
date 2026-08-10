@@ -10,6 +10,13 @@ import type { NextConfig } from "next";
  *
  * `NEXT_PUBLIC_*` is deliberately not used — this value is read at build time
  * to compose a header, never shipped into the client bundle.
+ *
+ * Being read *at build time* is the part that bites. The policy is frozen into
+ * the image, so setting `API_BASE_URL` only at runtime leaves a deployed site
+ * announcing `localhost:4000` to every browser. The Dockerfile declares it as
+ * an `ARG` for this reason, and Railway supplies it to the build because the
+ * service variable of the same name exists — remove either and the fallback
+ * below silently takes over.
  */
 const apiOrigin = (() => {
   try {
@@ -87,6 +94,16 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  /**
+   * Emit `.next/standalone` — a self-contained server with only the modules it
+   * actually imports, rather than the whole `node_modules` tree.
+   *
+   * This is what the Docker image runs. Without it the runtime stage has to
+   * carry every production dependency to start the server, which is most of
+   * the image for no benefit.
+   */
+  output: "standalone",
+
   // The version is free reconnaissance for anyone scanning for known issues.
   poweredByHeader: false,
 

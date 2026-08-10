@@ -25,11 +25,15 @@ export const PRIVACY: LegalDocument = {
   intro:
     "What we collect, why we collect it, and how to get it deleted. In short: enough to pay you correctly, and nothing sold to anyone.",
   sections: [
-    { heading: "1. Data we collect", body: "Account data (email, name, country), claim data (firm, plan, amount, order id, uploaded receipts), payout data (wallet address or gift card email), and basic product analytics such as pages viewed and clicks on deals." },
+    { heading: "1. Data we collect", body: "Account data (email, name, country, and a profile photo if you add one), claim data (firm, plan, amount, order id, uploaded receipts), payout data (wallet address or gift card email), and basic product analytics such as pages viewed and clicks on deals." },
     { heading: "2. Why we use it", body: "To match your purchase to a commission report, credit and pay your cashback, calculate referral rewards, prevent fraud, and answer support requests. Receipts are read by an automated parser and by our review team when a claim needs manual checks." },
     { heading: "3. Sharing", body: "We share the minimum necessary with prop firms to verify a purchase, with payment and gift card providers to deliver payouts, and with infrastructure providers who host the service. We do not sell personal data." },
-    { heading: "4. Retention", body: "Claim and payout records are kept for seven years for accounting. Uploaded receipts are deleted twelve months after a claim is settled. Analytics data is aggregated after ninety days." },
-    { heading: "5. Your rights", body: "You can export or delete your account data from the dashboard, or by asking support. Deleting an account cancels any pending cashback that has not yet cleared." },
+    // The receipt sentence is worded to match what actually happens: storage
+    // expires an object twelve months after it was written, and it has no way
+    // to know when a claim settled. Promising "after settlement" described a
+    // mechanism that does not exist.
+    { heading: "4. Retention", body: "Claim and payout records are kept for seven years for accounting. Uploaded receipts and files attached to support tickets are deleted twelve months after they are uploaded — the claim itself, its amount and its outcome stay on your account. Analytics data is aggregated after ninety days." },
+    { heading: "5. Your rights", body: "You can export or delete your account data from the dashboard, or by asking support. Removing your profile photo deletes the stored image, and deleting your account deletes it too. Deleting an account cancels any pending cashback that has not yet cleared." },
     { heading: "6. Cookies", body: "We use a session cookie to keep you signed in and a referral cookie that records who invited you for thirty days. No third-party advertising cookies." },
   ],
 };

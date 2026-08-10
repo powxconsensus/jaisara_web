@@ -135,8 +135,8 @@ export function ProductPanel({ platforms }: { platforms: Resource<Platform[]> })
   };
 
   return (
-    <div className="space-y-4">
-      <Panel className="p-[clamp(16px,2.5vw,22px)]">
+    <div className="space-y-2">
+      <Panel className="p-[var(--ct-pad)]">
         <div className="flex flex-wrap items-center gap-2">
           {(["UNMAPPED", "ACTIVE", "ARCHIVED", ""] as const).map((option) => (
             <FilterChip
