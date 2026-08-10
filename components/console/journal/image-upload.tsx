@@ -13,10 +13,10 @@ export interface UploadedImage {
 /**
  * Uploads an image and hands back its permanent URL.
  *
- * The API returns a stable `/journal/images/<key>` URL rather than a signed
- * one, because this string is written into a published post body or onto a
- * platform row — a URL that expired would break every article and every logo a
- * few minutes after publishing.
+ * The API returns a stable `/media/<key>` URL rather than a signed one, because
+ * this string is written into a published post body or onto a platform row — a
+ * URL that expired would break every article and every logo a few minutes after
+ * publishing.
  *
  * `endpoint` chooses which upload route, and by extension which storage prefix
  * and which permission: post images need `post:write`, logos `platform:manage`.

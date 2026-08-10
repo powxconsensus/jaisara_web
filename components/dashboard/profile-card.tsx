@@ -228,6 +228,12 @@ export function ProfileCard() {
           style={{ background: "color-mix(in oklab, var(--primary) 18%, var(--surface-2))" }}
         >
           {avatarUrl && photoFailed !== avatarUrl ? (
+            // A plain `<img>` rather than `next/image`. The optimizer would
+            // need a `remotePatterns` entry per environment for the API origin,
+            // and would then proxy every avatar through the Next server — real
+            // build coupling and a round trip, to optimise a 56px image the API
+            // already caps at 500KB.
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={avatarUrl}
               alt=""
