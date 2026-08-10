@@ -30,10 +30,13 @@ talks to the API directly. Every call goes through this app's own `/app/api/*`
 route handlers, which attach the session cookie server-side — so no token and no
 API origin is ever shipped into the client bundle.
 
-`API_BASE_URL` **is read at build time as well as at runtime**: `next.config.ts`
-derives the Content-Security-Policy `img-src` and `connect-src` from its origin.
-A production image built without it composes a policy that names `localhost`.
-The Dockerfile takes it as a build argument for exactly this reason.
+`API_BASE_URL` is **runtime only** in production, and that is worth preserving.
+Nothing in the production build reads it: the CSP falls back to `https:` for
+images and `'self'` for connections, because the browser never calls the API
+directly. So the API's address can change without rebuilding — point it at
+`http://<api>.railway.internal:4000/api` and every page render stays on the
+private network instead of crossing the public internet and being billed as
+egress.
 
 ## Scripts
 

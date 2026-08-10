@@ -8,11 +8,13 @@
 #  server that carries only those, so nothing here installs dependencies at
 #  runtime.
 #
-#  `API_BASE_URL` is a **build argument as well as a runtime variable**, and
-#  that is not redundant. next.config.ts derives the Content-Security-Policy
-#  from its origin while the build runs, so an image built without it ships a
-#  policy naming `localhost:4000` — the header is baked in, and setting the
-#  variable at runtime does not change it.
+#  `API_BASE_URL` is **runtime only**, and that is a property worth keeping.
+#  Nothing in the production build reads it — the CSP falls back to `https:` for
+#  images and `'self'` for connections, because the browser never calls the API
+#  directly. So the address of the API can change without rebuilding: point it
+#  at `http://<api>.railway.internal:4000/api` and every page render stays on
+#  Railway's private network instead of going out and back over the public
+#  internet, which is billed as egress.
 # ─────────────────────────────────────────────────────────────────────────────
 
 ARG NODE_VERSION=24-slim
@@ -28,14 +30,13 @@ RUN corepack enable
 # `packageManager` in package.json pins the pnpm version; corepack reads it, so
 # the image resolves the same tree a laptop does.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-  pnpm install --frozen-lockfile
+# No `--mount=type=cache` here: Railway requires cache mount ids to be
+# `s/<service-id>-<path>` and forbids environment variables inside them, so the
+# id would have to be a hardcoded service id that means nothing on a laptop.
+# Docker caches this layer until the lockfile changes anyway.
+RUN pnpm install --frozen-lockfile
 
 COPY . .
-
-# Compiled into the CSP — see the header comment.
-ARG API_BASE_URL
-ENV API_BASE_URL=${API_BASE_URL}
 
 # Git does not track empty directories, so a fresh clone has no `public/` even
 # though the working tree does. Create it rather than let the COPY below fail

@@ -8,15 +8,19 @@ import type { NextConfig } from "next";
  * exception: firm logos and journal illustrations are served by the API, and
  * an admin may point a logo at a firm's own CDN.
  *
- * `NEXT_PUBLIC_*` is deliberately not used — this value is read at build time
- * to compose a header, never shipped into the client bundle.
+ * `NEXT_PUBLIC_*` is deliberately not used — this value is read on the server
+ * only, never shipped into the client bundle.
  *
- * Being read *at build time* is the part that bites. The policy is frozen into
- * the image, so setting `API_BASE_URL` only at runtime leaves a deployed site
- * announcing `localhost:4000` to every browser. The Dockerfile declares it as
- * an `ARG` for this reason, and Railway supplies it to the build because the
- * service variable of the same name exists — remove either and the fallback
- * below silently takes over.
+ * **In production it is not used here at all.** `img-src` falls back to a plain
+ * `https:`, which covers the API and any CDN an admin points a logo at, and
+ * `connect-src` is `'self'` because the browser never calls the API directly.
+ * That is deliberate rather than incidental: it leaves `API_BASE_URL` a pure
+ * *runtime* variable, so it can be repointed at a private
+ * `*.railway.internal` host — keeping every page render off the public
+ * internet, and off the egress meter — without rebuilding the image.
+ *
+ * Development still needs it, because there the API is plain http on localhost
+ * and `https:` does not cover that.
  */
 const apiOrigin = (() => {
   try {
@@ -65,9 +69,21 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
   // Tailwind and the theme system set custom properties inline on elements.
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: https:${apiOrigin ? ` ${apiOrigin}` : ""}`,
+  // `https:` already covers firm logos and journal illustrations served by the
+  // API over TLS, and an admin pointing a logo at a firm's own CDN. Naming the
+  // API origin as well adds nothing in production — and naming it *costs*
+  // something: it makes the built image depend on `API_BASE_URL`, which is the
+  // one variable that should be free to change (to a private `.railway.internal`
+  // host, say) without a rebuild. In development the API is plain http on
+  // localhost, which `https:` does not cover, so it is still listed there.
+  `img-src 'self' data: blob: https:${isProduction || !apiOrigin ? "" : ` ${apiOrigin}`}`,
   "font-src 'self' data:",
-  `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ""}`,
+  // `'self'` only, and that is not a simplification — the browser genuinely
+  // never calls the API. Every request goes through this app's own `/api/*`
+  // route handlers, which attach the session cookie server-side; even Google
+  // sign-in navigates to `/api/auth/google` on this origin. `API_BASE_URL`
+  // appears in exactly one file, `lib/auth-server.ts`, and only on the server.
+  "connect-src 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
@@ -95,14 +111,23 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   /**
-   * Emit `.next/standalone` — a self-contained server with only the modules it
-   * actually imports, rather than the whole `node_modules` tree.
+   * `.next/standalone` — a self-contained server carrying only the modules the
+   * app actually imports, rather than the whole `node_modules` tree.
    *
-   * This is what the Docker image runs. Without it the runtime stage has to
-   * carry every production dependency to start the server, which is most of
-   * the image for no benefit.
+   * **Self-hosting only.** It is what the Docker image runs; without it the
+   * runtime stage would have to carry every production dependency, which is
+   * most of the image for no benefit.
+   *
+   * On Vercel it must be off. Vercel runs its own output-file tracing and
+   * expects the standard build layout, and `standalone` changes that layout —
+   * the build fails with `ENOENT … .next/next-server.js.nft.json`, which is
+   * Vercel looking for a trace manifest that standalone does not put there.
+   * (`.nft.json` is Node File Trace output, a normal Next build artifact.)
+   *
+   * `VERCEL` is set to `1` by Vercel's build environment and by nothing else,
+   * so this needs no configuration in either place.
    */
-  output: "standalone",
+  output: process.env.VERCEL ? undefined : "standalone",
 
   // The version is free reconnaissance for anyone scanning for known issues.
   poweredByHeader: false,
