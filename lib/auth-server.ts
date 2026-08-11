@@ -3,9 +3,53 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@/lib/auth-cookies";
 import type { AuthResult, TokenPair } from "@/lib/auth-types";
 
-const API_BASE_URL = (process.env.API_BASE_URL ?? "http://localhost:4000/api").replace(/\/$/, "");
+const API_BASE_URL = resolveApiBaseUrl();
 const DEFAULT_ACCESS_MAX_AGE = 15 * 60;
 const DEFAULT_REFRESH_MAX_AGE = 30 * 24 * 60 * 60;
+
+/**
+ * Where the API lives — **including its global prefix**, which is the whole
+ * reason this is a function and not a one-line default.
+ *
+ * The API mounts every route under `API_PREFIX` (`api` unless changed), so a
+ * base URL without it produces a 404 on every server-side call. That much is
+ * obvious. What is not obvious is where it surfaces: the first thing anyone
+ * notices is Google sign-in, because it is the one flow that puts the composed
+ * URL in the address bar. `/api/auth/google` on this origin redirects to
+ * `<base>/auth/google`, and with the prefix missing the browser lands on the
+ * API's own 404 page instead of Google's consent screen —
+ *
+ *     {"statusCode":404,"message":"Cannot GET /auth/google","path":"/auth/google"}
+ *
+ * — which reads like a broken OAuth setup and sends you to the Google Cloud
+ * console, where nothing is wrong. Failing here instead costs one deploy and
+ * names the actual fix.
+ */
+function resolveApiBaseUrl(): string {
+  const raw = (process.env.API_BASE_URL ?? "http://localhost:4000/api").trim().replace(/\/$/, "");
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(
+      `API_BASE_URL is "${raw}", which is not a URL. It must be the API's full base, ` +
+        "scheme and prefix included — e.g. https://api.example.com/api",
+    );
+  }
+
+  if (url.pathname === "" || url.pathname === "/") {
+    throw new Error(
+      `API_BASE_URL is "${raw}", which has no path. It must end with the API's global ` +
+        "prefix — every route is mounted under it, so without one every request 404s. " +
+        `Set it to "${raw}/api" (or whatever API_PREFIX is on the API).\n\n` +
+        "If the API really does run with an empty API_PREFIX, this check is the one " +
+        "thing to relax — it is the only case where a path-less value is correct.",
+    );
+  }
+
+  return raw;
+}
 
 export function authApiUrl(path: string): URL {
   return new URL(`${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`);
