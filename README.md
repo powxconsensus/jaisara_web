@@ -40,12 +40,13 @@ private network instead of crossing the public internet and being billed as
 egress.
 
 `CLARITY_PROJECT_ID` is the exception to that: it is read at **build** time as
-well. Clarity loads its tag from `www.clarity.ms` and uploads to `*.clarity.ms`,
-neither of which the CSP allows by default, so `next.config.ts` widens
-`script-src` and `connect-src` only when this variable is set — and Next bakes
-`headers()` into the routes manifest at build. Supply it at runtime alone and
-the policy stays narrow, the tag is blocked, and the only evidence is a console
-error.
+well. Clarity needs `*.clarity.ms` in both `script-src` and `connect-src` — the
+tag at `www.clarity.ms` is only a loader and pulls its runtime from
+`scripts.clarity.ms`, and uploads go to a regional collector on a third
+subdomain — none of which the CSP allows by default. `next.config.ts` widens
+those two directives only when this variable is set, and Next bakes `headers()`
+into the routes manifest at build. Supply it at runtime alone and the policy
+stays narrow, the tag is blocked, and the only evidence is a console error.
 
 It is off unless set, which is the right default for local work and previews.
 Turning it on means third-party code with full DOM access recording sessions and

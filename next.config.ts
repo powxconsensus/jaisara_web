@@ -77,12 +77,26 @@ const isProduction = process.env.NODE_ENV === "production";
  *  - **Only when `CLARITY_PROJECT_ID` is set.** With Clarity off — local work,
  *    previews, any deploy that has not configured it — the policy is byte-for-
  *    byte what it was before.
- *  - **Exact host for `script-src`.** `https://www.clarity.ms`, not a wildcard,
- *    so no other Microsoft subdomain can serve executable code here.
- *  - **Wildcard only where Clarity requires one.** Uploads go to a regional
- *    collector whose subdomain is chosen at runtime, so `connect-src` has to
- *    accept `*.clarity.ms`. `c.bing.com` is the MUID sync; without it the
- *    recording still works and a request fails in the console every session.
+ *  - **Scoped to one registrable domain.** `*.clarity.ms` and nothing else on
+ *    Microsoft's estate.
+ *
+ * `script-src` was `https://www.clarity.ms` alone, on the reasoning that an
+ * exact host beats a wildcard. It does, when the exact host is the whole story,
+ * and here it is not: `www.clarity.ms/tag/<id>` is only a loader, and it pulls
+ * the real runtime from a **second** host —
+ *
+ *     Refused to load https://scripts.clarity.ms/0.8.69/clarity.js because it
+ *     does not appear in the script-src directive of the Content Security Policy
+ *
+ * — so the tag fetched, the console showed one line, and nothing was ever
+ * recorded. Note the version in that path: Microsoft moves both the version and
+ * the subdomain on their own schedule, so any enumeration here is a list that
+ * goes stale silently, and its failure mode is "no data" rather than an alert.
+ * The wildcard is the honest boundary. Do not re-narrow it to exact hosts.
+ *
+ * Uploads go to a regional collector whose subdomain is likewise chosen at
+ * runtime, so `connect-src` needs the same wildcard. `c.bing.com` is the MUID
+ * sync; without it recording still works and one request fails per session.
  *
  * `img-src` needs nothing added — it already allows `https:`.
  *
@@ -91,7 +105,7 @@ const isProduction = process.env.NODE_ENV === "production";
  * variable at runtime only leaves the policy narrow and the tag blocked.
  */
 const clarityEnabled = Boolean(process.env.CLARITY_PROJECT_ID?.trim());
-const clarityScriptSrc = clarityEnabled ? " https://www.clarity.ms" : "";
+const clarityScriptSrc = clarityEnabled ? " https://*.clarity.ms" : "";
 const clarityConnectSrc = clarityEnabled ? " https://*.clarity.ms https://c.bing.com" : "";
 
 const csp = [
