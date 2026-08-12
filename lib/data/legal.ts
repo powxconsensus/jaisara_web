@@ -25,16 +25,25 @@ export const PRIVACY: LegalDocument = {
   intro:
     "What we collect, why we collect it, and how to get it deleted. In short: enough to pay you correctly, and nothing sold to anyone.",
   sections: [
-    { heading: "1. Data we collect", body: "Account data (email, name, country, and a profile photo if you add one), claim data (firm, plan, amount, order id, uploaded receipts), payout data (wallet address or gift card email), and basic product analytics such as pages viewed and clicks on deals." },
+    { heading: "1. Data we collect", body: "Account data (email, name, country, and a profile photo if you add one), claim data (firm, plan, amount, order id, uploaded receipts), payout data (wallet address or gift card email), and product analytics such as pages viewed and clicks on deals. Analytics includes session recordings - a replay of how a page looked and what was clicked or scrolled - described in section 7." },
     { heading: "2. Why we use it", body: "To match your purchase to partner records, administer rewards, calculate referral rewards, prevent fraud, and answer support requests. Jaisara has commercial affiliate relationships with some listed firms and may receive commission on eligible tracked purchases. Receipts are read by an automated parser and by our review team when a claim needs manual checks." },
-    { heading: "3. Sharing", body: "We share the minimum necessary with prop firms to verify a purchase, with payment and gift card providers to deliver payouts, and with infrastructure providers who host the service. We do not sell personal data." },
+    { heading: "3. Sharing", body: "We share the minimum necessary with prop firms to verify a purchase, with payment and gift card providers to deliver payouts, with infrastructure providers who host the service, and with Microsoft, who process the session analytics in section 7 on our behalf. We do not sell personal data." },
     // The receipt sentence is worded to match what actually happens: storage
     // expires an object twelve months after it was written, and it has no way
     // to know when a claim settled. Promising "after settlement" described a
     // mechanism that does not exist.
     { heading: "4. Retention", body: "Claim and payout records are kept for seven years for accounting. Uploaded receipts and files attached to support tickets are deleted twelve months after they are uploaded - the claim itself, its amount and its outcome stay on your account. Analytics data is aggregated after ninety days." },
     { heading: "5. Your rights", body: "You can export or delete your account data from the dashboard, or by asking support. Removing your profile photo deletes the stored image, and deleting your account deletes it too. Deleting an account cancels any pending cashback that has not yet cleared." },
-    { heading: "6. Cookies", body: "We use a session cookie to keep you signed in and a referral cookie that records who invited you for thirty days. No third-party advertising cookies." },
+    { heading: "6. Cookies", body: "We use a session cookie to keep you signed in and a referral cookie that records who invited you for thirty days. Microsoft Clarity sets its own cookies to recognise a returning browser and group activity into a single session, as part of the analytics in section 7. No advertising cookies, and nothing here is used to target ads at you." },
+    // Session replay on a site that handles money needs to be disclosed
+    // specifically, not folded into "basic product analytics". What is written
+    // here is what Clarity actually does at its default Balanced masking mode:
+    // input boxes and drop-downs are masked in every mode and cannot be
+    // unmasked, and numbers and email addresses are treated as sensitive and
+    // masked too. Anything stated here has to stay true of the settings in the
+    // Clarity dashboard, which is where masking is configured - so this section
+    // and that dashboard change together or the policy becomes a false claim.
+    { heading: "7. Session analytics", body: "We use Microsoft Clarity to see how pages are actually used - where people click, how far they scroll, and where a layout confuses them. It records a reconstruction of the page rather than a video of your screen, and it does not read anything outside this site. What you type is not captured: form fields and drop-downs are masked before anything leaves your browser and cannot be unmasked by us, and numbers and email addresses shown on a page are masked as well. Passwords are never captured. Microsoft holds this data under their own retention schedule and processes it for us as an analytics provider, not for advertising. If you would rather not be recorded at all, a browser that blocks third-party scripts will stop it, and the rest of the site works normally without it." },
   ],
 };
 
