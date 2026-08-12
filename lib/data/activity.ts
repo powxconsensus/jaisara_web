@@ -42,7 +42,7 @@ export interface ActivityEntry {
   status: "paid" | "pending";
 }
 
-export async function fetchRecentActivity(take = 8): Promise<ActivityEntry[]> {
+export async function fetchRecentActivity(take = 10): Promise<ActivityEntry[]> {
   try {
     const response = await apiRequest(`/activity/recent?take=${take}`, {
       cache: "force-cache",

@@ -24,6 +24,7 @@ Opens on <http://localhost:3000>. The API must be running separately — see
 | Variable | Purpose |
 | --- | --- |
 | `API_BASE_URL` | Server-only origin of the NestJS API, including the `/api` prefix. |
+| `CLARITY_PROJECT_ID` | Microsoft Clarity project id. Blank turns it off. **Needed at build time too** — see below. |
 
 There are no `NEXT_PUBLIC_*` variables and that is deliberate: the browser never
 talks to the API directly. Every call goes through this app's own `/app/api/*`
@@ -37,6 +38,19 @@ directly. So the API's address can change without rebuilding — point it at
 `http://<api>.railway.internal:4000/api` and every page render stays on the
 private network instead of crossing the public internet and being billed as
 egress.
+
+`CLARITY_PROJECT_ID` is the exception to that: it is read at **build** time as
+well. Clarity loads its tag from `www.clarity.ms` and uploads to `*.clarity.ms`,
+neither of which the CSP allows by default, so `next.config.ts` widens
+`script-src` and `connect-src` only when this variable is set — and Next bakes
+`headers()` into the routes manifest at build. Supply it at runtime alone and
+the policy stays narrow, the tag is blocked, and the only evidence is a console
+error.
+
+It is off unless set, which is the right default for local work and previews.
+Turning it on means third-party code with full DOM access recording sessions and
+sending them to Microsoft; the CSP comment spells out exactly which lines that
+costs.
 
 ## Scripts
 

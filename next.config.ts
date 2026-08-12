@@ -60,13 +60,47 @@ const apiOrigin = (() => {
  */
 const isProduction = process.env.NODE_ENV === "production";
 
+/**
+ * Microsoft Clarity, and what allowing it actually costs.
+ *
+ * Clarity cannot work under the policy below. It loads its tag from
+ * `https://www.clarity.ms` and uploads recordings to a regional collector on
+ * `*.clarity.ms`, and the two lines the comment above calls valuable —
+ * `script-src` with no external host, `connect-src 'self'` — are precisely the
+ * two that forbid it. So this is not a formality: it is a session recorder,
+ * running third-party code with full DOM access, permitted to send what it
+ * observes to another company. That is what the product *is*, and it is worth
+ * naming rather than discovering later.
+ *
+ * Narrowed as far as it can be while still working:
+ *
+ *  - **Only when `CLARITY_PROJECT_ID` is set.** With Clarity off — local work,
+ *    previews, any deploy that has not configured it — the policy is byte-for-
+ *    byte what it was before.
+ *  - **Exact host for `script-src`.** `https://www.clarity.ms`, not a wildcard,
+ *    so no other Microsoft subdomain can serve executable code here.
+ *  - **Wildcard only where Clarity requires one.** Uploads go to a regional
+ *    collector whose subdomain is chosen at runtime, so `connect-src` has to
+ *    accept `*.clarity.ms`. `c.bing.com` is the MUID sync; without it the
+ *    recording still works and a request fails in the console every session.
+ *
+ * `img-src` needs nothing added — it already allows `https:`.
+ *
+ * This is read at **build** time. Next evaluates `headers()` when it generates
+ * the routes manifest, so the value is baked into the deployment; setting the
+ * variable at runtime only leaves the policy narrow and the tag blocked.
+ */
+const clarityEnabled = Boolean(process.env.CLARITY_PROJECT_ID?.trim());
+const clarityScriptSrc = clarityEnabled ? " https://www.clarity.ms" : "";
+const clarityConnectSrc = clarityEnabled ? " https://*.clarity.ms https://c.bing.com" : "";
+
 const csp = [
   "default-src 'self'",
   // `'unsafe-eval'` in development only. React's dev build uses `eval` to
   // reconstruct call stacks across the server/client boundary, and the dev
   // server needs it for hot reload; the production build uses neither, so
   // shipping it would weaken the policy for nobody's benefit.
-  `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}${clarityScriptSrc}`,
   // Tailwind and the theme system set custom properties inline on elements.
   "style-src 'self' 'unsafe-inline'",
   // `https:` already covers firm logos and journal illustrations served by the
@@ -83,7 +117,7 @@ const csp = [
   // route handlers, which attach the session cookie server-side; even Google
   // sign-in navigates to `/api/auth/google` on this origin. `API_BASE_URL`
   // appears in exactly one file, `lib/auth-server.ts`, and only on the server.
-  "connect-src 'self'",
+  `connect-src 'self'${clarityConnectSrc}`,
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",

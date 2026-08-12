@@ -495,6 +495,27 @@ export interface SubscriberSummary {
   suppressed: number;
 }
 
+export type HomepageFeedbackStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
+
+export interface HomepageFeedbackRecord {
+  id: string;
+  authorName: string;
+  authorHandle?: string | null;
+  quote: string;
+  sourceUrl: string;
+  avatarUrl?: string | null;
+  imageUrl?: string | null;
+  status: HomepageFeedbackStatus;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface HomepageContentAdmin {
+  sponsorSlugs: string[];
+  firms: { slug: string; name: string; logoUrl?: string | null }[];
+  feedback: HomepageFeedbackRecord[];
+}
+
 export interface Suppression {
   email: string;
   reason: "HARD_BOUNCE" | "COMPLAINT" | "UNSUBSCRIBED" | "MANUAL";

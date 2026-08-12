@@ -42,6 +42,7 @@ import { BlockComposer } from "./block-composer";
 import { SubjectFields } from "./campaign-editor";
 import { CampaignStatsPanel } from "./campaign-stats";
 import { SuppressionList } from "./suppression-list";
+import { HomepageProofEditor } from "./homepage-proof-editor";
 
 /**
  * The email studio.
@@ -77,7 +78,7 @@ const EMPTY = { name: "", subject: "", testEmails: "" };
 export function CampaignStudio() {
   const { can } = useAccess();
   const { toast } = useToast();
-  const [tab, setTab] = useState<"campaigns" | "suppressions">("campaigns");
+  const [tab, setTab] = useState<"campaigns" | "homepage" | "suppressions">("campaigns");
 
   const canManage = can(P.marketingManage);
   const canSend = can(P.marketingSend);
@@ -220,8 +221,8 @@ export function CampaignStudio() {
     <div className={cn("flex flex-col", tab === "campaigns" && "console-fill")}>
       <PageHeader
         eyebrow="GROWTH"
-        title="Email studio"
-        description="Audience is resolved again at send time, so a fresh opt-out is always honoured."
+        title="Growth studio"
+        description="Manage published homepage proof and member email from one place."
         actions={
           <Segmented
             label="Studio section"
@@ -229,6 +230,7 @@ export function CampaignStudio() {
             onChange={setTab}
             options={[
               { value: "campaigns", label: "Campaigns" },
+              { value: "homepage", label: "Homepage proof" },
               { value: "suppressions", label: "Suppressions" },
             ]}
           />
@@ -237,6 +239,8 @@ export function CampaignStudio() {
 
       {tab === "suppressions" ? (
         <SuppressionList />
+      ) : tab === "homepage" ? (
+        <HomepageProofEditor />
       ) : (
         <div className="grid min-h-0 flex-1 gap-2 xl:grid-cols-[268px_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col gap-2">
