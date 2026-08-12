@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { money } from "@/lib/format";
-import type { EstimatorFirm } from "@/lib/data/estimator";
+import type { EstimatorFirm, EstimatorSize } from "@/lib/data/estimator";
 import { estimate } from "@/lib/data/estimator";
 
 /** One ledger row with a dotted leader. */
@@ -33,23 +33,23 @@ function Row({
 /**
  * The estimate, printed as a receipt (handoff §5). The line order is fixed:
  * the cashback line must be visible, and YOU PAY AT CHECKOUT must be the real
- * amount charged — the plain-language sentence underneath restates both.
+ * amount charged - the plain-language sentence underneath restates both.
  */
 export function ResultLedger({
   firm,
-  sizeIndex,
+  product,
   tierIndex,
   onEdit,
 }: {
   firm: EstimatorFirm | null;
-  sizeIndex: number | null;
+  product: EstimatorSize | null;
   tierIndex: number;
   /** Shown on the wizard once the config has collapsed. */
   onEdit?: () => void;
 }) {
-  const ready = firm !== null && sizeIndex !== null;
-  const result = ready ? estimate({ firm, sizeIndex, tierIndex }) : null;
-  const dash = "$ —";
+  const ready = firm !== null && product !== null;
+  const result = ready ? estimate({ firm, product, tierIndex }) : null;
+  const dash = "$ -";
 
   return (
     <div
@@ -82,12 +82,12 @@ export function ResultLedger({
             {result ? money(result.cashback) : "$--.--"}
           </p>
           <p className="font-mono text-[13px] text-muted">
-            {ready ? `${firm.cashbackPct}% of price` : "pick firm, challenge, size"}
+            {ready ? `${product.cashbackPct}% of price` : "pick firm, challenge, size"}
           </p>
         </div>
       </div>
 
-      {/* Perforation — notches sit outside the padding, hence the offsets. */}
+      {/* Perforation - notches sit outside the padding, hence the offsets. */}
       <div className="relative my-5" aria-hidden="true">
         <div
           className="border-t-2 border-dashed"
@@ -125,8 +125,8 @@ export function ResultLedger({
 
         <p className="mt-3 font-sans text-[11.5px] leading-[1.6] tracking-normal text-muted">
           {result
-            ? `You pay ${money(result.youPay)} today. ${money(result.cashback)} lands after the firm’s refund window closes (~30 days).`
-            : "The ledger prints itself as you choose. Nothing here is charged by Jaisara — you buy from the firm directly."}
+            ? `You pay ${money(result.youPay)} today. ${money(result.cashback)} becomes available after the firm’s applicable refund window closes.`
+            : "The ledger prints itself as you choose. Nothing here is charged by Jaisara - you buy from the firm directly."}
         </p>
       </div>
 
@@ -150,6 +150,12 @@ export function ResultLedger({
             ? "Excludes resets and add-ons. Refunds reverse the cashback."
             : "The estimate prints here as you make each choice."}
         </p>
+        <Link
+          href="/terms"
+          className="text-center font-mono text-[9px] uppercase tracking-[0.12em] text-muted underline decoration-hair underline-offset-4 transition hover:text-fg"
+        >
+          Reward terms
+        </Link>
         {onEdit && (
           <button
             type="button"

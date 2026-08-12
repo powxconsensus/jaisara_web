@@ -10,7 +10,7 @@ type VerifyStatus = "idle" | "working" | "verified" | "error";
 /**
  * The landing page for a verification link.
  *
- * Clicking the link is a formality, not a destination — the member came to use
+ * Clicking the link is a formality, not a destination - the member came to use
  * their account, and being handed a page that says "Email confirmed" with a
  * button to continue is a step they did not ask for. So this shows work in
  * progress and then leaves: confirm, refresh the session, go to the dashboard.
@@ -54,7 +54,7 @@ export function VerifyEmailCard({ token }: { token?: string }) {
         setStatus("verified");
 
         // Swap the stale token for one that says verified. A failure here is
-        // not fatal — it just means the member signs in again — so the redirect
+        // not fatal - it just means the member signs in again - so the redirect
         // happens either way rather than stranding them on a spinner.
         const session = await fetch("/api/auth/refresh-session", { method: "POST" }).catch(
           () => null,
@@ -103,7 +103,7 @@ export function VerifyEmailCard({ token }: { token?: string }) {
         <p className="mt-3 text-sm leading-[1.65] text-muted">{message}</p>
       )}
 
-      {/* No links while it is working — the page is about to navigate, and a
+      {/* No links while it is working - the page is about to navigate, and a
           control that races the redirect is a control that sometimes loses. */}
       {!working && (
         <div className="mt-6 flex flex-wrap gap-2.5">

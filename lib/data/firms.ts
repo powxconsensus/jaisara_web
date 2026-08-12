@@ -1,7 +1,7 @@
 /**
  * Firm / deal catalogue.
  *
- * Static fixtures standing in for the API (`api` repo) — every field here maps
+ * Static fixtures standing in for the API (`api` repo) - every field here maps
  * to a column in the planned `PropFirm` / `Coupon` tables. Swap the exported
  * accessors for fetches when the backend lands; nothing else needs to change.
  */

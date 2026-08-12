@@ -3,7 +3,7 @@
  *
  * Palette and mode are ORTHOGONAL. `data-theme` on <html> selects one of 15
  * families; `data-mode` selects light or dark. Every family defines both, so
- * all 30 combinations are valid — light/dark is not a pairing of two palettes
+ * all 30 combinations are valid - light/dark is not a pairing of two palettes
  * and toggling mode never changes which family you are on.
  *
  * The 15 families are a *selection aid* while the brand is undecided, not a
@@ -31,13 +31,13 @@ export type PaletteKey =
   | "terminal"
   | "frost";
 
-/** [background, primary, club] — the three colours a preview tile needs. */
+/** [background, primary, club] - the three colours a preview tile needs. */
 export type Swatch = readonly [string, string, string];
 
 export interface PaletteMeta {
   key: PaletteKey;
   name: string;
-  /** Character, without a light/dark prefix — mode is its own control now. */
+  /** Character, without a light/dark prefix - mode is its own control now. */
   tag: string;
   /** The side this family was authored on; the default mode on first load. */
   nativeMode: Mode;
@@ -50,7 +50,7 @@ export const DEFAULT_PALETTE: PaletteKey = "teal";
 /**
  * Deep Teal and Bright Turquoise are both turquoise and shipped byte-identical
  * in light mode once. They are deliberately separated here: #eff6f4/#0c6e63
- * against #f3fbf9/#0a8073. Re-measure contrast if either is retuned — every
+ * against #f3fbf9/#0a8073. Re-measure contrast if either is retuned - every
  * light accent must clear 4.5:1 on white, since the primary CTA is 12px/600.
  */
 export const PALETTES: PaletteMeta[] = [
@@ -126,7 +126,7 @@ export function tileColors(swatch: Swatch, mode: Mode) {
   };
 }
 
-/** localStorage keys (handoff §1.3) — one per axis, plus the account override. */
+/** localStorage keys (handoff §1.3) - one per axis, plus the account override. */
 export const PALETTE_STORAGE_KEY = "jaisara-theme";
 export const MODE_STORAGE_KEY = "jaisara-mode";
 export const ACCOUNT_PALETTE_STORAGE_KEY = "jaisara-theme-user";

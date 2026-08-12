@@ -92,7 +92,7 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
       <PageHeader
         eyebrow="OPERATIONS"
         title="Claims"
-        description="Approving credits a wallet, so it is refused unless an order backs the claim — and never on your own claim."
+        description="Approving credits a wallet, so it is refused unless an order backs the claim - and never on your own claim."
         actions={
           can(P.claimViewAll) && platformId ? (
             <button
@@ -175,7 +175,7 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
                       ? usd(claim.matchedOrder.commissionAmountUsd)
                       : claim.claimedAmount
                         ? usd(claim.claimedAmount)
-                        : "—"}
+                        : "-"}
                   </span>
                 </span>
                 <strong className="mt-2 block truncate font-mono text-[12px]">
@@ -222,7 +222,7 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
         summary={
           <>
             Every claim still waiting on {platformName} is compared again against the orders
-            already imported. Matches move to the review queue — nothing is approved and no money
+            already imported. Matches move to the review queue - nothing is approved and no money
             moves.
           </>
         }

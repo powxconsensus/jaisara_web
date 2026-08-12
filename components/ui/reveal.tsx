@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
  *
  * Anything already in view on load is revealed immediately, so a deep-linked
  * section is never left faded (handoff §6). Skipped entirely under reduced
- * motion, and content is always rendered — only the animation is conditional.
+ * motion, and content is always rendered - only the animation is conditional.
  */
 export function Reveal({
   children,

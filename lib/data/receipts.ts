@@ -2,7 +2,7 @@ import { challengeMath } from "@/lib/format";
 
 /**
  * The hero receipt feed. In production this is a live feed of recent approved
- * claims, showing first-initial + surname only — never a full name or email
+ * claims, showing first-initial + surname only - never a full name or email
  * (handoff §2).
  *
  * Only `paid` and `pending` appear here. Rejections belong in the wallet ledger
@@ -32,7 +32,7 @@ export interface Receipt {
    * The designed receipts describe a rate and let the card do the arithmetic.
    * A real one already knows the answer to the cent, and re-deriving it from a
    * rounded percentage prints a number that disagrees with the member's wallet
-   * — 6.7% of $99 is $6.63, but $6.68 was credited.
+   * - 6.7% of $99 is $6.63, but $6.68 was credited.
    */
   cashbackUsd?: number;
 }
@@ -61,12 +61,12 @@ export const RECEIPT_STATUS: Record<
     stamp: "PENDING",
     color: "var(--warning)",
     who: "CASHBACK APPROVED",
-    footer: "CLEARS 30 DAYS AFTER PURCHASE · VOID ON REFUND",
+    footer: "AVAILABLE AFTER THE FIRM'S REFUND WINDOW · VOID ON REFUND",
     dot: "var(--warning)",
   },
 };
 
-/** Derived figures for one receipt — except a real credited amount, which wins. */
+/** Derived figures for one receipt - except a real credited amount, which wins. */
 export function receiptTotals(receipt: Receipt) {
   const totals = challengeMath(receipt.list, receipt.discountPct, receipt.cashbackPct);
   return receipt.cashbackUsd === undefined

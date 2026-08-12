@@ -8,7 +8,7 @@ const DEFAULT_ACCESS_MAX_AGE = 15 * 60;
 const DEFAULT_REFRESH_MAX_AGE = 30 * 24 * 60 * 60;
 
 /**
- * Where the API lives — **including its global prefix**, which is the whole
+ * Where the API lives - **including its global prefix**, which is the whole
  * reason this is a function and not a one-line default.
  *
  * The API mounts every route under `API_PREFIX` (`api` unless changed), so a
@@ -17,11 +17,11 @@ const DEFAULT_REFRESH_MAX_AGE = 30 * 24 * 60 * 60;
  * notices is Google sign-in, because it is the one flow that puts the composed
  * URL in the address bar. `/api/auth/google` on this origin redirects to
  * `<base>/auth/google`, and with the prefix missing the browser lands on the
- * API's own 404 page instead of Google's consent screen —
+ * API's own 404 page instead of Google's consent screen -
  *
  *     {"statusCode":404,"message":"Cannot GET /auth/google","path":"/auth/google"}
  *
- * — which reads like a broken OAuth setup and sends you to the Google Cloud
+ * - which reads like a broken OAuth setup and sends you to the Google Cloud
  * console, where nothing is wrong. Failing here instead costs one deploy and
  * names the actual fix.
  */
@@ -34,17 +34,17 @@ function resolveApiBaseUrl(): string {
   } catch {
     throw new Error(
       `API_BASE_URL is "${raw}", which is not a URL. It must be the API's full base, ` +
-        "scheme and prefix included — e.g. https://api.example.com/api",
+        "scheme and prefix included - e.g. https://api.example.com/api",
     );
   }
 
   if (url.pathname === "" || url.pathname === "/") {
     throw new Error(
       `API_BASE_URL is "${raw}", which has no path. It must end with the API's global ` +
-        "prefix — every route is mounted under it, so without one every request 404s. " +
+        "prefix - every route is mounted under it, so without one every request 404s. " +
         `Set it to "${raw}/api" (or whatever API_PREFIX is on the API).\n\n` +
         "If the API really does run with an empty API_PREFIX, this check is the one " +
-        "thing to relax — it is the only case where a path-less value is correct.",
+        "thing to relax - it is the only case where a path-less value is correct.",
     );
   }
 
@@ -73,7 +73,7 @@ export function upstreamHeaders(request: Request, json = true): Headers {
  * Calls the API.
  *
  * `no-store` is the default because most callers are per-request, authenticated
- * reads — but it is a *default*, applied before the spread so a caller can ask
+ * reads - but it is a *default*, applied before the spread so a caller can ask
  * for a cached, revalidating fetch instead. It used to be applied after, which
  * silently overrode the caller and left `no-store` paired with a `revalidate`
  * window; that contradiction deadlocked the prerender of every marketing page.

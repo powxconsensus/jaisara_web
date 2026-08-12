@@ -6,6 +6,7 @@ import { useToast } from "@/components/shell/toast";
 import { useWallet } from "@/components/wallet/use-wallet";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { apiFetch } from "@/lib/api-fetch";
 
 type Method = "usdt" | "giftcard";
 
@@ -15,7 +16,7 @@ type Method = "usdt" | "giftcard";
  * Every figure and every option here is the member's own: the balance, the
  * minimum, the saved addresses and the reward catalogue. The form used to be a
  * convincing mock that pushed a row into local state and toasted "payout
- * requested" — the one screen in the product where that is least acceptable.
+ * requested" - the one screen in the product where that is least acceptable.
  *
  * Addresses carry a cooldown before first use. That is not an inconvenience to
  * hide: changing where money goes is the classic account-takeover payday, so
@@ -45,9 +46,31 @@ interface Withdrawal {
   status: string;
   kind: string;
   amountUsd?: string;
+  grossAmountUsd?: string;
+  feeUsd?: string;
+  netAmountUsd?: string;
   requestedAt: string;
+  externalTxId?: string | null;
   payoutAddress?: { chain: string; address: string } | null;
   rewardItem?: { name: string; brand: string | null } | null;
+}
+
+interface PublicPayoutConfig {
+  environment: "TESTNET" | "MAINNET";
+  autoPayEnabled: boolean;
+  autoPayMaxPoints: string;
+  autoPayMaxUsd: string;
+  autoPayKycRequired: boolean;
+  dailyWithdrawalRequestLimit: number;
+  dailyLimitWindow: "ROLLING_24_HOURS" | "UTC_DAY";
+  pointsPerUsd: number;
+  minWithdrawalPoints: string;
+  minWithdrawalUsd: string;
+  networks: Array<{
+    chain: "TRC20" | "POLYGON" | "ARBITRUM";
+    enabled: boolean;
+    feeUsdt: string;
+  }>;
 }
 
 const STATUS_TONE: Record<string, string> = {
@@ -73,6 +96,7 @@ export function WithdrawForm() {
   const [rewards, setRewards] = useState<RewardItem[]>([]);
   const [rewardId, setRewardId] = useState("");
   const [history, setHistory] = useState<Withdrawal[]>([]);
+  const [payoutConfig, setPayoutConfig] = useState<PublicPayoutConfig | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The clock, in state. Reading `Date.now()` while rendering makes the output
@@ -82,15 +106,26 @@ export function WithdrawForm() {
   const chainWrapRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    const [addressRes, rewardRes, historyRes] = await Promise.all([
-      fetch("/api/payouts/addresses", { cache: "no-store" }),
-      fetch("/api/payouts/rewards", { cache: "no-store" }),
-      fetch("/api/payouts/withdrawals", { cache: "no-store" }),
+    const [addressRes, rewardRes, historyRes, configRes] = await Promise.all([
+      apiFetch("/api/payouts/addresses", { cache: "no-store" }),
+      apiFetch("/api/payouts/rewards", { cache: "no-store" }),
+      apiFetch("/api/payouts/withdrawals", { cache: "no-store" }),
+      apiFetch("/api/payouts/config", { cache: "no-store" }),
     ]);
 
     if (addressRes.ok) setAddresses((await addressRes.json()) as PayoutAddress[]);
     if (rewardRes.ok) setRewards((await rewardRes.json()) as RewardItem[]);
     if (historyRes.ok) setHistory((await historyRes.json()) as Withdrawal[]);
+    if (configRes.ok) {
+      const next = (await configRes.json()) as PublicPayoutConfig;
+      setPayoutConfig(next);
+      const enabled = new Set(next.networks.filter((entry) => entry.enabled).map((entry) => entry.chain));
+      setChain((current) =>
+        enabled.has(current.enumValue)
+          ? current
+          : (CHAINS.find((entry) => enabled.has(entry.enumValue)) ?? current),
+      );
+    }
     setNow(Date.now());
   }, []);
 
@@ -120,6 +155,20 @@ export function WithdrawForm() {
   const minimum = Number(wallet?.minWithdrawalUsd ?? 0);
   const value = Number.parseFloat(amount);
   const selectedAddress = addresses.find((entry) => entry.id === addressId);
+  const enabledChains = CHAINS.filter((entry) =>
+    payoutConfig?.networks.some(
+      (network) => network.chain === entry.enumValue && network.enabled,
+    ),
+  );
+  const selectedNetwork = selectedAddress
+    ? payoutConfig?.networks.find((entry) => entry.chain === selectedAddress.chain)
+    : undefined;
+  const selectedFee = Number(selectedNetwork?.feeUsdt ?? 0);
+  const netAmount = Number.isFinite(value) ? Math.max(0, value - selectedFee) : 0;
+  const autoPayMax = Number(payoutConfig?.autoPayMaxUsd ?? 0);
+  const autoEligible = Boolean(
+    payoutConfig?.autoPayEnabled && Number.isFinite(value) && netAmount <= autoPayMax,
+  );
   const addressLocked = selectedAddress
     ? new Date(selectedAddress.usableFrom).getTime() > now
     : false;
@@ -129,6 +178,8 @@ export function WithdrawForm() {
       ? `Minimum withdrawal is $${minimum.toFixed(2)}.`
       : amount && Number.isFinite(value) && value > available
         ? `That is more than your available balance of $${available.toFixed(2)}.`
+        : amount && Number.isFinite(value) && value <= selectedFee
+          ? `The amount must be greater than the $${selectedFee.toFixed(2)} network fee.`
         : null;
 
   const canSubmit =
@@ -136,13 +187,18 @@ export function WithdrawForm() {
     !amountError &&
     (method === "giftcard"
       ? Boolean(rewardId)
-      : Number.isFinite(value) && value > 0 && Boolean(addressId) && !addressLocked);
+      : Boolean(payoutConfig) &&
+        selectedNetwork?.enabled === true &&
+        Number.isFinite(value) &&
+        value > 0 &&
+        Boolean(addressId) &&
+        !addressLocked);
 
   const addAddress = async () => {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/payouts/addresses", {
+      const response = await apiFetch("/api/payouts/addresses", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ chain: chain.enumValue, address: newAddress.trim() }),
@@ -167,15 +223,18 @@ export function WithdrawForm() {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/payouts/withdraw", {
+      const response = await apiFetch("/api/payouts/withdraw", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          method: method === "usdt" ? "CRYPTO" : "REWARD",
-          // Points are the API's unit; 100 points = $1, computed on the cents
-          // so the request never carries a rounded float.
+          method: method === "usdt" ? "USDT" : "GIFT_CARD",
+          // Points are the API's integer unit. The conversion rate is runtime
+          // configuration, so the browser must not assume 100 points = $1.
           ...(method === "usdt"
-            ? { points: String(Math.round(value * 100)), payoutAddressId: addressId }
+            ? {
+                points: String(Math.round(value * (payoutConfig?.pointsPerUsd ?? 0))),
+                payoutAddressId: addressId,
+              }
             : { rewardItemId: rewardId }),
           idempotencyKey: crypto.randomUUID(),
         }),
@@ -206,9 +265,9 @@ export function WithdrawForm() {
             </p>
           </div>
           <p className="text-right font-mono text-[9.5px] leading-[1.6] tracking-[0.06em] text-muted">
-            MIN ${wallet?.minWithdrawalUsd ?? "—"}
+            MIN ${wallet?.minWithdrawalUsd ?? "-"}
             <br />
-            NO FEE ON TRC-20
+            FEE SHOWN BEFORE SUBMIT
           </p>
         </div>
 
@@ -234,13 +293,40 @@ export function WithdrawForm() {
               </button>
             </div>
             {amountError && <p className="mb-3 text-[12.5px] text-danger">{amountError}</p>}
+            {Number.isFinite(value) && value > 0 && selectedAddress && (
+              <div className="mb-[18px] grid grid-cols-3 gap-2 rounded-[11px] border border-hair bg-surface-2 p-3 font-mono text-[10px]">
+                <span>
+                  <span className="block text-muted">GROSS</span>
+                  <strong className="mt-1 block text-[12px] text-fg">${value.toFixed(2)}</strong>
+                </span>
+                <span>
+                  <span className="block text-muted">{selectedAddress.chain} FEE</span>
+                  <strong className="mt-1 block text-[12px] text-warning">-${selectedFee.toFixed(2)}</strong>
+                </span>
+                <span>
+                  <span className="block text-muted">YOU RECEIVE</span>
+                  <strong className="mt-1 block text-[12px] text-success">${netAmount.toFixed(2)}</strong>
+                </span>
+                <span className="col-span-3 border-t border-hair-soft pt-2 text-muted">
+                  {autoEligible
+                    ? `Within the automatic transfer limit of $${autoPayMax.toFixed(2)} after fees${payoutConfig?.autoPayKycRequired ? "; KYC approval is also required" : ""}.`
+                    : payoutConfig?.autoPayEnabled
+                      ? `Requires admin payment because the amount sent after fees exceeds $${autoPayMax.toFixed(2)}.`
+                      : "Requires admin review and payment."}
+                  {payoutConfig?.environment === "TESTNET" ? " Testnet mode is active." : ""}
+                  {payoutConfig
+                    ? ` Up to ${payoutConfig.dailyWithdrawalRequestLimit} request${payoutConfig.dailyWithdrawalRequestLimit === 1 ? "" : "s"} ${payoutConfig.dailyLimitWindow === "UTC_DAY" ? "per UTC day" : "in any 24-hour window"}.`
+                    : ""}
+                </span>
+              </div>
+            )}
           </>
         )}
 
         <div className="mb-2.5 flex items-center justify-between gap-3">
           <span className="font-mono text-[9px] tracking-[0.16em] text-muted">METHOD</span>
           <span className="font-mono text-[9px] tracking-[0.06em] text-muted">
-            {method === "usdt" ? "Sent within 24h" : "Codes emailed in 24h"}
+            {method === "usdt" ? "USDT only" : "Available inventory only"}
           </span>
         </div>
         <div className="mb-3.5 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(152px,1fr))]">
@@ -274,7 +360,13 @@ export function WithdrawForm() {
           <div className="mb-[18px] [animation:jsUp_.3s_both]">
             {addresses.length > 0 && (
               <div className="mb-2.5 flex flex-col gap-1.5">
-                {addresses.map((entry) => {
+                {addresses
+                  .filter((entry) =>
+                    payoutConfig?.networks.some(
+                      (network) => network.chain === entry.chain && network.enabled,
+                    ),
+                  )
+                  .map((entry) => {
                   const locked = new Date(entry.usableFrom).getTime() > now;
                   return (
                     <button
@@ -312,14 +404,14 @@ export function WithdrawForm() {
                       )}
                     </button>
                   );
-                })}
+                  })}
               </div>
             )}
 
             {addressLocked && (
               <p className="mb-2.5 text-[11.5px] leading-5 text-warning">
                 This address was added recently and cannot be used yet. New addresses wait out a
-                short cooldown — it is what stops a stolen session from redirecting a payout
+                short cooldown - it is what stops a stolen session from redirecting a payout
                 before you notice.
               </p>
             )}
@@ -367,7 +459,7 @@ export function WithdrawForm() {
 
               {chainOpen && (
                 <div className="absolute left-0 top-[calc(100%+8px)] z-[120] w-[250px] rounded-[13px] border border-hair bg-surface p-1.5 shadow-card [animation:jsUp_.22s_both]">
-                  {CHAINS.map((option) => (
+                  {enabledChains.map((option) => (
                     <button
                       key={option.key}
                       type="button"
@@ -394,6 +486,11 @@ export function WithdrawForm() {
                       )}
                     </button>
                   ))}
+                  {enabledChains.length === 0 && (
+                    <p className="px-3 py-3 text-[11.5px] text-muted">
+                      No USDT network is enabled right now.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -402,7 +499,7 @@ export function WithdrawForm() {
           <div className="mb-[18px] [animation:jsUp_.3s_both]">
             {rewards.length === 0 ? (
               <p className="rounded-[11px] border border-hair p-4 text-[12.5px] leading-6 text-muted">
-                No gift cards are available right now. Withdraw in USDT, or check back — the
+                No gift cards are available right now. Withdraw in USDT, or check back - the
                 catalogue is managed from the console.
               </p>
             ) : (
@@ -478,11 +575,16 @@ export function WithdrawForm() {
                 <p className="truncate text-[13.5px] font-medium">
                   {payout.rewardItem
                     ? payout.rewardItem.name
-                    : `USDT · ${payout.payoutAddress?.chain ?? "—"}`}
+                    : `USDT · ${payout.payoutAddress?.chain ?? "-"}`}
                 </p>
                 <p className="mt-0.5 text-[11.5px] text-muted">
                   {new Date(payout.requestedAt).toLocaleDateString()}
                 </p>
+                {payout.rewardItem && payout.status === "PAID" && payout.externalTxId && (
+                  <p className="mt-1 break-all rounded-md bg-surface-2 px-2 py-1 font-mono text-[10.5px] text-fg">
+                    DELIVERY REFERENCE: {payout.externalTxId}
+                  </p>
+                )}
               </div>
               <span
                 className="flex-none rounded-md px-[9px] py-[5px] font-mono text-[8.5px] tracking-[0.12em]"
@@ -493,8 +595,13 @@ export function WithdrawForm() {
               >
                 {payout.status}
               </span>
-              <span data-count className="flex-none font-mono text-[13.5px]">
-                ${payout.amountUsd ?? "0.00"}
+              <span data-count className="flex-none text-right font-mono text-[13.5px]">
+                ${payout.netAmountUsd ?? payout.amountUsd ?? "0.00"}
+                {payout.feeUsd && payout.feeUsd !== "0.00" && (
+                  <small className="mt-1 block text-[9.5px] text-muted">
+                    ${payout.grossAmountUsd ?? payout.amountUsd} gross · ${payout.feeUsd} fee
+                  </small>
+                )}
               </span>
             </div>
           ))

@@ -8,7 +8,7 @@ import { ErrorNote, Scroller, Skeleton } from "./widget-ui";
 /**
  * A guide, read inside the panel.
  *
- * Rendered with the same `MarkdownBody` the journal uses — one renderer, so an
+ * Rendered with the same `MarkdownBody` the journal uses - one renderer, so an
  * article cannot look right on the public site and wrong here. The size
  * overrides live on the wrapper rather than in the renderer: this is a narrow
  * panel, not a reading column.

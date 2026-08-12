@@ -6,7 +6,7 @@ import { CopyCoupon } from "@/components/deals/copy-coupon";
 import { FirmMark } from "@/components/ui/firm-mark";
 
 /**
- * Pre-render every firm page — they are the SEO surface.
+ * Pre-render every firm page - they are the SEO surface.
  *
  * Built from the live catalogue, so publishing a firm in the console produces
  * its public page on the next build without a code change.
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: PageProps<"/firm/[slug]">): P
   const firm = await getFirmBySlug(slug);
   if (!firm) return { title: "Firm not found" };
   return {
-    title: `${firm.name} — ${firm.cashback}% cashback`,
+    title: `${firm.name} - ${firm.cashback}% cashback`,
     description: `Get ${firm.cashback}% cashback and ${firm.discount}% off ${firm.name} challenges with coupon ${firm.coupon}.`,
   };
 }
@@ -47,7 +47,7 @@ const STEPS = [
   },
   {
     title: () => "Submit the order receipt",
-    body: () => "Cashback shows as pending, then becomes available after 30 days.",
+    body: () => "Cashback shows as pending, then becomes available after the firm's applicable refund window.",
   },
 ];
 
@@ -58,7 +58,7 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
 
   const terms = [
     { label: "RATE", value: `${firm.cashback}% of challenge price` },
-    { label: "AVAILABLE AFTER", value: "30 days" },
+    { label: "AVAILABLE AFTER", value: "Refund window" },
     { label: "ELIGIBLE", value: "New challenges & resets" },
     { label: "NOT ELIGIBLE", value: "Refunded orders" },
   ];
@@ -92,7 +92,7 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
             </div>
           </div>
 
-          {/* Cover placeholder — swap for real firm artwork (handoff §8). */}
+          {/* Cover placeholder - swap for real firm artwork (handoff §8). */}
           <div
             className="mb-8 grid h-[180px] place-items-center rounded-card border border-hair"
             style={{

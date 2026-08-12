@@ -15,7 +15,7 @@ export function CopyCoupon({ code }: { code: string }) {
       setTimeout(() => setCopied(false), 1600);
       toast("Coupon copied");
     } catch {
-      toast("Could not copy — select the code manually", "warning");
+      toast("Could not copy - select the code manually", "warning");
     }
   };
 

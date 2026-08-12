@@ -14,14 +14,14 @@ export interface UploadedImage {
  * Uploads an image and hands back its permanent URL.
  *
  * The API returns a stable `/media/<key>` URL rather than a signed one, because
- * this string is written into a published post body or onto a platform row — a
+ * this string is written into a published post body or onto a platform row - a
  * URL that expired would break every article and every logo a few minutes after
  * publishing.
  *
  * `endpoint` chooses which upload route, and by extension which storage prefix
  * and which permission: post images need `post:write`, logos `platform:manage`.
  *
- * An empty endpoint means the target does not exist yet — a firm's logo is
+ * An empty endpoint means the target does not exist yet - a firm's logo is
  * filed under the firm's slug, so there is nowhere to put one until the firm
  * has been saved. The picker is disabled in that state; this refuses as well,
  * so a stray call cannot POST at the current page instead.
@@ -57,7 +57,7 @@ export function useImageUpload(endpoint: string = "/api/journal/images") {
  * A hidden file input plus the button that opens it.
  *
  * The input is reset after every pick so choosing the same file twice still
- * fires a change event — otherwise a failed upload cannot be retried with the
+ * fires a change event - otherwise a failed upload cannot be retried with the
  * same file, which is exactly when you would want to.
  */
 export function ImagePickerButton({

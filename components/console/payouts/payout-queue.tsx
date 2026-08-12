@@ -27,6 +27,17 @@ import {
   type Withdrawal,
   type WithdrawalStatus,
 } from "@/lib/admin-types";
+import { PayoutConfiguration } from "./payout-configuration";
+import {
+  sendWithBrowserWallet,
+  type BrowserNetworkConfig,
+  type BrowserPayoutChain,
+} from "@/lib/browser-payout-wallet";
+
+interface WalletPayoutConfig {
+  environment: "MAINNET" | "TESTNET";
+  networks: Record<BrowserPayoutChain, BrowserNetworkConfig>;
+}
 
 /**
  * The payout queue.
@@ -73,14 +84,23 @@ export function PayoutQueue() {
   const [action, setAction] = useState<Action>(null);
   const [txId, setTxId] = useState("");
   const [cancelled, setCancelled] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
   const payouts = useResource<Withdrawal[]>("/api/admin/payouts", {
     query: { status: status || undefined },
   });
+  const walletConfig = useResource<WalletPayoutConfig>(
+    can(P.configView) ? "/api/admin/payouts/config" : null,
+  );
   const { mutate, pending, error, setError } = useMutation();
 
   const rows = payouts.data ?? [];
   const canProcess = can(P.withdrawalProcess);
+  const selectedRows = rows.filter((row) => selected.has(row.id));
+  const selectedRequested = selectedRows.filter((row) => row.status === "REQUESTED");
+  const selectedPayable = selectedRows.filter(
+    (row) => row.status === "APPROVED" && row.method === "USDT" && row.payoutAddress,
+  );
   /**
    * The oldest request nobody has acted on.
    *
@@ -94,14 +114,79 @@ export function PayoutQueue() {
     .sort()[0];
 
   // Summed as BigInt because points arrive as strings precisely so they never
-  // pass through a float. (Constructor rather than a `0n` literal — the
+  // pass through a float. (Constructor rather than a `0n` literal - the
   // project targets ES2017, where the literal syntax is not available.)
   const owed = rows
     .filter((row) => row.status === "REQUESTED" || row.status === "APPROVED")
-    .reduce((total, row) => total + BigInt(row.points || "0"), BigInt(0));
+    .reduce((total, row) => total + BigInt(row.netPoints || "0"), BigInt(0));
+
+  const approve = async (row: Withdrawal) => {
+    const result = await mutate(`/api/admin/payouts/${row.id}/approve`);
+    if (!result) return;
+    toast("Payout approved for payment.", "success");
+    setSelected((previous) => {
+      const next = new Set(previous);
+      next.delete(row.id);
+      return next;
+    });
+    await payouts.reload();
+  };
+
+  const approveSelected = async () => {
+    const ids = selectedRequested.map((row) => row.id);
+    if (ids.length === 0) return;
+    const result = await mutate<{ approved: number }>("/api/admin/payouts/batch/approve", {
+      body: { ids },
+    });
+    if (!result) return;
+    toast(`${result.approved} payout${result.approved === 1 ? "" : "s"} approved.`, "success");
+    setSelected(new Set());
+    await payouts.reload();
+  };
+
+  const payWithWallet = async (payable: Withdrawal[]) => {
+    if (!walletConfig.data || payable.length === 0) return;
+    const chains = new Set(payable.map((row) => row.payoutAddress?.chain));
+    if (chains.size !== 1) {
+      setError("Select approved USDT payouts from one network at a time.");
+      return;
+    }
+
+    try {
+      for (const row of payable) {
+        const chain = row.payoutAddress?.chain as BrowserPayoutChain | undefined;
+        if (!chain || !(chain in walletConfig.data.networks) || !row.payoutAddress) {
+          throw new Error("This payout does not have a supported wallet network.");
+        }
+        const transactionId = await sendWithBrowserWallet({
+          chain,
+          recipient: row.payoutAddress.address,
+          amountUsdt: row.netAmountUsd,
+          environment: walletConfig.data.environment,
+          network: walletConfig.data.networks[chain],
+        });
+        const recorded = await mutate(`/api/admin/payouts/${row.id}/paid`, {
+          body: { externalTxId: transactionId },
+        });
+        if (!recorded) return;
+      }
+      toast(
+        `${payable.length} USDT payout${payable.length === 1 ? "" : "s"} sent and recorded.`,
+        "success",
+      );
+      setSelected(new Set());
+      await payouts.reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The wallet payment failed.");
+    }
+  };
 
   const run = async (reason: string) => {
     if (!action) return;
+    if (action.kind === "paid" && !txId.trim()) {
+      setError("Enter the on-chain transaction hash or voucher reference.");
+      return;
+    }
 
     const result =
       action.kind === "paid"
@@ -131,9 +216,11 @@ export function PayoutQueue() {
       <PageHeader
         eyebrow="MONEY"
         title="Payouts"
-        description="Oldest first. The balance left the member's wallet when they requested — marking paid records that the transfer went out."
+        description="Oldest first. The balance left the member's wallet when they requested - marking paid records that the transfer went out."
         actions={!canProcess ? <Badge tone="neutral">READ ONLY</Badge> : undefined}
       />
+
+      <PayoutConfiguration />
 
       <div className="mb-2 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <StatTile
@@ -144,13 +231,13 @@ export function PayoutQueue() {
         <StatTile label="OWED IN QUEUE" value={pointsToUsd(owed.toString())} />
         <StatTile label="SHOWN" value={rows.length} hint="Capped at 100 per status." />
         {/* How long the person who has waited longest has been waiting.
-            This slot used to restate the reader's own permissions — which the
+            This slot used to restate the reader's own permissions - which the
             buttons already say by being present or absent, and which does not
             change from one visit to the next. A payout queue has exactly one
             urgent question, and this is it. */}
         <StatTile
           label="LONGEST WAIT"
-          value={oldestWaiting ? relativeTime(oldestWaiting).replace(/^in /, "") : "—"}
+          value={oldestWaiting ? relativeTime(oldestWaiting).replace(/^in /, "") : "-"}
           tone={isOlderThan(oldestWaiting, STALE_MS) ? "warning" : "neutral"}
           hint={oldestWaiting ? "Oldest request still unpaid." : "Nothing is waiting."}
         />
@@ -166,11 +253,30 @@ export function PayoutQueue() {
             {filter.label}
           </FilterChip>
         ))}
+        {canProcess && selectedRequested.length > 0 && selectedRequested.length === selectedRows.length && (
+          <Button size="sm" disabled={pending} onClick={() => void approveSelected()}>
+            Approve selected ({selectedRequested.length})
+          </Button>
+        )}
+        {canProcess && selectedPayable.length > 0 && selectedPayable.length === selectedRows.length && (
+          <Button
+            size="sm"
+            disabled={pending || !walletConfig.data}
+            onClick={() => void payWithWallet(selectedPayable)}
+          >
+            Pay selected with wallet ({selectedPayable.length})
+          </Button>
+        )}
       </div>
 
       {payouts.error && (
         <div className="mb-2">
           <ErrorNote>{payouts.error}</ErrorNote>
+        </div>
+      )}
+      {error && !action && (
+        <div className="mb-2">
+          <ErrorNote>{error}</ErrorNote>
         </div>
       )}
 
@@ -184,11 +290,31 @@ export function PayoutQueue() {
           />
         ) : (
           <TableShell
-            columns={["MEMBER", "AMOUNT", "DESTINATION", "REQUESTED", "STATUS", ""]}
+            columns={["", "MEMBER", "AMOUNT", "DESTINATION", "REQUESTED", "STATUS", ""]}
             minWidth={940}
           >
             {rows.map((row) => (
               <Tr key={row.id}>
+                <Td>
+                  {canProcess &&
+                  (row.status === "REQUESTED" ||
+                    (row.status === "APPROVED" && row.method === "USDT")) ? (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(row.id)}
+                      aria-label={`Select payout for ${row.user.email}`}
+                      onChange={(event) =>
+                        setSelected((previous) => {
+                          const next = new Set(previous);
+                          if (event.target.checked) next.add(row.id);
+                          else next.delete(row.id);
+                          return next;
+                        })
+                      }
+                      className="size-4 cursor-pointer accent-[var(--primary)]"
+                    />
+                  ) : null}
+                </Td>
                 <Td>
                   <strong className="block text-[12.5px]">
                     {row.user.displayName ?? "Unnamed member"}
@@ -204,13 +330,11 @@ export function PayoutQueue() {
                 </Td>
                 <Td>
                   <span data-count className="font-mono text-[13px]">
-                    {pointsToUsd(row.points)}
+                    {pointsToUsd(row.netPoints)} net
                   </span>
-                  {row.feePoints && row.feePoints !== "0" && (
-                    <span className="mt-1 block text-[10.5px] text-muted">
-                      fee {pointsToUsd(row.feePoints)}
-                    </span>
-                  )}
+                  <span className="mt-1 block text-[10.5px] text-muted">
+                    {pointsToUsd(row.points)} gross · {pointsToUsd(row.feePoints)} fee
+                  </span>
                 </Td>
                 <Td>
                   {row.rewardItem ? (
@@ -228,7 +352,7 @@ export function PayoutQueue() {
                       </span>
                     </>
                   ) : (
-                    <span className="text-muted">—</span>
+                    <span className="text-muted">-</span>
                   )}
                 </Td>
                 <Td className="whitespace-nowrap text-muted">
@@ -236,6 +360,14 @@ export function PayoutQueue() {
                 </Td>
                 <Td>
                   <Badge tone={STATUS_TONE[row.status]}>{row.status}</Badge>
+                  <span className="mt-1.5 block">
+                    <Badge tone={row.autoPayEligible ? "success" : "neutral"}>
+                      {row.autoPayEligible ? "AUTO ELIGIBLE" : "MANUAL"}
+                    </Badge>
+                  </span>
+                  <span className="mt-1 block max-w-[210px] text-[10px] leading-4 text-muted">
+                    {row.autoPayReason}
+                  </span>
                   {row.failureReason && (
                     <span className="mt-1.5 block max-w-[200px] text-[10.5px] text-danger">
                       {row.failureReason}
@@ -253,15 +385,33 @@ export function PayoutQueue() {
                       row.status === "APPROVED" ||
                       row.status === "PROCESSING") && (
                       <div className="flex flex-col gap-1.5">
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setError(null);
-                            setAction({ kind: "paid", row });
-                          }}
-                        >
-                          Mark paid
-                        </Button>
+                        {row.status === "REQUESTED" ? (
+                          <Button size="sm" disabled={pending} onClick={() => void approve(row)}>
+                            Approve
+                          </Button>
+                        ) : (
+                          <>
+                            {row.method === "USDT" && walletConfig.data && (
+                              <Button
+                                size="sm"
+                                disabled={pending}
+                                onClick={() => void payWithWallet([row])}
+                              >
+                                Pay with wallet
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant={row.method === "USDT" ? "outline" : "primary"}
+                              onClick={() => {
+                                setError(null);
+                                setAction({ kind: "paid", row });
+                              }}
+                            >
+                              Record payment
+                            </Button>
+                          </>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -295,9 +445,13 @@ export function PayoutQueue() {
         summary={
           action ? (
             <>
-              Confirm you have already sent{" "}
-              <strong className="text-fg">{pointsToUsd(action.row.points)}</strong> to{" "}
-              <strong className="text-fg">{action.row.user.email}</strong>
+              Confirm you have already {action.row.method === "USDT" ? "sent" : "assigned"}{" "}
+              <strong className="text-fg">
+                {action.row.method === "USDT"
+                  ? `${pointsToUsd(action.row.netPoints)} USDT`
+                  : action.row.rewardItem?.name}
+              </strong>{" "}
+              to <strong className="text-fg">{action.row.user.email}</strong>
               {action.row.payoutAddress && (
                 <>
                   {" "}
@@ -316,10 +470,11 @@ export function PayoutQueue() {
               )}
               <br />
               <br />
-              Check the address against the transfer you actually made — this only records what
-              happened, it does not send anything.
+              {action.row.method === "USDT"
+                ? "Check the address against the transfer you actually made - this records what happened; it does not send anything."
+                : "Send the voucher through the approved delivery channel, then enter its non-secret delivery reference here. The reference becomes visible to this member in payout history."}
               <div className="mt-4">
-                <FieldLabel htmlFor="payout-tx">TRANSACTION ID (OPTIONAL)</FieldLabel>
+                <FieldLabel htmlFor="payout-tx">TRANSACTION ID / DELIVERY REFERENCE</FieldLabel>
                 <TextInput
                   id="payout-tx"
                   value={txId}
@@ -353,7 +508,7 @@ export function PayoutQueue() {
             <>
               <strong className="text-fg">{pointsToUsd(action.row.points)}</strong> goes back to{" "}
               <strong className="text-fg">{action.row.user.email}</strong>&rsquo;s available
-              balance. Do this only if the transfer did <em>not</em> go out — otherwise they keep
+              balance. Do this only if the transfer did <em>not</em> go out - otherwise they keep
               both.
               <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-hair p-3">
                 <input

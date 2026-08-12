@@ -124,7 +124,7 @@ export function ImportConsole() {
     setFile(null);
     if (fileInput.current) fileInput.current.value = "";
     toast(
-      `Committed — ${result.inserted ?? 0} new order${result.inserted === 1 ? "" : "s"}, ${result.updated ?? 0} updated.`,
+      `Committed - ${result.inserted ?? 0} new order${result.inserted === 1 ? "" : "s"}, ${result.updated ?? 0} updated.`,
       "success",
     );
     await batches.reload();
@@ -239,7 +239,7 @@ export function ImportConsole() {
               />
               <span className="text-[12px] leading-6 text-muted">
                 <strong className="text-fg">Re-run a file already committed.</strong> Uploading
-                the same file twice cannot double-count either way — orders are keyed on the
+                the same file twice cannot double-count either way - orders are keyed on the
                 firm&rsquo;s own reference and unchanged rows are a no-op. This only lifts the
                 check that stops you re-uploading a file by mistake.
               </span>
@@ -299,7 +299,7 @@ export function ImportConsole() {
                     label: "Date range",
                     value: preview.summary.dateRange
                       ? `${shortDate(preview.summary.dateRange.from)} → ${shortDate(preview.summary.dateRange.to)}`
-                      : "—",
+                      : "-",
                   },
                   {
                     label: "Rows with errors",
@@ -388,7 +388,7 @@ export function ImportConsole() {
                   <Td>{batch.platform.name}</Td>
                   <Td className="font-mono text-[11px] text-muted">{batch.adapterKey}</Td>
                   <Td data-count className="font-mono">
-                    {batch._count?.rows ?? "—"}
+                    {batch._count?.rows ?? "-"}
                   </Td>
                   <Td>
                     <Badge

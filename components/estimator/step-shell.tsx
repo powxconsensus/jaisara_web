@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
  * One estimator step: a mono label that carries its own state.
  *
  * A completed step shows a check and the chosen value in the label
- * (`01 / PROP FIRM — FTMO ✓`) and is clickable to change. A locked step is
+ * (`01 / PROP FIRM - FTMO ✓`) and is clickable to change. A locked step is
  * visibly locked and states its prerequisite (handoff §5).
  */
 export function StepShell({
@@ -28,7 +28,7 @@ export function StepShell({
   children: ReactNode;
 }) {
   const locked = Boolean(lockedHint);
-  const label = `${index} / ${title}${chosen ? ` — ${chosen.toUpperCase()} ✓` : ""}`;
+  const label = `${index} / ${title}${chosen ? ` - ${chosen.toUpperCase()} ✓` : ""}`;
 
   return (
     <div>
@@ -52,7 +52,7 @@ export function StepShell({
           </span>
         )}
         {lockedHint && (
-          <span className="font-mono text-[9px] tracking-[0.1em] text-muted">— {lockedHint}</span>
+          <span className="font-mono text-[9px] tracking-[0.1em] text-muted">- {lockedHint}</span>
         )}
       </div>
       {children}
@@ -72,7 +72,7 @@ export function LockedOptions({ count, width }: { count: number; width?: string 
             width ?? "flex-1",
           )}
         >
-          —
+          -
         </div>
       ))}
     </div>

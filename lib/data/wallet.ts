@@ -1,8 +1,8 @@
 /**
  * Wallet vocabulary.
  *
- * What used to live here was a set of fixtures — a $184.50 balance, a ledger
- * of invented cashback, a club standing — that every screen read while the API
+ * What used to live here was a set of fixtures - a $184.50 balance, a ledger
+ * of invented cashback, a club standing - that every screen read while the API
  * was being built. They are gone: balances now come from `useWallet`, the
  * ledger from `/api/wallet/history`, and club standing from `/api/club`.
  *

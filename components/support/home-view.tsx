@@ -10,7 +10,7 @@ import { PerforatedEdge, Scroller, StatusPill, lastLine, statusTone } from "./wi
  * conversation they are already in the middle of, a way to start a new one,
  * and the questions the platform can answer without one.
  *
- * The resume card only appears when there is something to resume — an empty
+ * The resume card only appears when there is something to resume - an empty
  * "you have no conversations" slot on the front page is a reminder of nothing.
  */
 export function HomeView({
@@ -124,7 +124,7 @@ export async function loadHome(signedIn: boolean): Promise<{
     supportApi.options().then((data) => data.options).catch(() => [] as QuickOption[]),
   ]);
 
-  // The newest conversation that is still going — a closed one is history, and
+  // The newest conversation that is still going - a closed one is history, and
   // inviting somebody back into it is not picking up where they left off.
   const latest = tickets.find((ticket) => ticket.status !== "CLOSED") ?? null;
 

@@ -7,7 +7,7 @@ import localFont from "next/font/local";
  * (`font-display`, `font-mono`, `font-serif`, `font-sans`).
  */
 
-// Display headings — Satoshi (Fontshare). Always uppercase, weight 900.
+// Display headings - Satoshi (Fontshare). Always uppercase, weight 900.
 export const satoshi = localFont({
   src: [
     { path: "./Satoshi-Regular.woff2", weight: "400", style: "normal" },
@@ -19,7 +19,7 @@ export const satoshi = localFont({
   display: "swap",
 });
 
-// Labels, eyebrows, figures, codes, buttons — JetBrains Mono.
+// Labels, eyebrows, figures, codes, buttons - JetBrains Mono.
 export const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
@@ -27,7 +27,7 @@ export const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-// One accent word per section — Instrument Serif, italic, lowercase.
+// One accent word per section - Instrument Serif, italic, lowercase.
 export const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",
@@ -36,7 +36,7 @@ export const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
-// Body paragraphs — Inter.
+// Body paragraphs - Inter.
 export const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500"],

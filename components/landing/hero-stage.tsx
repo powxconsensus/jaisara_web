@@ -6,7 +6,7 @@ import type { MouseEvent, ReactNode } from "react";
  * The hero's stage: the section itself, plus the pointer spotlight.
  *
  * `--mx` / `--my` are written straight onto the element rather than held in
- * state — a hero that re-rendered on every mouse move would drop frames on the
+ * state - a hero that re-rendered on every mouse move would drop frames on the
  * two canvases behind it. The atmosphere layer reads them.
  *
  * `min-height` only bites on desktop (the token is `auto` below 1180px), and

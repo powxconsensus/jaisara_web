@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 /**
  * Where the footer link in a campaign lands.
  *
- * This page did not exist while the link did — every unsubscribe in every
+ * This page did not exist while the link did - every unsubscribe in every
  * campaign pointed at a 404, which is both a compliance failure and the
  * fastest way to earn spam complaints instead of opt-outs.
  *

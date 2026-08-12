@@ -6,7 +6,7 @@ import { DEFAULT_ACCENT_RGB, readAccentRgb, useCanvasLoop, type Painter } from "
 /**
  * The air above the ledger: slow rising motes in the accent colour.
  *
- * Deliberately not the connected-dots "network graph" this replaced — that
+ * Deliberately not the connected-dots "network graph" this replaced - that
  * effect is a decade old, and the depth in this hero now comes from the ground
  * plane, so the sky only has to suggest atmosphere.
  *

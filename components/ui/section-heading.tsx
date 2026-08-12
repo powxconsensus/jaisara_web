@@ -2,11 +2,10 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * The numbered section header used across the landing page: a mono eyebrow
- * `[ 01 ] THE SPLIT` above an uppercase Satoshi h2 (handoff §3).
+ * Landing-page section heading: a small mono eyebrow above an uppercase title.
  *
  * Every h2 pairs the uppercase phrase with exactly one lowercase Instrument
- * Serif italic word — pass it via `<Accent>`.
+ * Serif italic word - pass it via `<Accent>`.
  */
 export function SectionHeading({
   index,
@@ -14,7 +13,7 @@ export function SectionHeading({
   children,
   className,
 }: {
-  /** Section number, e.g. "01". */
+  /** Optional number for flows that genuinely need ordered steps. */
   index?: string;
   eyebrow: string;
   children: ReactNode;

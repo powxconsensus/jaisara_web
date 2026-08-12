@@ -7,8 +7,8 @@ import { DEFAULT_ACCENT_RGB, readAccentRgb, useCanvasLoop, type Painter } from "
  * The ledger in motion: depth rungs advancing toward the viewer, and payouts
  * running its lanes back to the trader.
  *
- * Projected with the *same* maths as the CSS lanes on the plane beneath it —
- * `sx = cx + x·p/(p − y·sin)`, `sy = y·cos·p/(p − y·sin)` — reading
+ * Projected with the *same* maths as the CSS lanes on the plane beneath it -
+ * `sx = cx + x·p/(p − y·sin)`, `sy = y·cos·p/(p − y·sin)` - reading
  * `--groundrot`, `--groundpersp` and `--groundgrid` at paint time. That is what
  * makes a trace ride a lane exactly instead of drifting across it, and why the
  * two stay aligned when the tokens change at a breakpoint.

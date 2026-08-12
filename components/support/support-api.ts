@@ -1,6 +1,7 @@
 "use client";
 
 import { apiErrorMessage } from "@/lib/auth-types";
+import { apiFetch } from "@/lib/api-fetch";
 
 /**
  * Everything the support widget talks to.
@@ -110,7 +111,7 @@ export class SupportError extends Error {}
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(path, { cache: "no-store", ...init });
+    response = await apiFetch(path, { cache: "no-store", ...init });
   } catch {
     throw new SupportError("I could not reach the support service just now.");
   }
@@ -149,7 +150,7 @@ export const supportApi = {
     const body = new FormData();
     body.set("file", file);
 
-    const response = await fetch("/api/support/attachments", { method: "POST", body });
+    const response = await apiFetch("/api/support/attachments", { method: "POST", body });
     const payload: unknown = await response.json().catch(() => null);
 
     if (!response.ok) {

@@ -10,7 +10,7 @@ import { useImpact } from "./impact-context";
  * The ledger floor (handoff, Hero spec).
  *
  * The ground is the ledger every transaction is written on: it runs from a
- * distant horizon — the market — toward the viewer, the trader. The receipt is
+ * distant horizon - the market - toward the viewer, the trader. The receipt is
  * a physical object that lands on it, and where it lands the ledger fractures
  * and light escapes.
  *
@@ -26,7 +26,7 @@ const CONTACT_OFFSET_PX = 26;
 const FIELD_RATIO = 1.62;
 const FIELD_MIN = 300;
 const FIELD_MAX = 880;
-/** Layout settles in stages — fonts, images, the reveal animations. */
+/** Layout settles in stages - fonts, images, the reveal animations. */
 const SYNC_DELAYS_MS = [80, 520, 1400];
 
 const clamp = (value: number, min: number, max: number) =>
@@ -41,7 +41,7 @@ export function HeroGround() {
 
   /**
    * Point the impact field at wherever the card actually is. Read live rather
-   * than hardcoded so the fracture follows the receipt across breakpoints —
+   * than hardcoded so the fracture follows the receipt across breakpoints -
    * and so it is obviously not a canned position.
    */
   const sync = useCallback(() => {

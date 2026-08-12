@@ -6,7 +6,7 @@ import { Accent } from "@/components/ui/section-heading";
 import { useAssistant } from "@/components/support/assistant-context";
 
 /**
- * [06] FAQ — sticky intro on the left, single-open accordion on the right.
+ * FAQ with a sticky intro on the left and single-open accordion on the right.
  * Radix Accordion supplies `aria-expanded` and the disclosure semantics.
  */
 export function Faq() {
@@ -16,7 +16,7 @@ export function Faq() {
     <section className="mx-auto grid max-w-[var(--maxw)] items-start gap-[clamp(28px,4vw,64px)] px-[var(--pad)] pb-[var(--secpb2)] lg:grid-cols-[1.05fr_.95fr]">
       <div className="lg:sticky lg:top-[118px]">
         <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.24em] text-muted">
-          [ 06 ] FAQ
+          FAQ
         </p>
         <h2 className="mb-4 font-display text-[clamp(24px,3vw,36px)] font-black uppercase leading-[1.02] tracking-[-0.025em]">
           Asked every
@@ -24,7 +24,7 @@ export function Faq() {
           single <Accent>day</Accent>.
         </h2>
         <p className="mb-[22px] max-w-[32ch] text-[14.5px] leading-[1.65] text-muted">
-          Tracking, clearing and getting paid — in plain English.
+          Common questions from traders, answered clearly.
         </p>
         <button
           type="button"

@@ -17,7 +17,7 @@ const variantClass: Record<Variant, string> = {
 
 const sizeClass: Record<Size, string> = {
   sm: "h-8 px-3 text-[10px]",
-  md: "h-9 px-4 text-[11px]", // 36px — the navbar control height
+  md: "h-9 px-4 text-[11px]", // 36px - the navbar control height
   lg: "h-11 px-5 text-xs",
 };
 

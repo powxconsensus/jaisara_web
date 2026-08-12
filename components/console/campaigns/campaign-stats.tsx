@@ -54,7 +54,7 @@ export function CampaignStatsPanel({ campaignId }: { campaignId: string }) {
   const data = stats.data;
   const sent = data?.sent ?? 0;
   const rate = (value: number | undefined) =>
-    sent > 0 && value !== undefined ? `${((value / sent) * 100).toFixed(1)}%` : "—";
+    sent > 0 && value !== undefined ? `${((value / sent) * 100).toFixed(1)}%` : "-";
 
   return (
     <div>
@@ -66,13 +66,13 @@ export function CampaignStatsPanel({ campaignId }: { campaignId: string }) {
             <StatTile label="SENT" value={data.sent} tone="success" />
             <StatTile
               label="OPENED"
-              value={data.opened ?? "—"}
+              value={data.opened ?? "-"}
               hint={rate(data.opened)}
               tone="info"
             />
             <StatTile
               label="CLICKED"
-              value={data.clicked ?? "—"}
+              value={data.clicked ?? "-"}
               hint={rate(data.clicked)}
               tone="primary"
             />
@@ -126,7 +126,7 @@ export function CampaignStatsPanel({ campaignId }: { campaignId: string }) {
           message={
             filter === "all"
               ? "No delivery rows recorded for this campaign yet."
-              : "No recipients with that outcome — which is the result you want."
+              : "No recipients with that outcome - which is the result you want."
           }
         />
       ) : (
@@ -141,7 +141,7 @@ export function CampaignStatsPanel({ campaignId }: { campaignId: string }) {
                 {dateTime(delivery.respondedAt ?? delivery.sentAt)}
               </Td>
               <Td className="max-w-[320px] text-[11.5px] text-muted">
-                {delivery.skipReason ?? delivery.error ?? "—"}
+                {delivery.skipReason ?? delivery.error ?? "-"}
               </Td>
             </Tr>
           ))}

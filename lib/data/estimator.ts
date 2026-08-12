@@ -24,14 +24,17 @@ function plansFor(kind: string): string[] {
   return ["Two-step", "Swing"];
 }
 
-/** A stable per-firm price multiplier in the 0.8–1.22 range. */
+/** A stable per-firm price multiplier in the 0.8-1.22 range. */
 function priceFactor(firm: Firm): number {
   return 0.8 + ((firm.cashback * 3 + firm.discount) % 8) * 0.06;
 }
 
 export interface EstimatorSize {
+  slug: string;
+  plan: string;
   label: string;
   price: number;
+  cashbackPct: number;
 }
 
 export interface EstimatorFirm {
@@ -42,7 +45,7 @@ export interface EstimatorFirm {
   cashbackPct: number;
   discountPct: number;
   plans: string[];
-  sizes: EstimatorSize[];
+  products: EstimatorSize[];
 }
 
 export const ESTIMATOR_FIRMS: EstimatorFirm[] = FIRMS.map((firm) => ({
@@ -53,10 +56,15 @@ export const ESTIMATOR_FIRMS: EstimatorFirm[] = FIRMS.map((firm) => ({
   cashbackPct: firm.cashback,
   discountPct: firm.discount,
   plans: plansFor(firm.kind),
-  sizes: BASE_SIZES.map((size) => ({
-    label: size.label,
-    price: Math.round(size.price * priceFactor(firm)),
-  })),
+  products: plansFor(firm.kind).flatMap((plan) =>
+    BASE_SIZES.map((size) => ({
+      slug: `${firm.slug}-${plan.toLowerCase().replace(/\s+/g, "-")}-${size.label}`,
+      plan,
+      label: size.label,
+      price: Math.round(size.price * priceFactor(firm)),
+      cashbackPct: firm.cashback,
+    })),
+  ),
 }));
 
 /** Optional Club boost applied on top of the base cashback. */
@@ -68,7 +76,7 @@ export const CLUB_TIERS = [
 
 export interface EstimateInput {
   firm: EstimatorFirm;
-  sizeIndex: number;
+  product: EstimatorSize;
   tierIndex: number;
 }
 
@@ -76,11 +84,11 @@ export interface EstimateInput {
  * The result ledger. `youPay` is the real amount charged at the firm's
  * checkout; `cashback` lands only after the refund window closes.
  */
-export function estimate({ firm, sizeIndex, tierIndex }: EstimateInput) {
-  const price = firm.sizes[sizeIndex].price;
+export function estimate({ firm, product, tierIndex }: EstimateInput) {
+  const price = product.price;
   const discount = (price * firm.discountPct) / 100;
   const youPay = price - discount;
-  const baseCashback = (price * firm.cashbackPct) / 100;
+  const baseCashback = (price * product.cashbackPct) / 100;
   const clubBonus = baseCashback * (CLUB_TIERS[tierIndex]?.multiplier ?? 0);
   const cashback = baseCashback + clubBonus;
 

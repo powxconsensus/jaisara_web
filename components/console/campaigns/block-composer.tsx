@@ -21,8 +21,8 @@ import {
  * Building the email.
  *
  * A list of blocks rather than an HTML textarea. The old studio asked an admin
- * to write inline-styled table HTML — the only kind mail clients render
- * reliably — and then to keep a plain-text copy in sync by hand. In practice
+ * to write inline-styled table HTML - the only kind mail clients render
+ * reliably - and then to keep a plain-text copy in sync by hand. In practice
  * that means campaigns do not get written.
  *
  * Each block edits in place and the HTML is compiled on save, so nobody has to
@@ -65,7 +65,7 @@ export function BlockComposer({
       <div>
         <ComposerBar preview onTogglePreview={() => setPreview(false)} />
         {/* The same compiler that produces what is sent, with sample values
-            filled in — so this is the message, not an approximation of it. */}
+            filled in - so this is the message, not an approximation of it. */}
         <div className="rounded-[var(--ct-radius)] border border-[var(--console-hair)] bg-white p-5">
           <div
             className="mx-auto max-w-[560px]"
@@ -139,7 +139,7 @@ function ComposerBar({
           <button
             key={tag}
             type="button"
-            title={`${label} — click to copy, then paste into any text above`}
+            title={`${label} - click to copy, then paste into any text above`}
             onClick={() => void navigator.clipboard?.writeText(tag)}
             className="cursor-pointer rounded-[6px] bg-surface-2 px-1.5 py-1 font-mono text-[10px] text-primary transition hover:brightness-110"
           >
@@ -295,7 +295,7 @@ function ImageBlockFields({
         }}
         tabIndex={disabled ? -1 : 0}
         role="button"
-        aria-label="Add an image — click, paste or drop"
+        aria-label="Add an image - click, paste or drop"
         onClick={() => !disabled && input.current?.click()}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") input.current?.click();
@@ -348,7 +348,7 @@ function ImageBlockFields({
         aria-label="Alt text"
         disabled={disabled}
         value={block.alt ?? ""}
-        placeholder="Describe the image — shown when images are blocked"
+        placeholder="Describe the image - shown when images are blocked"
         onChange={(event) => onChange({ alt: event.target.value })}
         className="w-full rounded-[7px] border border-[var(--console-hair)] bg-surface-2 outline-none focus:border-primary"
       />
@@ -387,7 +387,7 @@ function UrlField({
       />
       {bad && (
         <p className="mt-1 text-[length:var(--ct-label)] text-danger">
-          Must start with http:// or https:// — anything else is dropped from the email.
+          Must start with http:// or https:// - anything else is dropped from the email.
         </p>
       )}
     </div>

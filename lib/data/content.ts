@@ -13,8 +13,8 @@ export const HOW_IT_WORKS: HowStep[] = [
     title: "Buy your challenge",
     body: "Apply the code at the firm's checkout and get the discount instantly.",
   },
-  { title: "Upload the receipt", body: "Drop the order email in. We read the details — no forms." },
-  { title: "Get paid", body: "Cashback lands in your wallet. Withdraw any time above $20." },
+  { title: "Upload the receipt", body: "Drop the order email in. We read the details - no forms." },
+  { title: "Get paid", body: "Cashback lands in your wallet. Withdraw after reaching the current minimum shown there." },
   {
     title: "Invite the desk",
     body: "Share your link and keep 20% of everything your referrals earn.",
@@ -31,7 +31,7 @@ export const FAQS: FaqEntry[] = [
   {
     question: "When does my cashback become withdrawable?",
     answer:
-      "It sits as Pending until the firm’s refund window closes — normally 30 days from the order date — then moves to Available. You can withdraw any Available balance above $20.",
+      "It sits as Pending until the firm’s applicable refund window closes, then moves to Available. Your wallet shows the current withdrawal minimum.",
   },
   {
     question: "What if the coupon did not apply at checkout?",
@@ -46,26 +46,16 @@ export const FAQS: FaqEntry[] = [
   {
     question: "Which firms support auto-claim?",
     answer:
-      "FundingPips and FTMO match automatically from your order email. Others need a receipt or a manual entry — the claim screen shows the status per firm.",
+      "FundingPips and FTMO match automatically from your order email. Others need a receipt or a manual entry - the claim screen shows the status per firm.",
   },
   {
     question: "How do gift card payouts work?",
     answer:
-      "Pick a brand and a denomination at withdrawal. Codes are emailed within 24 hours and carry a 5% bonus over the cash value. They cannot be refunded once issued.",
+      "Pick an available brand and denomination at withdrawal. Delivery timing is shown with the reward, and codes cannot be refunded once issued.",
   },
   {
     question: "Does inviting someone reduce their cashback?",
     answer:
-      "No. Your 20% Club share comes out of the platform’s cut. The person you invited still receives the full advertised rate.",
+      "No. The person you invite receives the full advertised cashback. Your Club reward is calculated separately and never deducted from theirs.",
   },
-];
-
-/** Rotating one-liners for the LIVE ticker. Initials only, never full names. */
-export const LIVE_FEED: string[] = [
-  "DK just got $41.20 back from FTMO",
-  "AM claimed $19.60 on FundingPips",
-  "SR cashed out $50 to an Amazon gift card",
-  "OF earned $12.40 in Club share this week",
-  "PN withdrew $96.40 in USDT on TRC-20",
-  "NB activated JSR-ALPHA for 16% back",
 ];

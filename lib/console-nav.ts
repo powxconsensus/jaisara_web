@@ -46,7 +46,7 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     href: "/console/imports",
     label: "Imports",
     description:
-      "Upload a firm's commission report. Parsing is a dry run — nothing is written until the diff is committed.",
+      "Upload a firm's commission report. Parsing is a dry run - nothing is written until the diff is committed.",
     permissions: [P.importView, P.importUpload],
     group: "Operations",
   },
@@ -127,7 +127,7 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
 /**
  * Two letters per section, for the collapsed rail.
  *
- * Kept here rather than on `ConsoleSection` so they stay visibly unique — the
+ * Kept here rather than on `ConsoleSection` so they stay visibly unique - the
  * whole value of a code is that `CL` and `CA` cannot be confused, and that is
  * only checkable when they are written in one list.
  */

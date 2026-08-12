@@ -36,7 +36,7 @@ import type { HelpArticleSummary } from "./support-api";
 
 interface View {
   tab: Tab;
-  /** A conversation pushed over the tab — existing ticket, or fresh with a seed. */
+  /** A conversation pushed over the tab - existing ticket, or fresh with a seed. */
   thread?: { ticketId?: string; seed?: string };
   /** A help article pushed over the tab. */
   doc?: string;
@@ -57,7 +57,7 @@ export function Assistant() {
    * Which answer is expanded, held here rather than in the Answers view.
    *
    * Tapping a question on Home has to land on Answers with that one already
-   * open — the design's whole point is that Home's popular list is a shortcut
+   * open - the design's whole point is that Home's popular list is a shortcut
    * into the index, not a separate screen.
    */
   const [openTopic, setOpenTopic] = useState<string | null>(null);
@@ -112,7 +112,7 @@ export function Assistant() {
   }, [signedIn, isOpen, refreshUnread]);
 
   /**
-   * `?support=<id>` opens straight onto a thread — what the reply email links
+   * `?support=<id>` opens straight onto a thread - what the reply email links
    * to. Read from `location` rather than `useSearchParams` so this widget,
    * mounted on every page, does not drag every static route into dynamic
    * rendering.
@@ -173,7 +173,7 @@ export function Assistant() {
         <div
           role="dialog"
           aria-label="Jaisara support desk"
-          /* dvh, not vh — mobile browser chrome otherwise clips the input. */
+          /* dvh, not vh - mobile browser chrome otherwise clips the input. */
           className="fixed bottom-[calc(var(--chat-bottom)+66px)] right-4 z-[160] flex w-[var(--chat-w)] flex-col overflow-hidden rounded-[20px] border border-hair bg-surface shadow-card [animation:jsUp_.34s_cubic-bezier(.2,.8,.2,1)_both]"
           style={{ height: "var(--chat-h)", maxHeight: "calc(100dvh - 180px)" }}
         >
@@ -247,7 +247,7 @@ export function Assistant() {
 /**
  * The launcher.
  *
- * A receipt with a torn bottom edge, drawn in CSS — the site's own object
+ * A receipt with a torn bottom edge, drawn in CSS - the site's own object
  * rather than the speech bubble every support widget uses.
  */
 function Launcher({ unread }: { unread: number }) {

@@ -1,6 +1,6 @@
 import type { LegalDocument } from "@/lib/data/legal";
 
-/** Shared layout for Terms and Privacy — a single readable column. */
+/** Shared layout for Terms and Privacy - a single readable column. */
 export function LegalPage({ document }: { document: LegalDocument }) {
   return (
     <div className="mx-auto max-w-[800px] px-[var(--pad)] pb-[90px] pt-[clamp(40px,6vw,68px)]">

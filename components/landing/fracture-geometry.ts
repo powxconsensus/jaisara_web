@@ -2,7 +2,7 @@
  * Geometry for the ledger fracture (handoff, Hero spec).
  *
  * When the receipt lands, the floor cracks. Twenty shards radiate from the
- * contact point at irregular angles — four long dominant runs that carry a
+ * contact point at irregular angles - four long dominant runs that carry a
  * branch, six mid-runs, and ten short splinters. Each shard is a `clip-path`
  * polygon that tapers from wide at the origin to a point at the tip, with its
  * own jitter, so no two are alike.
@@ -38,7 +38,7 @@ export interface Fracture {
   branch: Branch | null;
 }
 
-/** Deterministic PRNG (mulberry32) — same sequence everywhere, forever. */
+/** Deterministic PRNG (mulberry32) - same sequence everywhere, forever. */
 function seeded(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -83,7 +83,7 @@ function sliver(seed: number, columns: number, thin = 1): string {
   return `polygon(${[...top, ...bottom].join(", ")})`;
 }
 
-/** [angle, length %, height px, branch angle | null] — the fracture layout. */
+/** [angle, length %, height px, branch angle | null] - the fracture layout. */
 const LAYOUT: [number, number, number, number | null][] = [
   [-171, 50, 21, -27],
   [-152, 18, 11, null],

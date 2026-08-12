@@ -18,7 +18,7 @@ import {
  *
  * Two things only: what is waiting, and the oldest of it. The previous version
  * spent two thirds of the screen on a grid of cards linking to sections that
- * are already listed in the rail, one row away — a menu printed twice. The
+ * are already listed in the rail, one row away - a menu printed twice. The
  * queue below replaces it, because the useful question on opening a console is
  * never "what sections exist", it is "what has been sitting here longest".
  *
@@ -29,7 +29,7 @@ import {
 const CAP = 100;
 
 function atLeast(rows: unknown[] | null): string {
-  if (!rows) return "—";
+  if (!rows) return "-";
   return rows.length >= CAP ? `${CAP}+` : String(rows.length);
 }
 
@@ -101,7 +101,7 @@ export function ConsoleOverview() {
     },
     can(P.marketingView) && {
       label: "REACHABLE MEMBERS",
-      value: subscribers.data ? subscribers.data.reachable.toLocaleString("en-US") : "—",
+      value: subscribers.data ? subscribers.data.reachable.toLocaleString("en-US") : "-",
       hint: "Active, verified and opted in.",
       tone: "neutral" as const,
       href: "/console/campaigns",
@@ -139,7 +139,7 @@ export function ConsoleOverview() {
         kind: "PAYOUT",
         href: "/console/payouts",
         title: `Withdrawal · ${pointsToUsd(payout.points)}`,
-        meta: [payout.user.email, payout.payoutAddress?.chain ?? payout.kind]
+        meta: [payout.user.email, payout.payoutAddress?.chain ?? payout.method]
           .filter(Boolean)
           .join(" · "),
         at: payout.requestedAt,
@@ -157,7 +157,7 @@ export function ConsoleOverview() {
       <PageHeader
         eyebrow="OVERVIEW"
         title="What needs you"
-        description="Counts are live and scoped to your permissions — anything hidden here is refused by the API too, so a role change takes effect immediately."
+        description="Counts are live and scoped to your permissions - anything hidden here is refused by the API too, so a role change takes effect immediately."
         actions={
           <div className="flex items-center gap-1.5">
             {roles.map((role) => (

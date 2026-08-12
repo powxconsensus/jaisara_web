@@ -19,7 +19,11 @@ interface VerificationNotice {
 
 function GoogleMark() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 18 18" className="size-[18px] flex-none">
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 18 18"
+      className="size-[18px] flex-none"
+    >
       <path
         fill="#4285F4"
         d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.482h4.844a4.14 4.14 0 0 1-1.797 2.715v2.258h2.909c1.703-1.568 2.684-3.878 2.684-6.614Z"
@@ -42,7 +46,9 @@ function GoogleMark() {
 
 function safeNextPath(): string {
   const next = new URLSearchParams(window.location.search).get("next");
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  return next && next.startsWith("/") && !next.startsWith("//")
+    ? next
+    : "/dashboard";
 }
 
 /**
@@ -52,16 +58,27 @@ function safeNextPath(): string {
  * show/hide toggle, and on signup the referral code is editable *and*
  * removable in a Club-tinted well.
  */
-export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initialReferral?: string }) {
+export function AuthForm({
+  mode,
+  initialReferral = "",
+}: {
+  mode: AuthMode;
+  initialReferral?: string;
+}) {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [referral, setReferral] = useState(initialReferral);
-  const [referralVisible, setReferralVisible] = useState(Boolean(initialReferral));
+  const [referralVisible, setReferralVisible] = useState(
+    Boolean(initialReferral),
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newsletter, setNewsletter] = useState(true);
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [verification, setVerification] = useState<VerificationNotice | null>(null);
+  const [verification, setVerification] = useState<VerificationNotice | null>(
+    null,
+  );
   const [recovering, setRecovering] = useState(false);
   const emailId = useId();
   const passwordId = useId();
@@ -76,38 +93,47 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
     setVerification(null);
 
     if (isSignup && !isStrongPassword(password)) {
-      setFormError(passwordPolicyMessage(password) ?? "Choose a stronger password.");
+      setFormError(
+        passwordPolicyMessage(password) ?? "Choose a stronger password.",
+      );
       return;
     }
 
     setPending(true);
 
     try {
-      const response = await fetch(`/api/auth/${isSignup ? "sign-up" : "sign-in"}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(
-          isSignup
-            ? {
-                email,
-                password,
-                referralCode: referralVisible && referral.trim() ? referral.trim() : undefined,
-                acceptedTerms: true,
-              }
-            : { email, password },
-        ),
-      });
-      const body = (await response.json().catch(() => null)) as
-        | {
-            user?: { emailVerified?: boolean };
-            email?: string;
-            deletionCancelled?: boolean;
-            verificationEmailSent?: boolean;
-          }
-        | null;
+      const response = await fetch(
+        `/api/auth/${isSignup ? "sign-up" : "sign-in"}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(
+            isSignup
+              ? {
+                  email,
+                  password,
+                  referralCode:
+                    referralVisible && referral.trim()
+                      ? referral.trim()
+                      : undefined,
+                  subscribeNewsletter: newsletter,
+                  acceptedTerms: true,
+                }
+              : { email, password },
+          ),
+        },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        user?: { emailVerified?: boolean };
+        email?: string;
+        deletionCancelled?: boolean;
+        verificationEmailSent?: boolean;
+      } | null;
 
       if (!response.ok) {
-        setFormError(apiErrorMessage(body, "Authentication failed. Please try again."));
+        setFormError(
+          apiErrorMessage(body, "Authentication failed. Please try again."),
+        );
         return;
       }
 
@@ -116,7 +142,11 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
           email: body?.email ?? email,
           emailSent: body?.verificationEmailSent !== false,
         });
-        toast(body?.verificationEmailSent === false ? "Verification already sent" : "Verification email sent");
+        toast(
+          body?.verificationEmailSent === false
+            ? "Verification already sent"
+            : "Verification email sent",
+        );
         return;
       }
 
@@ -136,7 +166,9 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
       );
       window.location.assign(safeNextPath());
     } catch {
-      setFormError("The authentication service is unavailable. Please try again.");
+      setFormError(
+        "The authentication service is unavailable. Please try again.",
+      );
     } finally {
       setPending(false);
     }
@@ -147,6 +179,7 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
     if (isSignup && referralVisible && referral.trim()) {
       target.searchParams.set("ref", referral.trim());
     }
+    if (isSignup && newsletter) target.searchParams.set("newsletter", "1");
     window.location.assign(target.toString());
   };
 
@@ -162,13 +195,17 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
-        setFormError(apiErrorMessage(body, "Could not send another verification email."));
+        setFormError(
+          apiErrorMessage(body, "Could not send another verification email."),
+        );
         return;
       }
       setVerification({ ...verification, emailSent: true });
       toast("A fresh verification link was sent", "info");
     } catch {
-      setFormError("The authentication service is unavailable. Please try again.");
+      setFormError(
+        "The authentication service is unavailable. Please try again.",
+      );
     } finally {
       setPending(false);
     }
@@ -178,7 +215,12 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
   // form left somebody who had just said they cannot log in looking at the
   // form that does not work for them, with a toast as the only feedback.
   if (recovering) {
-    return <ForgotPassword initialEmail={email} onBack={() => setRecovering(false)} />;
+    return (
+      <ForgotPassword
+        initialEmail={email}
+        onBack={() => setRecovering(false)}
+      />
+    );
   }
 
   /**
@@ -218,7 +260,7 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
           : "Pick up where your cashback left off."}
       </p>
 
-      {/* Segmented control — each half is a real route. */}
+      {/* Segmented control - each half is a real route. */}
       <div className="mb-5 flex gap-[3px] rounded-[11px] bg-surface-2 p-1">
         {(
           [
@@ -231,7 +273,9 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
             href={tab.href}
             aria-current={mode === tab.key}
             className={`flex-1 rounded-lg p-[11px] text-center font-mono text-[11px] font-semibold uppercase tracking-[0.12em] transition-all duration-[250ms] ease-[cubic-bezier(.2,.8,.2,1)] ${
-              mode === tab.key ? "bg-surface text-fg" : "text-muted hover:text-fg"
+              mode === tab.key
+                ? "bg-surface text-fg"
+                : "text-muted hover:text-fg"
             }`}
           >
             {tab.label}
@@ -251,7 +295,9 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
 
       <div className="my-5 flex items-center gap-3.5">
         <span className="h-px flex-1 bg-hair-soft" />
-        <span className="font-mono text-[9px] tracking-[0.2em] text-muted">OR</span>
+        <span className="font-mono text-[9px] tracking-[0.2em] text-muted">
+          OR
+        </span>
         <span className="h-px flex-1 bg-hair-soft" />
       </div>
 
@@ -300,7 +346,9 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
               minLength={isSignup ? 10 : 1}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder={isSignup ? "At least 10 characters" : "Your password"}
+              placeholder={
+                isSignup ? "At least 10 characters" : "Your password"
+              }
               disabled={pending}
               className="pr-[74px]"
             />
@@ -314,7 +362,10 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
             </button>
           </div>
           {isSignup && (
-            <PasswordRequirements password={password} id={passwordRequirementsId} />
+            <PasswordRequirements
+              password={password}
+              id={passwordRequirementsId}
+            />
           )}
         </div>
 
@@ -332,14 +383,15 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
           <div
             className="rounded-[12px] border p-[15px] [animation:jsUp_.5s_both]"
             style={{
-              background: "color-mix(in oklab, var(--club) 8%, var(--surface-2))",
+              background:
+                "color-mix(in oklab, var(--club) 8%, var(--surface-2))",
               borderColor: "color-mix(in oklab, var(--club) 30%, var(--hair))",
             }}
           >
             <div className="mb-2.5 flex items-center gap-2.5">
               <span className="size-[5px] rounded-[2px] bg-club" />
               <span className="font-mono text-[9px] tracking-[0.2em] text-club">
-                REFERRAL — EDIT OR REMOVE
+                REFERRAL - EDIT OR REMOVE
               </span>
               <button
                 type="button"
@@ -360,7 +412,8 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
               className="w-full rounded-[9px] border border-hair bg-bg px-3.5 py-3 font-mono text-[13.5px] tracking-[0.1em] outline-none transition focus:border-club focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--club)_16%,transparent)]"
             />
             <p className="mt-2.5 text-[11.5px] leading-[1.5] text-muted">
-              The first valid invite code is permanently attached to your account.
+              The first valid invite code is permanently attached to your
+              account.
             </p>
           </div>
         )}
@@ -369,12 +422,39 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
           <div
             role="alert"
             className="rounded-[11px] border px-3.5 py-3 text-[12.5px] leading-[1.5] text-danger"
-            style={{ borderColor: "color-mix(in oklab, var(--danger) 42%, var(--hair))" }}
+            style={{
+              borderColor:
+                "color-mix(in oklab, var(--danger) 42%, var(--hair))",
+            }}
           >
             {formError}
           </div>
         )}
 
+        {isSignup && (
+          <label className="flex cursor-pointer items-center gap-2.5 py-1 text-[11.5px] leading-[1.45] text-muted">
+            <input
+              type="checkbox"
+              checked={newsletter}
+              onChange={(event) => setNewsletter(event.target.checked)}
+              className="sr-only"
+            />
+            <span
+              aria-hidden="true"
+              className={`grid size-[18px] flex-none place-items-center rounded-[5px] border text-[11px] font-bold transition ${
+                newsletter
+                  ? "border-primary bg-primary text-on-primary"
+                  : "border-hair bg-surface text-transparent"
+              }`}
+            >
+              ✓
+            </span>
+            <span>
+              Send me deal and reward updates. You can turn these off from
+              Account anytime.
+            </span>
+          </label>
+        )}
 
         <button
           type="submit"
@@ -389,15 +469,20 @@ export function AuthForm({ mode, initialReferral = "" }: { mode: AuthMode; initi
       <div className="mt-5 flex items-center gap-2.5">
         <span className="size-[5px] rounded-[2px] bg-success" />
         <span className="font-mono text-[9.5px] tracking-[0.08em] text-muted">
-          FREE FOREVER / NO CARD / WITHDRAW FROM $20
+          FREE FOREVER / NO CARD / CONFIGURABLE PAYOUT OPTIONS
         </span>
       </div>
       <p className="mt-3 text-[11px] leading-[1.6] text-muted">
-        By continuing you agree to the{" "}
+        By creating an account you agree to the{" "}
         <Link href="/terms" className="text-primary">
           Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="text-primary">
+          Privacy Policy
         </Link>
-        . Cashback is paid from affiliate commission and may be withheld on refunded orders.
+        . Reward eligibility, verification, holds and reversals are explained in
+        the Terms.
       </p>
     </div>
   );

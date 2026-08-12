@@ -13,7 +13,7 @@ import type { TokenPair } from "@/lib/auth-types";
  *
  * Needed because an access token can be *stale* without being *expired*. It
  * carries whether the email is verified, so the token minted at signup says
- * "unverified" and keeps saying so for its full fifteen minutes — right through
+ * "unverified" and keeps saying so for its full fifteen minutes - right through
  * the moment the member clicks the verification link. The normal path only
  * rotates on expiry, so without this the member lands on a dashboard whose
  * verified-only calls are all refused for a quarter of an hour.

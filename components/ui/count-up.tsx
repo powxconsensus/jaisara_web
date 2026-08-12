@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 /**
  * Counts a figure up on mount with an ease-out curve. Renders the final value
  * immediately for SSR and under reduced motion, so the number is never wrong
- * or missing — only the animation is optional.
+ * or missing - only the animation is optional.
  */
 export function CountUp({
   to,

@@ -60,7 +60,7 @@ export const SearchIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (
  * Sign out: door on the left, arrow leaving to the right.
  *
  * The first version had the arrow pointing back into the frame, which is the
- * conventional glyph for signing *in* — the direction is the whole meaning of
+ * conventional glyph for signing *in* - the direction is the whole meaning of
  * this icon, so it has to leave.
  */
 export const SignOutIcon = (p: SVGProps<SVGSVGElement> & { size?: number }) => (

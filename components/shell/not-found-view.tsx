@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 /**
- * The body of a "not found" screen — no navbar, no footer.
+ * The body of a "not found" screen - no navbar, no footer.
  *
  * Kept chrome-free because it is rendered in two places that supply different
  * chrome: `app/not-found.tsx` sits above the `(site)` layout and has to add the
@@ -42,7 +42,7 @@ export function NotFoundView({
 }) {
   return (
     <section className="relative overflow-hidden">
-      {/* The oversized outlined figure echoes the footer wordmark — the one
+      {/* The oversized outlined figure echoes the footer wordmark - the one
           place in the design language reserved for a number this large. */}
       <p
         aria-hidden="true"

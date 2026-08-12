@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RECEIPTS, RECEIPT_INTERVAL_MS, type Receipt } from "@/lib/data/receipts";
+import { RECEIPT_INTERVAL_MS, type Receipt } from "@/lib/data/receipts";
 import { useImpact, type ImpactEvent } from "@/components/landing/impact-context";
 import { ReceiptCard } from "./receipt-card";
 import {
@@ -11,6 +11,21 @@ import {
   playStamp,
   prefersReducedMotion,
 } from "./receipt-motion";
+
+/** Geometry-only input for the masked empty receipt. No value is presented as
+ * activity; ReceiptCard replaces every visible field in masked mode. */
+const MASKED_RECEIPT: Receipt = {
+  firm: "",
+  plan: "",
+  coupon: "",
+  list: 0,
+  discountPct: 0,
+  cashbackPct: 0,
+  who: "",
+  ago: "",
+  id: "",
+  status: "pending",
+};
 
 /**
  * The hero receipt (handoff §2): a single sheet of paper, auto-advancing
@@ -25,33 +40,26 @@ import {
  * dots would frame it as a fixed slideshow. Rotation pauses on hover and on
  * focus-within so it can still be read.
  *
- * State is only `index` and a pause flag — deliberately NO animation phase. See
+ * State is only `index` and a pause flag - deliberately NO animation phase. See
  * receipt-motion.ts for why that matters.
  */
 export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
-  // Live approvals when there are any, the designed set when the platform is
-  // new. An empty hero would be the worst possible first impression, and a
-  // deck that renders nothing is also a deck whose fracture geometry has no
-  // card height to measure from.
-  //
   // Captured once: the feed is server-rendered and fixed for the life of this
   // component, and a `deck` whose identity changed would land in the timer and
-  // animation dependencies below — restarting rotation mid-cycle is exactly
+  // animation dependencies below - restarting rotation mid-cycle is exactly
   // the class of bug this component's architecture exists to prevent.
-  const [deck] = useState<Receipt[]>(() =>
-    receipts && receipts.length > 0 ? receipts : RECEIPTS,
-  );
+  const [deck] = useState<Receipt[]>(() => receipts ?? []);
   const [index, setIndex] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const stampRef = useRef<HTMLDivElement>(null);
   // The index is mirrored in a ref so `advance` never depends on it. If it
   // did, the swap it schedules would change `advance`'s identity mid-fall,
   // re-run the interval effect, and its cleanup would clear the cues for the
-  // impact, stamp and echo that had not fired yet — the card would land on a
+  // impact, stamp and echo that had not fired yet - the card would land on a
   // ledger that never fractured.
   const indexRef = useRef(0);
   // Hover/focus pause is read inside a timer callback, so it lives in a ref
-  // rather than state — no re-render, and no stale closure.
+  // rather than state - no re-render, and no stale closure.
   const pausedRef = useRef(false);
   const cuesRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const impact = useImpact();
@@ -72,7 +80,7 @@ export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
   const strike = useCallback((event: ImpactEvent) => impact?.emit(event), [impact]);
 
   const advance = useCallback(() => {
-    if (pausedRef.current) return;
+    if (pausedRef.current || deck.length === 0) return;
     const card = cardRef.current;
     const next = (indexRef.current + 1) % deck.length;
     const step = () => {
@@ -92,7 +100,7 @@ export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
     clearCues();
     playFall(card);
     // Everything else hangs off the same timeline. The sheet rocks after it
-    // lands, but the ledger breaks exactly once — see ImpactEvent.
+    // lands, but the ledger breaks exactly once - see ImpactEvent.
     cuesRef.current = [
       setTimeout(step, FALL_DURATION_MS * CUE.contentSwap),
       setTimeout(() => strike({ hot }), FALL_DURATION_MS * CUE.impact),
@@ -114,10 +122,40 @@ export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
 
   // Settle the first sheet onto the ground, so the hero opens with a landing.
   useEffect(() => {
-    if (prefersReducedMotion()) return;
+    if (deck.length === 0 || prefersReducedMotion()) return;
     const id = setTimeout(() => strike({ hot: deck[0].status === "paid" }), 900);
     return () => clearTimeout(id);
   }, [strike, deck]);
+
+  if (deck.length === 0) {
+    return (
+      <div
+        aria-label="No verified activity yet. Receipt values are hidden until real ledger activity is available."
+        className="flex justify-center pb-[var(--rcpt-mb)] pt-[var(--rcpt-top)] [perspective-origin:62%_38%] [perspective:var(--rcpt-persp)]"
+      >
+        <div className="w-[var(--rcpt-w)] motion-safe:[animation:var(--rcpt-float)]">
+          <div className="relative w-full [transform:var(--rcpt-tf)]">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-[-12%] inset-y-[-16%] rounded-full opacity-35 blur-[48px]"
+              style={{
+                background:
+                  "radial-gradient(closest-side, color-mix(in oklab, var(--primary) 22%, transparent), transparent 76%)",
+              }}
+            />
+            <div className="opacity-80 saturate-50">
+              <ReceiptCard
+                receipt={MASKED_RECEIPT}
+                cardRef={cardRef}
+                stampRef={stampRef}
+                masked
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex justify-center pb-[var(--rcpt-mb)] pt-[var(--rcpt-top)] [perspective-origin:62%_38%] [perspective:var(--rcpt-persp)]">

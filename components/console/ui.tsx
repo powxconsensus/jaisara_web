@@ -81,12 +81,12 @@ export function PanelHeader({
  * Page-level intro, one per console route.
  *
  * One row: title, eyebrow, actions. The description is optional and small, and
- * most screens should not need one — the section it sits in is already named
+ * most screens should not need one - the section it sits in is already named
  * in the rail and the breadcrumb, so a paragraph explaining it is a paragraph
  * nobody reads twice.
  *
  * This has been cut twice. It began as an eyebrow, a 38px display heading and
- * a three-line paragraph — about 150px before any work appeared — then became
+ * a three-line paragraph - about 150px before any work appeared - then became
  * a 22px black uppercase title. Both were the marketing voice on a tool.
  */
 export function PageHeader({
@@ -129,7 +129,7 @@ export function PageHeader({
  *
  * The tone bleeds into a top rule rather than only the number, so a row of
  * tiles can be read at a glance for "is anything wrong" before any digit is
- * actually read. Neutral tiles get no rule at all — colouring everything
+ * actually read. Neutral tiles get no rule at all - colouring everything
  * colours nothing.
  */
 export function StatTile({
@@ -148,7 +148,7 @@ export function StatTile({
     // height: the hints are different lengths, so without it a two-line hint
     // made its tile taller than the rest and the row read as misaligned. The
     // rule always occupies 2px whether or not it is coloured, for the same
-    // reason — a neutral tile must not sit 2px shorter than a warning one.
+    // reason - a neutral tile must not sit 2px shorter than a warning one.
     <div className="flex h-full flex-col overflow-hidden rounded-[var(--ct-radius)] border border-[var(--console-hair)] bg-surface">
       <div
         aria-hidden
@@ -200,7 +200,7 @@ export function Badge({
   );
 }
 
-/** Key/value rows — the detail panel's workhorse. */
+/** Key/value rows - the detail panel's workhorse. */
 export function DefinitionList({
   rows,
 }: {
@@ -236,7 +236,7 @@ export function DefinitionList({
  *
  * The sticky header is the reason this exists rather than a bare `<table>`.
  * These lists run to a hundred rows, and a column head that scrolls away turns
- * the fifth column of an orders table into an unlabelled number — which, on
+ * the fifth column of an orders table into an unlabelled number - which, on
  * screens where some of those numbers are money, is worse than useless.
  */
 export function TableShell({
@@ -345,7 +345,7 @@ export function LoadingRows({ rows = 4 }: { rows?: number }) {
 
 /**
  * Segmented control. Used wherever two editors would otherwise sit side by side
- * competing for the same width — the email studio's HTML and plain-text bodies
+ * competing for the same width - the email studio's HTML and plain-text bodies
  * being the case that prompted it.
  */
 export function Segmented<T extends string>({
@@ -411,7 +411,7 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   );
 }
 
-/** A left-hand record list — claims, campaigns, posts all share this shape. */
+/** A left-hand record list - claims, campaigns, posts all share this shape. */
 export function RecordList({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div

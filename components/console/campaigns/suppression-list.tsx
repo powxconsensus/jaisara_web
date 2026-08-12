@@ -29,7 +29,7 @@ import { ADMIN_PERMISSIONS as P, type Suppression } from "@/lib/admin-types";
  * Present in the API from the start with no way to read it, which is the worst
  * combination: addresses get suppressed by bounce and complaint webhooks and
  * nobody can see why a member stopped receiving mail. Lifting one is possible
- * but deliberately friction-heavy — a hard bounce that was suppressed for a
+ * but deliberately friction-heavy - a hard bounce that was suppressed for a
  * reason will simply bounce again and damage the sending domain.
  */
 
@@ -154,7 +154,7 @@ export function SuppressionList() {
         ) : rows.length === 0 ? (
           <EmptyState
             title="Nothing suppressed"
-            message="No addresses match this filter — the healthiest possible state for a sending domain."
+            message="No addresses match this filter - the healthiest possible state for a sending domain."
           />
         ) : (
           <TableShell columns={["ADDRESS", "REASON", "SOURCE", "ADDED", ""]} minWidth={780}>
@@ -164,7 +164,7 @@ export function SuppressionList() {
                 <Td>
                   <Badge tone={REASON_TONE[row.reason]}>{row.reason.replaceAll("_", " ")}</Badge>
                 </Td>
-                <Td className="text-muted">{row.source ?? "—"}</Td>
+                <Td className="text-muted">{row.source ?? "-"}</Td>
                 <Td className="whitespace-nowrap text-muted">{dateTime(row.createdAt)}</Td>
                 <Td>
                   {canManage && (

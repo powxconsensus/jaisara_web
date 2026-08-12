@@ -22,7 +22,7 @@ import { CLAIM_TONE } from "./claim-tone";
  *
  * The centre of this screen is the comparison: what the member typed on the
  * left, what the firm's own report says on the right, and a mark against any
- * field where the two disagree. That is the actual review — approving is just
+ * field where the two disagree. That is the actual review - approving is just
  * the button you press once the two columns line up.
  */
 export function ClaimReview({
@@ -93,7 +93,7 @@ export function ClaimReview({
         {record.status === "REJECTED" && record.rejectionReason && (
           <p className="mt-5 rounded-[11px] border border-hair p-4 text-[12.5px] leading-6 text-muted">
             <span className="font-mono text-[9px] tracking-[0.14em] text-danger">
-              REJECTED —{" "}
+              REJECTED -{" "}
             </span>
             {record.rejectionReason}
           </p>
@@ -107,7 +107,7 @@ export function ClaimReview({
             <DefinitionList
               rows={[
                 { label: "Order number", value: orNone(record.claimedExternalId), mono: true },
-                { label: "Amount paid", value: claimedAmount ? usd(claimedAmount) : "—" },
+                { label: "Amount paid", value: claimedAmount ? usd(claimedAmount) : "-" },
                 { label: "Purchase date", value: shortDate(record.claimedPurchaseAt) },
                 { label: "Product", value: orNone(record.claimedProductText) },
                 { label: "Source", value: record.source },
@@ -153,7 +153,7 @@ export function ClaimReview({
               <div className="rounded-[13px] border border-dashed border-hair p-5">
                 <p className="text-[12.5px] leading-6 text-muted">
                   No order on file yet. This claim stays in the queue and is re-checked
-                  automatically after every import of this firm&rsquo;s report — approving it
+                  automatically after every import of this firm&rsquo;s report - approving it
                   now would credit cashback against commission we have not been paid.
                 </p>
               </div>
@@ -163,7 +163,7 @@ export function ClaimReview({
 
         {(record.matchStrategy || record.matchConfidence !== null) && (
           <p className="mt-5 font-mono text-[10px] tracking-[0.1em] text-muted">
-            MATCHED BY {record.matchStrategy?.toUpperCase() ?? "—"}
+            MATCHED BY {record.matchStrategy?.toUpperCase() ?? "-"}
             {record.matchConfidence !== null && record.matchConfidence !== undefined
               ? ` · CONFIDENCE ${(record.matchConfidence * 100).toFixed(0)}%`
               : ""}
@@ -281,7 +281,7 @@ export function ClaimReview({
           label: "INTERNAL NOTE (OPTIONAL)",
           placeholder: "Anything the next reviewer should know",
           minLength: 0,
-          help: "Kept internal — the member does not see this.",
+          help: "Kept internal - the member does not see this.",
         }}
       />
 
@@ -301,7 +301,7 @@ export function ClaimReview({
           <>
             No money moves. Order number{" "}
             <strong className="text-fg">{record.claimedExternalId}</strong> is released, so another
-            member can claim it — reject a genuine duplicate rather than a valid claim.
+            member can claim it - reject a genuine duplicate rather than a valid claim.
           </>
         }
         reason={{
@@ -317,8 +317,8 @@ export function ClaimReview({
 /**
  * A reported value beside the claimed one, marked when they disagree.
  *
- * A mismatch is not automatically fraud — a member rounds an amount, or types
- * the invoice number instead of the order number — but it is the thing a
+ * A mismatch is not automatically fraud - a member rounds an amount, or types
+ * the invoice number instead of the order number - but it is the thing a
  * reviewer must not skim past, so it is called out rather than left to be
  * spotted by reading two columns.
  */

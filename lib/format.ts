@@ -3,7 +3,7 @@
  * (see `[data-count]` in globals.css) so counts don't jitter (handoff §1.4).
  */
 
-/** `$1,234.50` — two decimals, thousands separators. */
+/** `$1,234.50` - two decimals, thousands separators. */
 export function money(value: number): string {
   return `$${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,

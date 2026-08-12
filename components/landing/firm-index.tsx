@@ -5,7 +5,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
 
 /**
- * [02] THE INDEX — the top firms this week.
+ * The top firms this week.
  *
  * Sorted by cashback descending. The row leads with the firm's logo rather
  * than a rank number: the number was only ever the position in this sort, so
@@ -13,7 +13,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
  * where a reader is actually looking for the brand.
  */
 export function FirmIndex({ firms = [] }: { firms?: Firm[] }) {
-  // Best rate first — the index is a comparison, so the strongest offer leads.
+  // Best rate first - the index is a comparison, so the strongest offer leads.
   // A firm with no published rate cannot lead a "highest rates" list, so it
   // sorts last rather than claiming a rate of zero.
   const top = [...firms].sort((a, b) => b.cashback - a.cashback).slice(0, 5);
@@ -21,7 +21,7 @@ export function FirmIndex({ firms = [] }: { firms?: Firm[] }) {
   return (
     <Reveal className="mx-auto max-w-[var(--maxw)] px-[var(--pad)] pb-[var(--secpb)] pt-[var(--secpt)]">
       <div className="mb-2 flex items-end justify-between gap-5">
-        <SectionHeading index="02" eyebrow="The index">
+        <SectionHeading eyebrow="Top cashback">
           Highest rates
           <br />
           this week
@@ -57,8 +57,8 @@ export function FirmIndex({ firms = [] }: { firms?: Firm[] }) {
             <span className="hidden flex-none font-mono text-[11px] tracking-[0.08em] text-muted lg:inline">
               {firm.coupon}
             </span>
-            {/* Labelled, never a bare percentage — and never a zero. A firm
-                whose commission rate has not been entered has no rate to show;
+            {/* Labelled, never a bare percentage - and never a zero. A firm
+                whose cashback rate has not been published has no rate to show;
                 printing "0% cashback" reads as an offer of nothing rather than
                 as missing data, and it is the one number here nobody should
                 ever see wrong. */}

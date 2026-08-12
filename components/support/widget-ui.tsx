@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
  * The whole panel is a docket: the header sits on a raised strip, a punched
  * perforation runs under it, and every card that represents a conversation
  * carries a torn left edge. Those perforations are drawn with layered radial
- * gradients rather than images so they recolour with the theme — there are
+ * gradients rather than images so they recolour with the theme - there are
  * fifteen palettes and a PNG would be wrong in fourteen of them.
  */
 
@@ -51,7 +51,7 @@ export function Perforation() {
   );
 }
 
-/** The torn left edge on a conversation card — the receipt stub. */
+/** The torn left edge on a conversation card - the receipt stub. */
 export function PerforatedEdge() {
   return (
     <span
@@ -69,7 +69,7 @@ export function PerforatedEdge() {
 /**
  * The desk's masthead.
  *
- * Two overlapping monograms — the platform and the person who answers — so it
+ * Two overlapping monograms - the platform and the person who answers - so it
  * reads as a desk with someone behind it rather than a bot. The status line is
  * the one place the panel makes a promise about time, so it is drawn from real
  * state rather than a constant.
@@ -150,7 +150,7 @@ export function DetailHeader({
 
 export type Tab = "home" | "answers" | "threads";
 
-/** The bottom tab bar. Only on root views — a pushed view owns its own header. */
+/** The bottom tab bar. Only on root views - a pushed view owns its own header. */
 export function TabBar({
   value,
   onChange,
@@ -185,7 +185,7 @@ export function TabBar({
             )}
           >
             {tab.label}
-            {/* Always rendered, including at zero — the count is part of the
+            {/* Always rendered, including at zero - the count is part of the
                 tab's shape, and having it appear only sometimes makes the bar
                 jump the first time somebody raises a ticket. */}
             {tab.key === "threads" && (
@@ -239,7 +239,7 @@ export function statusTone(status: string): string {
   return STATUS_TONE[status] ?? "var(--text-muted)";
 }
 
-/** An outlined status chip — the design's colour-on-transparent, not a fill. */
+/** An outlined status chip - the design's colour-on-transparent, not a fill. */
 export function StatusPill({ status }: { status: string }) {
   const tone = statusTone(status);
 
@@ -257,7 +257,7 @@ export function StatusPill({ status }: { status: string }) {
  * A short ticket reference.
  *
  * The design prints `JSR-4471`. Ours is derived from the ticket's own uuid so
- * it is stable and unique without a second column — the member quotes it, we
+ * it is stable and unique without a second column - the member quotes it, we
  * search on it, and it never disagrees with the row it names.
  */
 export function ticketRef(id: string): string {
@@ -304,7 +304,7 @@ export function ago(iso: string): string {
 /**
  * The last line of a conversation, prefixed with who said it.
  *
- * "You: …" versus "Meera: …" is what makes a list of threads scannable — the
+ * "You: …" versus "Meera: …" is what makes a list of threads scannable - the
  * subject says what it is about, this says whether the ball is in your court.
  * The agent's own name is used when we have it; a thread answered by somebody
  * who has since left the team falls back to the platform.

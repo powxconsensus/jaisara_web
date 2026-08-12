@@ -4,7 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 /**
  * Tracks a CSS media query. Returns `false` during SSR and hydration, then the
- * real value — read through `useSyncExternalStore` so there is no state-in-
+ * real value - read through `useSyncExternalStore` so there is no state-in-
  * effect and no hydration mismatch.
  *
  * Use only where the two layouts differ structurally (e.g. the estimator's

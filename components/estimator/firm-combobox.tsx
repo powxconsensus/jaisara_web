@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
  * Requirements met here: full-width option buttons with a 44px minimum row
  * (the whole row is clickable), the search input autofocused on open, arrow /
  * Enter / Escape navigation with `aria-activedescendant`, and an OPAQUE panel
- * background — a translucent blur let content behind it bleed through.
+ * background - a translucent blur let content behind it bleed through.
  */
 export function FirmCombobox({
   value,
@@ -131,7 +131,7 @@ export function FirmCombobox({
             role="searchbox"
             aria-controls={listId}
             aria-activedescendant={results.length ? optionId(highlight) : undefined}
-            placeholder="Search a firm — FTMO, Alpha, Maven…"
+            placeholder="Search a firm - FTMO, Alpha, Maven…"
             className="mb-1.5 w-full rounded-[9px] border border-hair bg-surface-2 px-[13px] py-[11px] text-[13px] outline-none focus:border-primary"
           />
 
@@ -171,7 +171,7 @@ export function FirmCombobox({
 
             {results.length === 0 && (
               <p className="px-3 py-4 text-center text-[12.5px] text-muted">
-                Not listed yet — ask support and we&rsquo;ll add it within a week.
+                Not listed yet - ask support and we&rsquo;ll add it within a week.
               </p>
             )}
           </div>

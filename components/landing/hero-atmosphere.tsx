@@ -9,7 +9,7 @@ import { HeroField } from "./hero-field";
  *  - a faint square grid on the back wall, which the floor's lanes answer,
  *  - one slow ambient bloom drifting behind the headline,
  *  - a spotlight that follows the pointer, driven by `--mx` / `--my` set on the
- *    hero section — no React state, so tracking the cursor costs no renders.
+ *    hero section - no React state, so tracking the cursor costs no renders.
  */
 
 const WALL_MASK = "radial-gradient(75% 62% at 50% 26%, #000, transparent 80%)";

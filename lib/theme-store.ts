@@ -13,7 +13,7 @@ import {
 
 /**
  * Theme persistence, kept outside React so the provider can read it with
- * `useSyncExternalStore` — no state-in-effect, and other tabs stay in sync.
+ * `useSyncExternalStore` - no state-in-effect, and other tabs stay in sync.
  *
  * The two axes are stored under separate keys and never touch each other:
  * choosing a palette preserves the mode, toggling the mode preserves the

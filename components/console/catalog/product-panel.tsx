@@ -223,10 +223,10 @@ export function ProductPanel({ platforms }: { platforms: Resource<Platform[]> })
                     </span>
                   )}
                 </Td>
-                <Td className="text-muted">{product.platform?.name ?? "—"}</Td>
+                <Td className="text-muted">{product.platform?.name ?? "-"}</Td>
                 <Td className="font-mono text-[10.5px] text-muted">{product.kind}</Td>
                 <Td data-count className="font-mono">
-                  {product.listPrice ? usd(product.listPrice, product.currency) : "—"}
+                  {product.listPrice ? usd(product.listPrice, product.currency) : "-"}
                 </Td>
                 <Td data-count className="font-mono text-muted">
                   {product._count?.orders ?? 0}

@@ -113,7 +113,7 @@ export function PeopleDirectory() {
           </div>
         </div>
         <p className="mt-3 text-[11.5px] leading-5 text-muted">
-          Matching happens on the server — nothing loads until you search, and the member list is
+          Matching happens on the server - nothing loads until you search, and the member list is
           never pulled down in bulk.
         </p>
       </Panel>

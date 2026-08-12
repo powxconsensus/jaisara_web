@@ -81,7 +81,7 @@ export function OrderBrowser() {
       <PageHeader
         eyebrow="OPERATIONS"
         title="Orders"
-        description="Every imported sale, refund and adjustment across all firms — the table the matcher joins claims against."
+        description="Every imported sale, refund and adjustment across all firms - the table the matcher joins claims against."
       />
 
       {can(P.analyticsView) && sales.length > 0 && (
@@ -151,7 +151,7 @@ export function OrderBrowser() {
         {attributed === "false" && (
           <p className="mt-3 text-[11.5px] leading-5 text-muted">
             Sales nobody has claimed. Their commission stays with the platform until a member
-            submits a matching receipt — which they still can, months later.
+            submits a matching receipt - which they still can, months later.
           </p>
         )}
       </Panel>
@@ -190,7 +190,7 @@ export function OrderBrowser() {
                   )}
                 </Td>
                 <Td data-count className="font-mono">
-                  {order.grossAmount ? usd(order.grossAmount, order.currency) : "—"}
+                  {order.grossAmount ? usd(order.grossAmount, order.currency) : "-"}
                 </Td>
                 <Td data-count className="font-mono">
                   {usd(order.commissionAmountUsd)}

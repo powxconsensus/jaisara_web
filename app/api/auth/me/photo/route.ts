@@ -10,7 +10,7 @@ import {
  *
  * The body is forwarded as bytes, not text: this is multipart with its own
  * boundary, and decoding it to a string corrupts anything that is not valid
- * UTF-8 — which is all of a PNG.
+ * UTF-8 - which is all of a PNG.
  */
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get("content-type");

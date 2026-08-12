@@ -74,7 +74,7 @@ export function draftToBody(draft: ProductDraft) {
     family: text(draft.family),
     kind: draft.kind,
     status: draft.status,
-    // An empty number field must be omitted — `accountSize` is validated as a
+    // An empty number field must be omitted - `accountSize` is validated as a
     // positive int, and sending 0 or "" is a 400.
     accountSize: draft.accountSize.trim() ? Number(draft.accountSize) : undefined,
     listPrice: text(draft.listPrice),
@@ -130,7 +130,7 @@ export function ProductForm({
           title={draft.name || "Untitled challenge"}
           description={
             mode === "create"
-              ? "Add a plan by hand. Most challenges arrive on their own from an import — use this for one that has not been sold yet, or that the firm reports under a name you would rather set yourself."
+              ? "Add a plan by hand. Most challenges arrive on their own from an import - use this for one that has not been sold yet, or that the firm reports under a name you would rather set yourself."
               : "Renaming an unmapped challenge and setting it active is how it stops being a hole in the catalogue."
           }
         />
@@ -161,7 +161,7 @@ export function ProductForm({
               </Select>
               {mode === "edit" && (
                 <p className="mt-2 text-[11px] leading-5 text-muted">
-                  A challenge cannot move between firms — its orders belong to this one.
+                  A challenge cannot move between firms - its orders belong to this one.
                 </p>
               )}
             </div>

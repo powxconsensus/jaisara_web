@@ -1,6 +1,6 @@
 import type { Firm } from "@/lib/data/firms";
 
-/** Docked comparison tray. Holds 2–3 firms (handoff §4.2). */
+/** Docked comparison tray. Holds 2-3 firms (handoff §4.2). */
 export function CompareTray({
   firms,
   onRemove,
@@ -38,11 +38,11 @@ export function CompareTray({
             {firm.cashback > 0 ? (
               <span className="text-primary">{firm.cashback}%</span>
             ) : (
-              <span>—</span>
+              <span>-</span>
             )}
             {firm.discount > 0 && ` · OFF ${firm.discount}%`}
             <br />
-            {firm.split && firm.split !== "—" && `${firm.split} SPLIT · `}
+            {firm.split && firm.split !== "-" && `${firm.split} SPLIT · `}
             {firm.payout.toUpperCase()}
             <br />
             {firm.platform}

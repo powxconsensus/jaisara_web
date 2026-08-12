@@ -39,7 +39,7 @@ import {
  * Two fields here have consequences beyond the row. `adapterKey` decides which
  * parser reads that firm's reports, so a wrong value fails the next import
  * rather than this form. And the status map is what turns a firm's own wording
- * ("Charged back", "Refund issued") into a state the ledger acts on — an
+ * ("Charged back", "Refund issued") into a state the ledger acts on - an
  * unmapped word lands as PENDING and silently holds up cashback.
  */
 
@@ -86,7 +86,7 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
    * The logo belongs to a firm that already exists.
    *
    * It is stored at `firms/<slug>/logos/…`, and that slug is read from the row
-   * rather than from this form — so there is nowhere to put the bytes until the
+   * rather than from this form - so there is nowhere to put the bytes until the
    * firm has been saved once. The endpoint also writes `logoUrl` onto the row
    * itself, which is why the reload below is not optional.
    */
@@ -240,7 +240,7 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
                 />
                 <p className="mt-2 text-[11px] text-muted">
                   {selectedId
-                    ? "Fixed once created — it is in every public deal URL."
+                    ? "Fixed once created - it is in every public deal URL."
                     : "Lowercase words separated by hyphens."}
                 </p>
               </div>
@@ -277,9 +277,9 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
                     setForm({ ...form, status: event.target.value as PlatformStatus })
                   }
                 >
-                  <option value="DRAFT">Draft — hidden from the public site</option>
-                  <option value="ACTIVE">Active — listed on /deals</option>
-                  <option value="PAUSED">Paused — listed but not promoted</option>
+                  <option value="DRAFT">Draft - hidden from the public site</option>
+                  <option value="ACTIVE">Active - listed on /deals</option>
+                  <option value="PAUSED">Paused - listed but not promoted</option>
                   <option value="ARCHIVED">Archived</option>
                 </Select>
               </div>
@@ -357,8 +357,8 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
               )}
               <p className="mt-2 text-[11px] text-muted">
                 {selectedId
-                  ? "PNG, JPEG, WebP or GIF, under 5MB. A square mark reads best — the storefront shows it at 40px. Firms without one fall back to a monogram. Uploading saves it to the firm straight away."
-                  : "Save the firm first — its logo is filed under the firm's own slug, so there is nowhere to put it until the firm exists. Firms without one fall back to a monogram."}
+                  ? "PNG, JPEG, WebP or GIF, under 5MB. A square mark reads best - the storefront shows it at 40px. Firms without one fall back to a monogram. Uploading saves it to the firm straight away."
+                  : "Save the firm first - its logo is filed under the firm's own slug, so there is nowhere to put it until the firm exists. Firms without one fall back to a monogram."}
               </p>
             </div>
 
@@ -374,7 +374,7 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
                 }
               />
               <p className="mt-2 text-[11px] leading-5 text-muted">
-                Must start with http:// or https:// — this is rendered into a redirect, so a
+                Must start with http:// or https:// - this is rendered into a redirect, so a
                 javascript: URL here would be an XSS vector on every deal link.
               </p>
             </div>
@@ -465,7 +465,7 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
 /**
  * Maps a firm's own status wording onto the four states the ledger understands.
  * Anything unmapped falls through as PENDING, which is safe but stalls cashback
- * until somebody notices — so unmapped words surface in the import preview.
+ * until somebody notices - so unmapped words surface in the import preview.
  */
 function StatusMapEditor({
   platform,
@@ -568,7 +568,7 @@ function StatusMapEditor({
               onChange={(event) => setIsTerminal(event.target.checked)}
               className="size-4 cursor-pointer accent-[var(--primary)]"
             />
-            Final — cannot change again
+            Final - cannot change again
           </label>
           <Button type="submit" size="lg" disabled={pending || !rawStatus.trim()}>
             Add mapping

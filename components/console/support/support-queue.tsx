@@ -27,7 +27,7 @@ import { ADMIN_PERMISSIONS as P } from "@/lib/admin-types";
  *
  * Oldest first within a status: answering newest-first is how the person who
  * has waited longest keeps waiting. The assistant's summary leads the detail
- * panel so an agent opens with context rather than a transcript — the raw
+ * panel so an agent opens with context rather than a transcript - the raw
  * conversation is underneath, because a summary nobody can check is a summary
  * nobody should trust.
  */
@@ -76,7 +76,7 @@ interface TicketDetail extends Omit<TicketSummary, "_count"> {
     createdAt: string;
     author: { displayName: string | null } | null;
   }[];
-  /** Ids only — the file is fetched through a permission-checked route. */
+  /** Ids only - the file is fetched through a permission-checked route. */
   attachments: { id: string; fileName: string; contentType: string; sizeBytes: number }[];
 }
 
@@ -126,7 +126,7 @@ export function SupportQueue() {
 
     setDraft("");
     toast(
-      result.emailed ? "Replied — the member has been emailed." : "Replied. The email did not send.",
+      result.emailed ? "Replied - the member has been emailed." : "Replied. The email did not send.",
       result.emailed ? "success" : "warning",
     );
     await Promise.all([ticket.reload(), tickets.reload(), counts.reload()]);
@@ -147,12 +147,12 @@ export function SupportQueue() {
       <PageHeader
         eyebrow="OPERATIONS"
         title="Support"
-        description="Tickets the assistant could not resolve, oldest first. Replying emails the member the text you wrote — they do not have to log in to read it."
+        description="Tickets the assistant could not resolve, oldest first. Replying emails the member the text you wrote - they do not have to log in to read it."
       />
 
       {/* The counts are the point of this row, not decoration. The queue opens
           filtered to "needs a reply", and with everything answered that view is
-          legitimately empty — which read as a broken console until the other
+          legitimately empty - which read as a broken console until the other
           filters could say how many tickets they were holding. */}
       <div className="mb-4 flex flex-wrap gap-2">
         {FILTERS.map((filter) => {
@@ -291,8 +291,8 @@ export function SupportQueue() {
               {/* Who said it and when used to print under every single bubble,
                   which doubled the height of a ten-message thread and buried
                   the words in metadata. It now sits beside the bubble and fades
-                  in on hover — the space is reserved either way, so nothing
-                  jumps — with the exact timestamp on the `title` for anyone who
+                  in on hover - the space is reserved either way, so nothing
+                  jumps - with the exact timestamp on the `title` for anyone who
                   needs the minute rather than "2 hours ago". */}
               <div className="flex flex-col gap-1.5">
                 {ticket.data.messages.map((message) => {

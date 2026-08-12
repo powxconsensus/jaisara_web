@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DASHBOARD_NAV } from "@/lib/dashboard-nav";
 import { cn } from "@/lib/cn";
+import { apiFetch } from "@/lib/api-fetch";
 
 function useIsActive() {
   const pathname = usePathname();
@@ -31,7 +32,7 @@ function useClubBadge(): ClubBadge | null {
   useEffect(() => {
     const controller = new AbortController();
 
-    void fetch("/api/club", { cache: "no-store", signal: controller.signal })
+    void apiFetch("/api/club", { cache: "no-store", signal: controller.signal })
       .then(async (response) => (response.ok ? ((await response.json()) as ClubBadge) : null))
       .then((data) => {
         if (!controller.signal.aborted && data) setClub(data);
@@ -79,7 +80,7 @@ export function DashboardSidebar() {
         );
       })}
 
-      {/* Absent until the real standing loads — a placeholder tier would be a
+      {/* Absent until the real standing loads - a placeholder tier would be a
           number the member acts on before it is true. */}
       {club && (
         <div

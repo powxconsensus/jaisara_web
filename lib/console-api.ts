@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { apiFetch } from "@/lib/api-fetch";
 
 /**
  * One way to talk to the admin API.
  *
- * Every console module needs the same four things — send JSON, read JSON,
+ * Every console module needs the same four things - send JSON, read JSON,
  * turn a non-2xx into a message a human can act on, and drop the result if the
  * component unmounted first. Writing that per component is how three copies of
  * the same `.catch(() => setError("unavailable"))` drift apart.
@@ -21,7 +22,7 @@ export class ConsoleApiError extends Error {
     this.name = "ConsoleApiError";
   }
 
-  /** The caller lacks the permission — worth saying so rather than "failed". */
+  /** The caller lacks the permission - worth saying so rather than "failed". */
   get isForbidden(): boolean {
     return this.status === 403;
   }
@@ -42,10 +43,10 @@ export async function consoleApi<T>(path: string, init: ConsoleRequest = {}): Pr
 
   let response: Response;
   try {
-    response = await fetch(`${path}${buildQuery(query)}`, {
+    response = await apiFetch(`${path}${buildQuery(query)}`, {
       cache: "no-store",
       ...rest,
-      // FormData sets its own multipart boundary — overriding it breaks upload.
+      // FormData sets its own multipart boundary - overriding it breaks upload.
       headers: isForm ? headers : { "content-type": "application/json", ...headers },
       body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
@@ -105,7 +106,7 @@ export interface Resource<T> extends ResourceState<T> {
 /**
  * Loads a GET resource and keeps it fresh.
  *
- * `enabled: false` is what makes search-first screens possible — the people
+ * `enabled: false` is what makes search-first screens possible - the people
  * directory must not fetch the whole member base just because it mounted.
  */
 export function useResource<T>(
@@ -135,7 +136,7 @@ export function useResource<T>(
   }
 
   // The in-flight request, so a fast retype cancels the previous search rather
-  // than racing it — an older, slower response must never overwrite a newer one.
+  // than racing it - an older, slower response must never overwrite a newer one.
   const inflight = useRef<AbortController | null>(null);
 
   const fetchInto = useCallback(
@@ -167,7 +168,7 @@ export function useResource<T>(
     if (!active) return;
     // `start` kicks off a fetch. The rule follows the call graph into
     // `fetchInto` and sees a setState, but every one of those sits behind an
-    // `await` — they run when the response lands, which is exactly the
+    // `await` - they run when the response lands, which is exactly the
     // "subscribe to an external system" case the rule is meant to allow. The
     // synchronous state reset it is guarding against is done during render
     // above instead.
@@ -195,7 +196,7 @@ export interface PagedResource<T> {
   /** True while the first page is loading; `loadingMore` covers the rest. */
   loading: boolean;
   loadingMore: boolean;
-  /** False once a page comes back short — that page was the last one. */
+  /** False once a page comes back short - that page was the last one. */
   hasMore: boolean;
   loadMore: () => void;
   reload: () => void;
@@ -204,8 +205,8 @@ export interface PagedResource<T> {
 /**
  * A list fetched a page at a time.
  *
- * For tables where "everything" is an unbounded number of rows — orders grow
- * with every import — pulling the lot on mount costs a slow query and a long
+ * For tables where "everything" is an unbounded number of rows - orders grow
+ * with every import - pulling the lot on mount costs a slow query and a long
  * paint for data nobody scrolls to. Pages append as the sentinel comes into
  * view; changing a filter starts over from the first page.
  */

@@ -6,6 +6,7 @@ import { FieldLabel, TextInput } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
 import { useAuth } from "@/components/auth/auth-context";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { apiFetch } from "@/lib/api-fetch";
 import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { isStrongPassword, passwordPolicyMessage } from "@/lib/password-policy";
 
@@ -13,8 +14,8 @@ import { isStrongPassword, passwordPolicyMessage } from "@/lib/password-policy";
  * Password management.
  *
  * Rendered *inside* the profile card, directly under "change your sign-in
- * email". Both are the same kind of thing — a credential change that needs the
- * current password — and splitting them across two cards made one account
+ * email". Both are the same kind of thing - a credential change that needs the
+ * current password - and splitting them across two cards made one account
  * concern look like two features. Same disclosure shape as the email block, so
  * the page is not a wall of permanently-open password fields.
  *
@@ -63,7 +64,7 @@ export function SecuritySection() {
 
     setPending(true);
     try {
-      const response = await fetch("/api/auth/change-password", {
+      const response = await apiFetch("/api/auth/change-password", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
@@ -75,7 +76,7 @@ export function SecuritySection() {
       }
 
       // 205 is the one case the session could not be renewed. Everything else
-      // keeps this tab signed in — the change signs out other devices, not the
+      // keeps this tab signed in - the change signs out other devices, not the
       // person making it.
       if (response.status === 205) {
         toast("Password changed. Please sign in again.", "info");
@@ -98,7 +99,7 @@ export function SecuritySection() {
     setPending(true);
     setError(null);
     try {
-      const response = await fetch("/api/auth/set-password-link", { method: "POST" });
+      const response = await apiFetch("/api/auth/set-password-link", { method: "POST" });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         setError(apiErrorMessage(body, "The secure password link could not be sent."));

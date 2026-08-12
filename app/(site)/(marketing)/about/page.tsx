@@ -5,7 +5,7 @@ import { CountUp } from "@/components/ui/count-up";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "Why Jaisara exists, and how the commission is split.",
+  description: "Why Jaisara exists and how traders earn rewards on prop firm purchases.",
 };
 
 const TEAM = [
@@ -17,8 +17,8 @@ const TEAM = [
 
 const PRINCIPLES = [
   {
-    title: "The commission already exists",
-    body: "Firms budget acquisition into every challenge price. We did not create that money — we just refuse to keep all of it.",
+    title: "Reward the purchase",
+    body: "Use an eligible Jaisara coupon, complete the purchase at the firm, and earn the reward displayed for that deal.",
   },
   {
     title: "Say the number",
@@ -26,7 +26,7 @@ const PRINCIPLES = [
   },
   {
     title: "Referrals never cost the referred",
-    body: "Club rewards come out of our share. The person you invited always gets the full advertised rate.",
+    body: "A Club reward never reduces the invited trader’s advertised cashback.",
   },
 ];
 
@@ -38,22 +38,21 @@ export default async function AboutPage() {
         [ About ]
       </p>
       <h1 className="mb-6 max-w-[18ch] font-display text-[clamp(32px,5vw,64px)] font-black uppercase leading-[0.96] tracking-[-0.025em]">
-        We give back the{" "}
+        Every challenge can{" "}
         <span className="font-serif font-normal normal-case italic tracking-normal text-primary">
-          cut.
+          reward you.
         </span>
       </h1>
       <p className="mb-12 max-w-[58ch] text-[16.5px] leading-[1.7] text-muted">
-        Jaisara is a cashback platform for prop firm traders. We hold coupon deals with{" "}
-        {stats.firmCount} firms, and when you buy through one, most of the commission comes back to you
-        instead of staying with a comparison site.
+        Jaisara brings prop firm coupons, purchase verification and rewards into one place. Pick an
+        eligible deal, use the coupon at checkout, and track the resulting cashback from claim to payout.
       </p>
 
       <dl className="mb-14 flex flex-wrap gap-[clamp(24px,4vw,64px)] border-y border-hair py-8">
         {[
-          { value: 412850, prefix: "$", suffix: "", label: "PAID TO TRADERS" },
+          { value: Math.round(Number(stats.paidToTradersUsd)), prefix: "$", suffix: "", label: "PAID TO TRADERS" },
           { value: stats.firmCount, prefix: "", suffix: "", label: "FIRMS INDEXED" },
-          { value: 9200, prefix: "", suffix: "+", label: "MEMBERS" },
+          { value: stats.memberCount, prefix: "", suffix: "+", label: "MEMBERS" },
         ].map((stat) => (
           <div key={stat.label}>
             <dd className="font-mono text-[clamp(24px,3vw,34px)] tracking-[-0.03em]">

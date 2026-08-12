@@ -5,8 +5,8 @@ import { createContext, useContext, useMemo, useRef, type ReactNode } from "reac
 /**
  * Connects the receipt deck to the ground it lands on.
  *
- * The two live in different branches of the hero — the deck sits inside the
- * right-hand column, the ground spans the whole section behind everything — so
+ * The two live in different branches of the hero - the deck sits inside the
+ * right-hand column, the ground spans the whole section behind everything - so
  * they cannot share a ref by ordinary means. Rather than have the ground reach
  * into the DOM for the card, the deck registers it here and announces its
  * landings; the ground decides what a landing looks like.
@@ -29,7 +29,7 @@ type Listener = (event: ImpactEvent) => void;
 interface ImpactContextValue {
   /** The deck hands over its card on mount, and drops it on unmount. */
   setTarget: (element: HTMLElement | null) => void;
-  /** The card's live rect — where the next strike will land. */
+  /** The card's live rect - where the next strike will land. */
   measureTarget: () => DOMRect | null;
   emit: (event: ImpactEvent) => void;
   subscribe: (listener: Listener) => () => void;

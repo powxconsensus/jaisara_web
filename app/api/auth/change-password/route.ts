@@ -10,8 +10,8 @@ import type { TokenPair } from "@/lib/auth-types";
 /**
  * Changing a password ends every other session and renews this one.
  *
- * The API revokes all refresh tokens — that is what evicts anybody holding the
- * old password — and returns a freshly minted pair for the caller. Writing it
+ * The API revokes all refresh tokens - that is what evicts anybody holding the
+ * old password - and returns a freshly minted pair for the caller. Writing it
  * here is what keeps the current tab signed in; this route used to clear the
  * cookies instead, so the one person who had just proved they knew both
  * passwords was the one bounced to the login screen.
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       const response = NextResponse.json({ ok: true });
 
       // A successful change with no pair back would silently leave the old,
-      // now-revoked cookies in place — every later request would 401. Better to
+      // now-revoked cookies in place - every later request would 401. Better to
       // say the session ended and let the member sign in again.
       if (!tokens?.accessToken || !tokens.refreshToken) {
         return NextResponse.json(

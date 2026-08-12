@@ -21,7 +21,7 @@ export function TermsGate() {
     try {
       accepted = localStorage.getItem(TERMS_STORAGE_KEY);
     } catch {
-      /* storage unavailable — do not block the page */
+      /* storage unavailable - do not block the page */
       return;
     }
     if (accepted !== TERMS_VERSION) {
@@ -44,7 +44,7 @@ export function TermsGate() {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[400] bg-[color-mix(in_oklab,var(--bg)_74%,transparent)] [backdrop-filter:blur(16px)]" />
         <Dialog.Content
-          /* No dismiss paths — acceptance is the only way through. */
+          /* No dismiss paths - acceptance is the only way through. */
           onEscapeKeyDown={(event) => event.preventDefault()}
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -63,8 +63,8 @@ export function TermsGate() {
             Before you start
           </Dialog.Title>
           <Dialog.Description className="mb-5 text-sm leading-[1.65] text-muted">
-            Jaisara pays cashback out of affiliate commission. Four things worth knowing — the full
-            terms are one click away.
+            Four things worth knowing before using Jaisara - the complete terms and privacy policy
+            are one click away.
           </Dialog.Description>
 
           <ol className="mb-5 flex max-h-[clamp(110px,22vh,190px)] flex-col gap-3.5 overflow-y-auto rounded-[14px] border border-hair-soft bg-surface-2 p-[18px]">

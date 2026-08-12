@@ -79,7 +79,7 @@ export function CouponPanel({ platforms }: { platforms: Resource<Platform[]> }) 
           <PanelHeader
             eyebrow="ADD"
             title="New coupon"
-            description="Create it at the firm first. This row only records what already exists on their side — it does not make the code work at their checkout."
+            description="Create it at the firm first. This row only records what already exists on their side - it does not make the code work at their checkout."
           />
           <form onSubmit={create} className="mt-3 grid gap-3">
             <div className="grid gap-3 md:grid-cols-2">
@@ -189,9 +189,9 @@ export function CouponPanel({ platforms }: { platforms: Resource<Platform[]> }) 
             {rows.map((coupon) => (
               <Tr key={coupon.id}>
                 <Td className="font-mono text-[12.5px]">{coupon.code}</Td>
-                <Td className="text-muted">{coupon.platform?.name ?? "—"}</Td>
+                <Td className="text-muted">{coupon.platform?.name ?? "-"}</Td>
                 <Td data-count className="font-mono">
-                  {coupon.discountPct ? `${coupon.discountPct}%` : "—"}
+                  {coupon.discountPct ? `${coupon.discountPct}%` : "-"}
                 </Td>
                 <Td className="whitespace-nowrap text-muted">
                   {coupon.startsAt || coupon.endsAt

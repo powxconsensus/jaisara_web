@@ -2,7 +2,7 @@
  * Shapes the console reads back from the API.
  *
  * These mirror the `select` blocks in the Nest controllers rather than the
- * Prisma models — the API deliberately returns less than it stores, and typing
+ * Prisma models - the API deliberately returns less than it stores, and typing
  * against the model would promise fields the wire never carries.
  */
 
@@ -70,7 +70,7 @@ export type ClaimStatus =
   | "REJECTED"
   /** Somebody already owns this order reference. */
   | "DUPLICATE"
-  /** Two plausible claimants — a human decides. */
+  /** Two plausible claimants - a human decides. */
   | "DISPUTED";
 
 /** The statuses `GET /admin/claims?status=` accepts. `DRAFT` is not one. */
@@ -123,7 +123,7 @@ export interface ClaimDetail extends Omit<ClaimSummary, "matchedOrder" | "user">
   };
   matchedOrder?: (ClaimOrder & Record<string, unknown>) | null;
   /**
-   * The conversion stores the whole commission plus the split frozen onto it —
+   * The conversion stores the whole commission plus the split frozen onto it -
    * the per-party amounts live in the ledger, not here. Typing them as columns
    * meant the review panel rendered `undefined` for all three.
    */
@@ -347,9 +347,15 @@ export type WithdrawalStatus =
 export interface Withdrawal {
   id: string;
   status: WithdrawalStatus;
-  kind: string;
+  method: "USDT" | "GIFT_CARD";
   points: string;
   feePoints: string;
+  netPoints: string;
+  grossAmountUsd: string;
+  feeUsd: string;
+  netAmountUsd: string;
+  autoPayEligible: boolean;
+  autoPayReason: string;
   requestedAt: string;
   processedAt?: string | null;
   externalTxId?: string | null;
@@ -374,7 +380,7 @@ export interface CommissionRule {
   /**
    * True when `effectiveFrom` is the sentinel the seeded default carries
    * rather than a date somebody chose. The API decides this, so the boundary
-   * is defined once — printing the sentinel as a date showed a start date the
+   * is defined once - printing the sentinel as a date showed a start date the
    * business did not exist on.
    */
   alwaysApplied?: boolean;
@@ -442,7 +448,7 @@ export interface CampaignDetail extends CampaignSummary {
   bodyText: string;
   /**
    * The studio's block document, if this campaign was written with it.
-   * `unknown` on purpose — the API stores it verbatim without interpreting it,
+   * `unknown` on purpose - the API stores it verbatim without interpreting it,
    * and `isEmailDesign` is what narrows it before use.
    */
   design?: unknown;
@@ -514,7 +520,7 @@ export interface BlogPost {
   excerpt?: string | null;
   body: string;
   coverUrl?: string | null;
-  /** Journal post or help article — the same object, two audiences. */
+  /** Journal post or help article - the same object, two audiences. */
   kind: "JOURNAL" | "HELP";
   tags: string[];
   seoTitle?: string | null;
@@ -581,7 +587,7 @@ export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
  * There is no field here from which a key could be reconstructed, and that is
  * deliberate rather than incidental: the API's response type is a different
  * shape from its database row, so a `select` gaining `ciphertext` cannot leak
- * one by accident. `tail` is four characters — enough to match a row against
+ * one by accident. `tail` is four characters - enough to match a row against
  * the provider's own dashboard, useless to anyone else.
  */
 export interface AiProviderKeyView {
@@ -616,7 +622,7 @@ export interface AiConfigOverview {
   /** Which list the API is serving from right now, not which one exists. */
   activeSource: "database" | "environment" | "none";
   environmentProviders: string[];
-  /** False when AI_KEY_ENCRYPTION_KEY is unset — no key can be stored. */
+  /** False when AI_KEY_ENCRYPTION_KEY is unset - no key can be stored. */
   canStoreKeys: boolean;
   warnings: string[];
 }

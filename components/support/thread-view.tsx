@@ -26,11 +26,11 @@ import { ErrorNote, Scroller, Skeleton, ago } from "./widget-ui";
  * ticket exists this is the assistant answering from the member's own rows;
  * after escalation it is the same thread with a person in it. Splitting them
  * would mean two message lists, two input boxes and two sets of scroll
- * behaviour that drift apart — and to the member it was always one conversation
+ * behaviour that drift apart - and to the member it was always one conversation
  * anyway.
  *
  * **The assistant leads.** It opens with a greeting and a question rather than
- * presenting an empty box, and it is the one that offers a human — as a pair of
+ * presenting an empty box, and it is the one that offers a human - as a pair of
  * buttons, at the point it has actually run out of road. A member never has to
  * find the escalation control, and the assistant never files a ticket on its
  * own judgement: the offer is made here, the decision is theirs.
@@ -138,7 +138,7 @@ export function ThreadView({
    * The assistant speaks first.
    *
    * A support widget that opens on an empty text box asks the member to do the
-   * hard part — work out what is worth saying. Greeting them and naming what it
+   * hard part - work out what is worth saying. Greeting them and naming what it
    * can look up gets a usable first message instead of "hi".
    */
   useEffect(() => {
@@ -172,7 +172,7 @@ export function ThreadView({
     setBusy(true);
     setError(null);
 
-    // A choice was taken, so its buttons must stop being pressable — otherwise
+    // A choice was taken, so its buttons must stop being pressable - otherwise
     // the member can answer the same question twice and confuse the stage.
     setMessages((prev) => prev.map((message) => ({ ...message, choices: null })));
 
@@ -210,7 +210,7 @@ export function ThreadView({
     }
   };
 
-  // Whatever brought them here is asked immediately — arriving at an empty box
+  // Whatever brought them here is asked immediately - arriving at an empty box
   // after clicking a specific question is a step backwards.
   useEffect(() => {
     if (!live || !seed || seeded.current || !userId) return;
@@ -265,13 +265,13 @@ export function ThreadView({
    * Staging a file.
    *
    * Uploaded now, bound to the ticket when it is opened. The size is checked
-   * here as well as in the API — not as a security measure, which it could
+   * here as well as in the API - not as a security measure, which it could
    * never be, but so an eight-megabyte screenshot fails instantly instead of
    * after a slow upload.
    */
   const attach = async (file: File) => {
     if (file.size > ATTACHMENT_MAX_BYTES) {
-      setError(`${file.name} is too large — attachments must be under 8MB.`);
+      setError(`${file.name} is too large - attachments must be under 8MB.`);
       return;
     }
 
@@ -321,7 +321,7 @@ export function ThreadView({
             {messages.map((message, index) => {
               const mine = message.from === "me";
               const agent = message.from === "agent";
-              // Only when the speaker changes — labelling every consecutive
+              // Only when the speaker changes - labelling every consecutive
               // message from the same person is noise, not information.
               const showWho = !mine && messages[index - 1]?.from !== message.from;
 
@@ -343,7 +343,7 @@ export function ThreadView({
                     </p>
                   )}
                   {/* A person's reply is club-tinted so it is unmistakably not
-                      the assistant — the whole promise of escalating is that
+                      the assistant - the whole promise of escalating is that
                       somebody read it, and the bubble should show that. */}
                   <div
                     className={cn(
@@ -452,7 +452,7 @@ export function ThreadView({
               </div>
             )}
 
-            {/* Only before the first message — once the assistant has greeted
+            {/* Only before the first message - once the assistant has greeted
                 and been answered, these would be a second conversation. */}
             {live && messages.length <= 1 && quickAsks.length > 0 && (
               <div className="flex flex-none flex-wrap gap-[7px]">

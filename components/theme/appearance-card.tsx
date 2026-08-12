@@ -5,7 +5,7 @@ import { useTheme } from "./use-theme";
 import { PalettePreviewTile } from "./palette-preview-tile";
 
 /**
- * Appearance settings (handoff §4.9) — the only place a user manages the
+ * Appearance settings (handoff §4.9) - the only place a user manages the
  * palette long-term; the navbar control is a quick switch.
  *
  * ONE grid of 15 tiles, headed with the mode it is previewing. Do not split it
@@ -13,7 +13,7 @@ import { PalettePreviewTile } from "./palette-preview-tile";
  * every family gained both sides. Mode is the toggle above, not a heading.
  *
  * When the brand palette is finally chosen this whole section reduces to that
- * single light/dark control — which is why it is a self-contained card that the
+ * single light/dark control - which is why it is a self-contained card that the
  * profile card knows nothing about.
  */
 export function AppearanceCard() {
@@ -23,7 +23,7 @@ export function AppearanceCard() {
     <section className="rounded-[18px] border border-hair bg-surface p-[clamp(20px,3vw,28px)]">
       <h2 className="mb-1.5 font-mono text-[9.5px] tracking-[0.22em] text-muted">APPEARANCE</h2>
       <p className="mb-5 text-[13px] leading-[1.6] text-muted">
-        Mode and palette are independent — every palette has a light and a dark side. Each tile is
+        Mode and palette are independent - every palette has a light and a dark side. Each tile is
         the real interface in that palette, so you can judge it without applying it.
       </p>
 

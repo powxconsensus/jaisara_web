@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { CopyInviteLink } from "@/components/dashboard/copy-invite-link";
 import { pointsToUsd, shortDate } from "@/lib/console-format";
+import { apiFetch } from "@/lib/api-fetch";
 
 /**
- * Jaisara Club (handoff §4.7) — a `--club`-tinted surface.
+ * Jaisara Club (handoff §4.7) - a `--club`-tinted surface.
  *
  * Standing, referrals and earnings are the member's own. Referred people are
  * shown by first name only, which is how the API returns them: who signed up
@@ -20,16 +21,15 @@ interface ClubStanding {
   clubScore: number;
   qualifiedReferrals: number;
   totalReferrals: number;
-  lifetimeVolumeUsd: string;
   clubEarnedPoints: string;
-  next: { tierKey: string; name: string; referralsNeeded: number; volumeNeededUsd: string } | null;
+  next: { tierKey: string; name: string; referralsNeeded: number } | null;
   referrals: { name: string; joinedAt: string; hasQualified: boolean }[];
 }
 
 const HOW_IT_PAYS = [
   "They buy a challenge with any Jaisara coupon.",
-  "They keep their full cashback — nothing is taken from them.",
-  "You get 20% of their cashback, from our platform cut.",
+  "They keep their full cashback - nothing is taken from them.",
+  "You receive a separate Club reward after their cashback is verified.",
 ];
 
 export function ClubView() {
@@ -37,7 +37,7 @@ export function ClubView() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/club", { cache: "no-store", signal: controller.signal })
+    void apiFetch("/api/club", { cache: "no-store", signal: controller.signal })
       .then(async (response) => (response.ok ? ((await response.json()) as ClubStanding) : null))
       .then((data) => {
         if (!controller.signal.aborted) setClub(data);
@@ -47,7 +47,7 @@ export function ClubView() {
   }, []);
 
   const stats = [
-    { label: "CODE", value: club?.referralCode ?? "—", tone: "" },
+    { label: "CODE", value: club?.referralCode ?? "-", tone: "" },
     { label: "REFERRED", value: String(club?.totalReferrals ?? 0), tone: "" },
     { label: "ACTIVE BUYERS", value: String(club?.qualifiedReferrals ?? 0), tone: "" },
     {
@@ -65,7 +65,7 @@ export function ClubView() {
       <h1 className="mb-7 font-display text-[clamp(25px,3.3vw,34px)] font-black uppercase leading-none tracking-[-0.02em]">
         Your invite,{" "}
         <span className="font-serif font-normal normal-case italic tracking-normal text-club">
-          your share.
+          more rewards.
         </span>
       </h1>
 
@@ -135,7 +135,7 @@ export function ClubView() {
                 className="col-start-3 row-start-1 justify-self-end font-mono text-[13.5px]"
                 style={{ color: person.hasQualified ? "var(--club)" : "var(--text-muted)" }}
               >
-                {person.hasQualified ? "ACTIVE" : "—"}
+                {person.hasQualified ? "ACTIVE" : "-"}
               </span>
             </div>
           ))}
@@ -163,7 +163,7 @@ export function ClubView() {
             style={{ borderColor: "color-mix(in oklab, var(--club) 34%, var(--hair))" }}
           >
             <p className="mb-2 font-mono text-[10px] tracking-[0.14em] text-club">
-              {club?.next ? `NEXT: ${club.next.name.toUpperCase()}` : `TIER ${club?.tierName ?? "—"}`}
+              {club?.next ? `NEXT: ${club.next.name.toUpperCase()}` : `TIER ${club?.tierName ?? "-"}`}
             </p>
             <p className="text-[12.5px] leading-[1.6] text-muted">
               {club?.next

@@ -18,7 +18,7 @@ import {
 /**
  * Every conversation, as a stack of receipt stubs.
  *
- * Closed threads stay — this list *is* the member's support history, and a
+ * Closed threads stay - this list *is* the member's support history, and a
  * resolved ticket is often the fastest answer to the same question a month
  * later. Each card prints its reference so a member can quote it in an email
  * and an agent can find it.
@@ -66,7 +66,7 @@ export function ThreadsView({
         <>
           {tickets.length === 0 && (
             <Note>
-              Nothing raised yet — most questions get answered straight from your account without
+              Nothing raised yet - most questions get answered straight from your account without
               one.
             </Note>
           )}

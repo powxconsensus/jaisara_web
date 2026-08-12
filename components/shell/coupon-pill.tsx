@@ -23,7 +23,7 @@ export function CouponPill({ className }: { className?: string }) {
       timer.current = setTimeout(() => setCopied(false), 1600);
       toast("Coupon copied");
     } catch {
-      toast("Could not copy — select the code manually", "warning");
+      toast("Could not copy - select the code manually", "warning");
     }
   }, [toast]);
 

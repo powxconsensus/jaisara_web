@@ -6,7 +6,7 @@ import {
   PALETTES,
 } from "@/lib/theme";
 
-/** Families whose bare CSS block is the light one — they open in light mode. */
+/** Families whose bare CSS block is the light one - they open in light mode. */
 const LIGHT_FIRST = PALETTES.filter((p) => p.nativeMode === "light").map((p) => p.key);
 
 /**

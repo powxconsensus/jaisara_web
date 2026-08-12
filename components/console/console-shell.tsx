@@ -16,10 +16,10 @@ import { cn } from "@/lib/cn";
  * The console frame.
  *
  * A fixed rail and a slim top bar around one scrolling pane, filling the
- * viewport — not a centred column inside the marketing shell. The console now
+ * viewport - not a centred column inside the marketing shell. The console now
  * lives in its own route group for exactly that reason: it was inheriting the
  * floating navbar, the footer and the member support widget, none of which
- * belong on an internal tool. The widget was the clearest tell — it invited
+ * belong on an internal tool. The widget was the clearest tell - it invited
  * the person answering tickets to open a ticket.
  *
  * Filling the viewport is not cosmetic. Every screen here is a table or a
@@ -30,7 +30,7 @@ import { cn } from "@/lib/cn";
  * Sections come from the account's live permissions, so a role change takes
  * effect on the next request without a deploy. An account with no console
  * permission at all gets the ordinary not-found page rather than "access
- * denied" — there is no reason to confirm to a stranger that this exists.
+ * denied" - there is no reason to confirm to a stranger that this exists.
  */
 
 const RAIL_KEY = "jaisara.console.rail";
@@ -55,7 +55,7 @@ function railCollapsed(): boolean {
  *
  * An external store rather than state seeded from an effect. The server cannot
  * know what this browser chose, so the server snapshot is always "expanded"
- * and React reconciles on hydration — which is both hydration-safe and what
+ * and React reconciles on hydration - which is both hydration-safe and what
  * the compiler's `set-state-in-effect` rule is asking for. Listening to
  * `storage` as well means two console tabs agree instead of drifting apart.
  */
@@ -80,7 +80,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   /**
    * Waiting work, marked on the rail.
    *
-   * Support is the one section whose queue nobody is prompted to open — a
+   * Support is the one section whose queue nobody is prompted to open - a
    * claim shows up because somebody is chasing it, a ticket just sits there.
    * Only fetched for accounts that can read the queue anyway.
    */

@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { useToast } from "@/components/shell/toast";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   ClaimDate,
   ClaimField,
@@ -60,10 +61,18 @@ function fileSize(bytes: number): string {
  */
 const FIELD_COUNT = Object.keys(EMPTY_CLAIM).length;
 
-/** The extension shown on the file chip — from the name, not assumed. */
+/** The extension shown on the file chip - from the name, not assumed. */
 function fileKindOf(name: string): string {
   const extension = /\.([a-z0-9]{1,5})$/i.exec(name)?.[1];
   return extension ? extension.toUpperCase() : "FILE";
+}
+
+function clipboardFile(blob: Blob): File {
+  const extension =
+    blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+  return new File([blob], `receipt-from-clipboard-${Date.now()}.${extension}`, {
+    type: blob.type || "image/jpeg",
+  });
 }
 
 const MODES: { key: Mode; label: string }[] = [
@@ -78,8 +87,8 @@ const DEFAULT_RATE = 10;
 /**
  * The on-screen estimate.
  *
- * Always an estimate, never a promise: the real figure is a share of the
- * commission the firm reports, which nobody knows until the report lands.
+ * Always an estimate, never a promise: the verified reward can differ from
+ * the storefront estimate when the final purchase record arrives.
  */
 function estimate(
   fields: ClaimFieldValues,
@@ -118,7 +127,7 @@ function EstimateBar({
           ESTIMATED CASHBACK / {result?.rate ?? DEFAULT_RATE}%
         </p>
         <p data-count className="font-mono text-2xl tracking-[-0.02em] text-primary">
-          {result ? money(result.amount) : "$ —"}
+          {result ? money(result.amount) : "$ -"}
         </p>
       </div>
       <div className="flex gap-2.5">
@@ -146,7 +155,7 @@ function EstimateBar({
 
 /**
  * Three routes to a claim (handoff §4.6). Manual is a first-class tab, not a
- * fallback link — parsing fails often enough that hiding it punishes the user.
+ * fallback link - parsing fails often enough that hiding it punishes the user.
  */
 export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
   const router = useRouter();
@@ -159,7 +168,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
   const [storageKey, setStorageKey] = useState<string | null>(null);
   /** The manual tab's attachment: null, mid-upload, or done. */
   const [attached, setAttached] = useState<AttachedReceipt | null>(null);
-  /** Measured, not guessed — see the parsed-file header below. */
+  /** Measured, not guessed - see the parsed-file header below. */
   const [parseMs, setParseMs] = useState<number | null>(null);
   const [concerns, setConcerns] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -176,11 +185,11 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
   /**
    * Uploads the receipt and shows what the parser made of it.
    *
-   * The parser proposes and the member confirms — every field stays editable,
+   * The parser proposes and the member confirms - every field stays editable,
    * and a failed parse degrades to an empty form rather than blocking the
    * claim. That is why the upload result is used to *prefill*, never to submit.
    */
-  const startParse = async (file: File) => {
+  const startParse = useCallback(async (file: File) => {
     setFileName(file.name);
     setStage("parsing");
     setDragging(false);
@@ -193,7 +202,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
     try {
       const body = new FormData();
       body.set("file", file);
-      const response = await fetch("/api/claims/receipt", { method: "POST", body });
+      const response = await apiFetch("/api/claims/receipt", { method: "POST", body });
       const result = await response.json().catch(() => null);
       setParseMs(performance.now() - startedAt);
 
@@ -225,24 +234,24 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
       setError("The claims service is unavailable. Please try again.");
       setStage("idle");
     }
-  };
+  }, []);
 
   /**
    * Attaches a receipt to a claim being typed by hand.
    *
    * Deliberately *not* `startParse`. That one overwrites every field with what
    * the parser read, which is right when the receipt is the source of the
-   * claim and destructive here — it would wipe what somebody had just finished
+   * claim and destructive here - it would wipe what somebody had just finished
    * typing. This uploads for the reviewer's benefit and touches nothing else.
    */
-  const attachReceipt = async (file: File) => {
+  const attachReceipt = useCallback(async (file: File) => {
     setAttached({ state: "uploading", name: file.name, size: file.size });
     setError(null);
 
     try {
       const body = new FormData();
       body.set("file", file);
-      const response = await fetch("/api/claims/receipt", { method: "POST", body });
+      const response = await apiFetch("/api/claims/receipt", { method: "POST", body });
       const result = await response.json().catch(() => null);
 
       if (!response.ok) {
@@ -257,10 +266,67 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
       setAttached(null);
       setError("The claims service is unavailable. Please try again.");
     }
-  };
+  }, []);
+
+  const pasteFromClipboard = useCallback(async () => {
+    if (!navigator.clipboard?.read) {
+      setError(
+        "Clipboard image access is unavailable in this browser. Press Ctrl+V or Cmd+V instead.",
+      );
+      return;
+    }
+
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+        if (!imageType) continue;
+
+        const file = clipboardFile(await item.getType(imageType));
+        if (mode === "manual") await attachReceipt(file);
+        else {
+          setMode("upload");
+          await startParse(file);
+        }
+        return;
+      }
+      setError("The clipboard does not contain an image. Copy a receipt screenshot and try again.");
+    } catch {
+      setError("Clipboard access was blocked. Allow clipboard permission, or press Ctrl+V / Cmd+V.");
+    }
+  }, [attachReceipt, mode, startParse]);
+
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.matches("input, textarea") || target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const image = Array.from(event.clipboardData?.items ?? []).find((item) =>
+        item.type.startsWith("image/"),
+      );
+      const blob = image?.getAsFile();
+      if (!blob) return;
+
+      event.preventDefault();
+      const file = clipboardFile(blob);
+      if (mode === "manual") void attachReceipt(file);
+      else {
+        setMode("upload");
+        void startParse(file);
+      }
+    };
+
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [attachReceipt, mode, startParse]);
 
   const detachReceipt = () => {
-    // The object stays in the bucket — it counts against the day's uploads
+    // The object stays in the bucket - it counts against the day's uploads
     // either way, and pretending otherwise would need a delete endpoint that
     // exists only to make a number look better.
     setAttached(null);
@@ -287,14 +353,14 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
       return;
     }
     if (!fields.order.trim()) {
-      setError("The order number is what the match is keyed on — it cannot be blank.");
+      setError("The order number is what the match is keyed on - it cannot be blank.");
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/claims", {
+      const response = await apiFetch("/api/claims", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -314,7 +380,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
         return;
       }
 
-      toast("Claim submitted — we'll review it once the firm reports the order.", "success");
+      toast("Claim submitted - we'll review it once the firm reports the order.", "success");
       router.push("/dashboard");
       router.refresh();
     } catch {
@@ -438,7 +504,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
                     </p>
                   </div>
                   {/* Status, not a switch. Whether a firm can auto-match is a
-                      property of that firm's reporting — there is no
+                      property of that firm's reporting - there is no
                       per-member setting behind it, and a toggle that stores
                       nothing is worse than no toggle. */}
                   <span
@@ -456,7 +522,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
               );
             })}
             <p className="pt-3.5 text-xs leading-[1.6] text-muted">
-              Firms without auto-claim still work — upload the receipt or enter it manually.
+              Firms without auto-claim still work - upload the receipt or enter it manually.
             </p>
           </div>
         </div>
@@ -465,12 +531,6 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
       {mode === "upload" && stage === "idle" && (
         <>
           <div
-            role="button"
-            tabIndex={0}
-            onClick={() => inputRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") inputRef.current?.click();
-            }}
             onDragOver={(event) => {
               event.preventDefault();
               setDragging(true);
@@ -481,7 +541,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
               const file = event.dataTransfer.files?.[0];
               if (file) void startParse(file);
             }}
-            className="cursor-pointer rounded-[18px] border-[1.5px] border-dashed px-[30px] py-[clamp(36px,6vw,60px)] text-center transition-all"
+            className="rounded-[18px] border-[1.5px] border-dashed px-[30px] py-[clamp(36px,6vw,60px)] text-center transition-all"
             style={{
               borderColor: dragging ? "var(--primary)" : "var(--hair)",
               background: dragging
@@ -494,17 +554,33 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
             </span>
             <p className="mb-2 font-display text-[17px] font-bold">Drop the receipt here</p>
             <p className="mb-[18px] font-mono text-[10px] tracking-[0.08em] text-muted">
-              PDF / PNG / JPG OF THE ORDER EMAIL — MAX 10MB
+              PDF / PNG / JPG OF THE ORDER EMAIL - MAX 10MB
             </p>
-            <span className="inline-block rounded-[10px] border border-hair bg-bg px-[18px] py-[11px] font-mono text-[10.5px] font-medium uppercase tracking-[0.12em]">
-              Choose file
-            </span>
+            <div className="flex flex-wrap justify-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="cursor-pointer rounded-[10px] border border-hair bg-bg px-[18px] py-[11px] font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] transition hover:border-primary"
+              >
+                Upload file
+              </button>
+              <button
+                type="button"
+                onClick={() => void pasteFromClipboard()}
+                className="cursor-pointer rounded-[10px] border border-primary bg-[color-mix(in_oklab,var(--primary)_8%,transparent)] px-[18px] py-[11px] font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-primary transition hover:bg-[color-mix(in_oklab,var(--primary)_14%,transparent)]"
+              >
+                Paste from clipboard
+              </button>
+            </div>
+            <p className="mt-3 font-mono text-[9px] tracking-[0.08em] text-muted">
+              CTRL+V OR CMD+V ALSO WORKS
+            </p>
           </div>
 
           <div className="mt-3.5 flex items-center gap-[11px] rounded-[12px] border border-hair bg-surface px-[17px] py-3.5">
             <span className="size-1.5 flex-none rounded-[2px] bg-info" />
             <span className="text-[12.5px] leading-[1.5] text-muted">
-              Bought without a Jaisara coupon? Cashback can&rsquo;t be tracked — but you can still
+              Bought without a Jaisara coupon? Cashback can&rsquo;t be tracked - but you can still
               claim the Club bonus.
             </span>
           </div>
@@ -539,8 +615,8 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
 
       {mode === "upload" && stage === "parsed" && (
         <div className="rounded-card border border-hair bg-surface p-[clamp(20px,3vw,28px)] [animation:jsIn_.3s_ease_both]">
-          {/* Both figures here were once fixed strings — "PARSED IN 1.4S" and
-              "5 FIELDS FOUND" — printed whatever actually happened. They are a
+          {/* Both figures here were once fixed strings - "PARSED IN 1.4S" and
+              "5 FIELDS FOUND" - printed whatever actually happened. They are a
               claim about the member's own file, so a wrong one is not a
               cosmetic issue: somebody who saw "5 fields found" above two blank
               boxes would reasonably conclude the form had lost their data. */}
@@ -569,7 +645,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
               }
             >
               {filledCount === 0
-                ? "NOTHING READ — TYPE IT IN"
+                ? "NOTHING READ - TYPE IT IN"
                 : `${filledCount} OF ${FIELD_COUNT} FIELDS FOUND`}
             </span>
           </div>
@@ -614,19 +690,30 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
               silence and the row still read "attach the receipt", which is
               indistinguishable from nothing having happened. */}
           {attached === null ? (
-            <button
-              type="button"
-              onClick={() => attachRef.current?.click()}
-              className="mt-3.5 flex w-full cursor-pointer items-center gap-3 rounded-[12px] border border-dashed px-4 py-3.5 text-left transition hover:border-primary"
-              style={{ borderColor: "color-mix(in oklab, var(--text) 20%, transparent)" }}
-            >
-              <span className="grid size-7 flex-none place-items-center rounded-lg bg-surface-2 text-primary">
-                ↑
-              </span>
-              <span className="text-[12.5px] text-muted">
-                Attach the receipt too (optional, speeds up review)
-              </span>
-            </button>
+            <div className="mt-3.5 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => attachRef.current?.click()}
+                className="flex cursor-pointer items-center gap-3 rounded-[12px] border border-dashed px-4 py-3.5 text-left transition hover:border-primary"
+                style={{ borderColor: "color-mix(in oklab, var(--text) 20%, transparent)" }}
+              >
+                <span className="grid size-7 flex-none place-items-center rounded-lg bg-surface-2 text-primary">
+                  ↑
+                </span>
+                <span className="text-[12.5px] text-muted">Upload receipt (optional)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void pasteFromClipboard()}
+                className="flex cursor-pointer items-center gap-3 rounded-[12px] border border-dashed px-4 py-3.5 text-left transition hover:border-primary"
+                style={{ borderColor: "color-mix(in oklab, var(--text) 20%, transparent)" }}
+              >
+                <span className="grid size-7 flex-none place-items-center rounded-lg bg-surface-2 text-primary">
+                  ⌘
+                </span>
+                <span className="text-[12.5px] text-muted">Paste from clipboard</span>
+              </button>
+            </div>
           ) : (
             <div
               className="mt-3.5 flex items-center gap-3 rounded-[12px] border border-hair bg-surface-2 px-4 py-3.5"
@@ -693,7 +780,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
  * The six fields, wherever they appear.
  *
  * One component for the parsed-confirm and manual paths because they ask for
- * exactly the same things — the only difference is whether the values arrived
+ * exactly the same things - the only difference is whether the values arrived
  * from a receipt, which is what `badges` says.
  *
  * Firm, plan and coupon come from the catalogue. That is not a convenience: a
@@ -717,11 +804,11 @@ function ClaimFields({
     (entry) => entry.name.toLowerCase() === fields.firm.trim().toLowerCase(),
   );
 
-  // Plans belong to a firm, so the list is empty until one is chosen — and
+  // Plans belong to a firm, so the list is empty until one is chosen - and
   // picking a different firm has to clear a plan that no longer exists.
   const plans = (firm?.plans ?? []).map((plan) => ({
     value: plan.name,
-    label: plan.listPrice ? `${plan.name} — $${Math.round(Number(plan.listPrice))}` : plan.name,
+    label: plan.listPrice ? `${plan.name} - $${Math.round(Number(plan.listPrice))}` : plan.name,
     group: plan.family,
   }));
 
@@ -739,7 +826,7 @@ function ClaimFields({
         options={platforms.map((entry) => ({ value: entry.name, label: entry.name }))}
         placeholder="Which firm did you buy from?"
         allowOther
-        otherLabel="Another firm — type it in"
+        otherLabel="Another firm - type it in"
         onChange={(value) => {
           set("firm")(value);
           // The old plan belonged to the old firm. Keeping it would submit a
@@ -755,7 +842,7 @@ function ClaimFields({
         options={plans}
         placeholder={firm ? "Which account did you buy?" : "Choose a firm first"}
         allowOther
-        otherLabel="Not listed — type it in"
+        otherLabel="Not listed - type it in"
         onChange={set("plan")}
       />
 
@@ -789,7 +876,7 @@ function ClaimFields({
         value={fields.coupon || HOUSE_COUPON}
         options={coupons}
         allowOther
-        otherLabel="A different code — type it in"
+        otherLabel="A different code - type it in"
         onChange={set("coupon")}
       />
     </div>

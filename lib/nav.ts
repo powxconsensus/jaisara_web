@@ -15,7 +15,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Journal", href: "/journal" },
 ];
 
-/** The full-screen menu index — numbered 01–07 with no gaps (handoff §6). */
+/** The full-screen menu index - numbered 01-07 with no gaps (handoff §6). */
 export const MENU_NAV: NavItem[] = [
   { label: "Deals", href: "/deals" },
   { label: "Estimator", href: "/#estimator" },

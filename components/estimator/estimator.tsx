@@ -12,14 +12,14 @@ import { LockedOptions, OptionChip, StepShell } from "./step-shell";
 type Step = 1 | 2 | 3 | 4;
 
 /**
- * [03] RUN YOUR NUMBERS — the cashback estimator (handoff §5).
+ * [03] RUN YOUR NUMBERS - the cashback estimator (handoff §5).
  *
  * Four dependent steps: firm → challenge type → account size → optional Club
  * tier. Each unlocks the next; choosing a firm resets the answers below it,
  * because prices depend on the firm.
  *
  * At ≥1024px it is two columns with a sticky result, so the figure never
- * leaves the screen while choosing. Below that it becomes a wizard — one step
+ * leaves the screen while choosing. Below that it becomes a wizard - one step
  * at a time, config and result never stacked. Going back via an EDIT chip
  * preserves every other answer.
  */
@@ -34,7 +34,11 @@ export function Estimator({ firms = [] }: { firms?: EstimatorFirm[] }) {
   const isWide = useMediaQuery("(min-width: 1024px)");
 
   const planChosen = firm !== null && planIndex !== null;
-  const sizeChosen = planChosen && sizeIndex !== null;
+  const selectedPlan = planChosen ? firm.plans[planIndex] : null;
+  const availableProducts =
+    firm && selectedPlan ? firm.products.filter((product) => product.plan === selectedPlan) : [];
+  const selectedProduct = sizeIndex === null ? null : (availableProducts[sizeIndex] ?? null);
+  const sizeChosen = selectedProduct !== null;
 
   // Choosing a firm invalidates the answers that depend on it.
   const chooseFirm = (next: EstimatorFirm) => {
@@ -63,8 +67,8 @@ export function Estimator({ firms = [] }: { firms?: EstimatorFirm[] }) {
 
   const editChips = [
     { step: 1 as Step, key: "FIRM", value: firm?.name },
-    { step: 2 as Step, key: "TYPE", value: planChosen ? firm.plans[planIndex] : null },
-    { step: 3 as Step, key: "SIZE", value: sizeChosen ? firm.sizes[sizeIndex].label : null },
+    { step: 2 as Step, key: "TYPE", value: selectedPlan },
+    { step: 3 as Step, key: "SIZE", value: selectedProduct?.label },
   ].filter((chip) => chip.value);
 
   // In wizard mode only the active step renders; on wide screens all of them do.
@@ -92,7 +96,7 @@ export function Estimator({ firms = [] }: { firms?: EstimatorFirm[] }) {
           <StepShell index="01" title="Prop firm" chosen={firm?.name}>
             <div className="mb-3.5 flex items-center justify-between gap-3">
               <span className="font-mono text-[9px] tracking-[0.1em] text-muted">
-                {firms.length} LISTED — TYPE TO SEARCH
+                {firms.length} LISTED - TYPE TO SEARCH
               </span>
             </div>
             <FirmCombobox value={firm} onChange={chooseFirm} firms={firms} />
@@ -103,7 +107,7 @@ export function Estimator({ firms = [] }: { firms?: EstimatorFirm[] }) {
           <StepShell
             index="02"
             title="Challenge type"
-            chosen={planChosen ? firm.plans[planIndex] : null}
+            chosen={selectedPlan}
             lockedHint={firm ? undefined : "CHOOSE A FIRM FIRST"}
             onReopen={planChosen ? () => editStep(2) : undefined}
           >
@@ -130,20 +134,20 @@ export function Estimator({ firms = [] }: { firms?: EstimatorFirm[] }) {
           <StepShell
             index="03"
             title="Account size"
-            chosen={sizeChosen ? firm.sizes[sizeIndex].label : null}
+            chosen={selectedProduct?.label}
             lockedHint={planChosen ? undefined : "PICK THE CHALLENGE FIRST"}
             onReopen={sizeChosen ? () => editStep(3) : undefined}
           >
             {planChosen ? (
               <div className="mb-4 flex flex-wrap gap-[7px] [animation:jsUp_.3s_both] md:mb-6">
-                {firm.sizes.map((size, index) => (
+                {availableProducts.map((product, index) => (
                   <OptionChip
-                    key={size.label}
+                    key={product.slug}
                     selected={sizeIndex === index}
                     onClick={() => chooseSize(index)}
                     className="font-mono"
                   >
-                    {size.label}
+                    {product.label}
                   </OptionChip>
                 ))}
               </div>
@@ -200,13 +204,13 @@ export function Estimator({ firms = [] }: { firms?: EstimatorFirm[] }) {
       className="mx-auto max-w-[var(--maxw)] scroll-mt-[118px] px-[var(--pad)] pb-[var(--secpb)] pt-[var(--secpt)]"
     >
       <div className="mb-[var(--secpb)] flex flex-wrap items-end justify-between gap-[18px]">
-        <SectionHeading index="03" eyebrow="Run your numbers">
+        <SectionHeading eyebrow="Run your numbers">
           How much
           <br />
           would <Accent>you</Accent> get back?
         </SectionHeading>
         <p className="m-0 max-w-[36ch] text-sm leading-[1.65] text-muted">
-          Pick a firm and an account size. Indicative — the final figure is confirmed once the
+          Pick a firm and account. The final figure is confirmed once the
           purchase is verified.
         </p>
       </div>
@@ -242,7 +246,7 @@ export function Estimator({ firms = [] }: { firms?: EstimatorFirm[] }) {
 
             <ResultLedger
               firm={firm}
-              sizeIndex={sizeIndex}
+              product={selectedProduct}
               tierIndex={tierIndex}
               onEdit={done && !isWide ? () => editStep(1) : undefined}
             />

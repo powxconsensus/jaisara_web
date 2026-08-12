@@ -1,11 +1,11 @@
 /**
  * Support assistant knowledge. A deterministic keyword matcher stands in for
- * the real support backend — the shape (question in, answer out) is what the
+ * the real support backend - the shape (question in, answer out) is what the
  * UI depends on, so swapping in a real service touches only `botReply`.
  */
 
 export const GREETING =
-  "Hi — I can help with cashback, claims, payouts and the Club. What do you need?";
+  "Hi - I can help with cashback, claims, payouts and the Club. What do you need?";
 
 export const QUICK_ASKS = [
   "When does pending clear?",
@@ -17,12 +17,12 @@ const RULES: { match: RegExp; answer: string }[] = [
   {
     match: /pending|clear|how long|when/,
     answer:
-      "Cashback sits as Pending until the firm’s refund window closes — usually 30 days from the order date. It then moves to Available and you can withdraw it.",
+      "Cashback sits as Pending until the applicable firm refund window closes. It then moves to Available and you can withdraw it.",
   },
   {
     match: /withdraw|payout|paid|money|gift|card|amazon/,
     answer:
-      "Minimum payout is $20. USDT (TRC-20) lands within 24 hours, and gift cards — Amazon, Apple, Google Play and others — are emailed within 24 hours with a 5% bonus.",
+      "Your wallet shows the current minimum and enabled payout methods. Before a USDT request, you see the selected network, fee and net amount; available gift-card denominations appear in the same withdrawal screen.",
   },
   {
     match: /coupon|code|discount|checkout/,
@@ -32,7 +32,7 @@ const RULES: { match: RegExp; answer: string }[] = [
   {
     match: /refer|club|invite|friend/,
     answer:
-      "Your Club link is in the dashboard. You keep 20% of the cashback earned by everyone you refer, paid from our share — they still get their full cashback.",
+      "Your Club link is in the dashboard. You earn a separate reward when eligible referrals earn cashback, and they still receive their full advertised amount.",
   },
   {
     match: /claim|receipt|upload|parse|manual|auto/,
@@ -42,7 +42,7 @@ const RULES: { match: RegExp; answer: string }[] = [
   {
     match: /reject|denied|problem|wrong|missing/,
     answer:
-      "Sorry about that. I can pass this to the review team with your last claim attached — want me to?",
+      "Sorry about that. I can pass this to the review team with your last claim attached - want me to?",
   },
 ];
 
@@ -55,6 +55,6 @@ export function botReply(question: string): string {
 }
 
 export const HUMAN_GREETING =
-  "Meera from support here — I can see your last three claims. What went wrong?";
+  "Meera from support here - I can see your last three claims. What went wrong?";
 
-export const HUMAN_ACK = "Meera here — got it, checking your account now. Give me a moment.";
+export const HUMAN_ACK = "Meera here - got it, checking your account now. Give me a moment.";

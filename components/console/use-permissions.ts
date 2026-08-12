@@ -18,7 +18,7 @@ export interface Access {
 /**
  * What the signed-in account may do.
  *
- * This decides what to *render*. It is not the check that protects anything —
+ * This decides what to *render*. It is not the check that protects anything -
  * every one of these permissions is enforced again by the API on each request,
  * so a tampered client gets a 403 rather than an action.
  */

@@ -6,7 +6,7 @@ import Link from "next/link";
  * What replaces the signup form once the link is on its way.
  *
  * The form used to stay on screen with a notice bolted underneath it, which
- * reads as "something went wrong, try again" — every control that got you here
+ * reads as "something went wrong, try again" - every control that got you here
  * is still lit, still inviting a second press, and the one instruction that
  * matters is competing with a password field for attention.
  *
@@ -24,7 +24,7 @@ export function VerificationSent({
   onBack,
 }: {
   email: string;
-  /** False when a still-valid link was already sent — do not claim a new one. */
+  /** False when a still-valid link was already sent - do not claim a new one. */
   emailSent: boolean;
   pending: boolean;
   /** A failed resend. Shown here because there is no form left to show it on. */
@@ -49,7 +49,7 @@ export function VerificationSent({
           </h1>
         </div>
 
-        {/* Punched edge — the same device the support desk and the receipt deck
+        {/* Punched edge - the same device the support desk and the receipt deck
             use, so this reads as a Jaisara document rather than a modal. */}
         <div
           aria-hidden
@@ -66,7 +66,7 @@ export function VerificationSent({
               ? "We sent a sign-in link to"
               : "A link is already on its way to"}
           </p>
-          {/* The address is the one fact worth reading twice — a typo here is
+          {/* The address is the one fact worth reading twice - a typo here is
               the single most common reason nothing arrives, and it is still
               fixable from this screen. */}
           <p className="mt-1.5 break-all font-mono text-[14.5px] tracking-[-0.01em] text-primary">
@@ -75,7 +75,7 @@ export function VerificationSent({
 
           <div className="mt-5 space-y-2.5 border-t border-hair-soft pt-5">
             <Detail label="EXPIRES">One hour from now</Detail>
-            <Detail label="USES">Once — the link stops working after you open it</Detail>
+            <Detail label="USES">Once - the link stops working after you open it</Detail>
             <Detail label="NOT THERE?">Check spam, and search for “Jaisara”</Detail>
           </div>
 

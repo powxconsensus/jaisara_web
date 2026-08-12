@@ -10,9 +10,9 @@ import { useTheme } from "./use-theme";
  * two clicks" bug a document-level click listener caused (handoff §6).
  *
  * Swatches preview the *current mode*, because that is what picking one will
- * give you — the mode toggle beside it is the other axis and is not touched.
+ * give you - the mode toggle beside it is the other axis and is not touched.
  *
- * This is the *quick* switch — Account → Appearance is where a user manages the
+ * This is the *quick* switch - Account → Appearance is where a user manages the
  * palette long-term. Both disappear once the brand palette is chosen.
  */
 export function PaletteMenu() {

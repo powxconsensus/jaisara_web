@@ -11,7 +11,7 @@ import { apiErrorMessage } from "@/lib/auth-types";
  * Confirm-first rather than one-click, and that distinction is deliberate:
  * mail providers get a true one-click endpoint through the `List-Unsubscribe`
  * header, which is what the standard requires and what keeps us deliverable.
- * A person who *clicked a link in the footer* is a different case — half of
+ * A person who *clicked a link in the footer* is a different case - half of
  * them are annoyed by one particular email, not by hearing from us at all, and
  * the honest thing is to say what they lose and offer the smaller door.
  *
@@ -52,7 +52,7 @@ export function UnsubscribePanel({ token }: { token: string }) {
       <Shell eyebrow="[ LINK NOT VALID ]" title="This link has expired">
         <p className="text-[13.5px] leading-7 text-muted">
           Unsubscribe links are unique to one member. If you copied this one by hand, some of it
-          may be missing — open the link in the email itself instead.
+          may be missing - open the link in the email itself instead.
         </p>
         <p className="mt-4 text-[13.5px] leading-7 text-muted">
           You can also turn the newsletter off from{" "}
@@ -69,7 +69,7 @@ export function UnsubscribePanel({ token }: { token: string }) {
     return (
       <Shell eyebrow="[ DONE ]" title="You're off the newsletter">
         <p className="text-[13.5px] leading-7 text-muted">
-          No more campaign emails. It takes effect immediately — anything already on its way out
+          No more campaign emails. It takes effect immediately - anything already on its way out
           may still land, but nothing new will be sent.
         </p>
         <div
@@ -100,7 +100,7 @@ export function UnsubscribePanel({ token }: { token: string }) {
   return (
     <Shell eyebrow="[ BEFORE YOU GO ]" title="Unsubscribe from the newsletter?">
       <p className="text-[13.5px] leading-7 text-muted">
-        We send it when there is something worth sending — a new firm listed, a coupon that beats
+        We send it when there is something worth sending - a new firm listed, a coupon that beats
         the one you used, a change to how cashback is paid. It is the only way to hear about a
         better rate on a challenge you were already going to buy.
       </p>
@@ -109,7 +109,7 @@ export function UnsubscribePanel({ token }: { token: string }) {
         {[
           "New firms and challenges as they are added",
           "Coupon changes that lower what you pay",
-          "Occasional — not weekly, and never sold to anyone",
+          "Occasional - not weekly, and never sold to anyone",
         ].map((line) => (
           <li key={line} className="flex gap-2.5 text-[13px] leading-6 text-muted">
             <span aria-hidden className="mt-[7px] size-1.5 flex-none rounded-full bg-primary" />
@@ -139,7 +139,7 @@ export function UnsubscribePanel({ token }: { token: string }) {
       )}
 
       <div className="mt-7 flex flex-wrap gap-2.5">
-        {/* The primary action is *staying* — but unsubscribing is one press
+        {/* The primary action is *staying* - but unsubscribing is one press
             away, in full contrast, not a grey link in the corner. A dark
             pattern here costs more than the subscriber: it earns a spam
             complaint, and those are what get a sending domain suspended. */}

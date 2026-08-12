@@ -35,7 +35,7 @@ import { ImagePickerButton, useImageUpload } from "./image-upload";
  *
  * Two decisions carry this screen. The writing column is capped at a reading
  * measure and set in the same type as the published article, so what an author
- * composes already looks like what a reader gets — the reason a bare textarea
+ * composes already looks like what a reader gets - the reason a bare textarea
  * produces walls of text is that it gives no sense of the finished page. And
  * the preview reuses the *same* `MarkdownBody` the public post renders with,
  * so there is no second implementation to drift out of sync.
@@ -67,7 +67,7 @@ type PostKind = "JOURNAL" | "HELP";
  * Where a piece is published to.
  *
  * The same editor writes both because they are the same object: markdown, a
- * title, a publish permission. What differs is only who reads it — a journal
+ * title, a publish permission. What differs is only who reads it - a journal
  * post is a page on the marketing site, a help article is an answer inside the
  * support widget. Making that a dropdown rather than a second screen means the
  * help centre gets the toolbar, the preview and the image upload for free.
@@ -171,7 +171,7 @@ export function JournalStudio() {
     setSelectedId(result.id);
     setStatus(result.status);
     // The server may have normalised the slug, so the snapshot is taken from
-    // what the form becomes — not from what was sent.
+    // what the form becomes - not from what was sent.
     const stored = { ...form, slug: result.slug };
     setForm(stored);
     setSaved(JSON.stringify(stored));
@@ -225,7 +225,7 @@ export function JournalStudio() {
       {/* Two panes filling the frame, each scrolling on its own. Before this
           the post list capped at 62vh and the editor pushed the page down, so
           writing a long post scrolled the list, the toolbar and the title out
-          of reach — in a tool where the list is how you switch between drafts. */}
+          of reach - in a tool where the list is how you switch between drafts. */}
       <div className="grid min-h-0 flex-1 gap-2 xl:grid-cols-[248px_minmax(0,1fr)]">
         <aside className="flex min-h-0 flex-col gap-2">
           <Button className="w-full" onClick={startNew}>
@@ -261,15 +261,15 @@ export function JournalStudio() {
         </aside>
 
         {/* A document editor, not a page that happens to contain a textarea.
-            Three fixed regions — a meta strip, the writing surface, and the
-            actions — so the Save button is always where you left it and the
+            Three fixed regions - a meta strip, the writing surface, and the
+            actions - so the Save button is always where you left it and the
             surface takes exactly the height that is left. The previous version
             let the textarea define the panel's height and put the actions
             below it after a rule, which on an empty draft rendered as a title,
             a wall of nothing, and a button floating in the middle of it. */}
         <Panel className="flex min-h-0 min-w-0 flex-col overflow-hidden">
           <form onSubmit={save} className="flex min-h-0 flex-1 flex-col">
-            {/* One bar, not two. State on the left, actions on the right —
+            {/* One bar, not two. State on the left, actions on the right -
                 the previous version put the save button in its own row along
                 the bottom, which cost a second border and 40px on every screen
                 to separate two things that are read together: "what is this
@@ -388,7 +388,7 @@ export function JournalStudio() {
                     setForm((previous) => ({
                       ...previous,
                       title,
-                      // Auto-slug only until the author edits it themselves —
+                      // Auto-slug only until the author edits it themselves -
                       // a published URL must never move under a typo fix.
                       slug: slugTouched ? previous.slug : slugify(title),
                     }));
@@ -436,7 +436,7 @@ export function JournalStudio() {
 
               {view === "details" && (
                 <div className="grid gap-4">
-                  {/* First, because it changes what every field below means —
+                  {/* First, because it changes what every field below means -
                       a slug that is a URL versus one nobody ever types. */}
                   <div>
                     <FieldLabel htmlFor="post-kind">PUBLISH AS</FieldLabel>
@@ -491,7 +491,7 @@ export function JournalStudio() {
                         {status === "PUBLISHED" && (
                           <span className="text-warning">
                             {" "}
-                            — changing this breaks every existing link.
+                            - changing this breaks every existing link.
                           </span>
                         )}
                       </p>
@@ -501,8 +501,8 @@ export function JournalStudio() {
                   <div>
                     <FieldLabel htmlFor="post-excerpt">
                       {form.kind === "HELP"
-                        ? "EXCERPT — THE ONE-LINE ANSWER SHOWN UNDER THE TITLE"
-                        : "EXCERPT — SHOWN ON THE JOURNAL INDEX"}
+                        ? "EXCERPT - THE ONE-LINE ANSWER SHOWN UNDER THE TITLE"
+                        : "EXCERPT - SHOWN ON THE JOURNAL INDEX"}
                     </FieldLabel>
                     <Textarea
                       id="post-excerpt"
@@ -560,7 +560,7 @@ export function JournalStudio() {
                   <div className="grid gap-3 md:grid-cols-2">
                     <div>
                       <FieldLabel htmlFor="post-seo-title">
-                        SEO TITLE — DEFAULTS TO THE POST TITLE
+                        SEO TITLE - DEFAULTS TO THE POST TITLE
                       </FieldLabel>
                       <TextInput
                         id="post-seo-title"
@@ -607,7 +607,7 @@ export function JournalStudio() {
             <>
               <strong className="text-fg">{form.title || "This post"}</strong> goes live at{" "}
               <span className="font-mono text-[11.5px] text-fg">/journal/{form.slug}</span> and
-              becomes publicly readable and indexable. Save any unsaved edits first — publishing
+              becomes publicly readable and indexable. Save any unsaved edits first - publishing
               takes what is stored, not what is on screen.
             </>
           ) : (
@@ -628,7 +628,7 @@ export function JournalStudio() {
  * The rail beside the editor shows a title, a status and a timestamp, which is
  * enough to switch drafts and not enough to answer "what have we published",
  * "which of these has no excerpt", or "what is this one's URL". This is that
- * answer — and clicking a row opens it in the editor, so it is a way in rather
+ * answer - and clicking a row opens it in the editor, so it is a way in rather
  * than a dead end.
  */
 function PostTable({ posts, onOpen }: { posts: BlogPost[]; onOpen: (post: BlogPost) => void }) {
@@ -661,7 +661,7 @@ function PostTable({ posts, onOpen }: { posts: BlogPost[]; onOpen: (post: BlogPo
               <Td>
                 <span className="block max-w-[280px] truncate font-medium">{post.title}</span>
                 {/* An empty excerpt is not an error, but it is what the card on
-                    /journal falls back to — worth seeing at a glance. */}
+                    /journal falls back to - worth seeing at a glance. */}
                 <span className="mt-0.5 block max-w-[280px] truncate text-[length:var(--ct-label)] text-muted">
                   {post.excerpt?.trim() || "No excerpt"}
                 </span>
@@ -678,7 +678,7 @@ function PostTable({ posts, onOpen }: { posts: BlogPost[]; onOpen: (post: BlogPo
                 /{post.slug}
               </Td>
               <Td className="text-[length:var(--ct-label)] text-muted">
-                {post.tags.length > 0 ? post.tags.join(", ") : "—"}
+                {post.tags.length > 0 ? post.tags.join(", ") : "-"}
               </Td>
               <Td className="whitespace-nowrap text-muted">
                 {post.author.displayName ?? "Unnamed"}

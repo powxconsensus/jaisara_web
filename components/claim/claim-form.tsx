@@ -23,7 +23,7 @@ export const EMPTY_CLAIM: ClaimFields = {
 
 /**
  * One claim field. Parsed fields carry an `AI` badge; low-confidence ones get
- * `CHECK THIS` in warning. Every field stays editable — the parser proposes,
+ * `CHECK THIS` in warning. Every field stays editable - the parser proposes,
  * the trader confirms (handoff §4.6).
  */
 export function ClaimField({
@@ -63,7 +63,7 @@ export function ClaimField({
 export interface ClaimOption {
   value: string;
   label: string;
-  /** Groups the list under an optgroup — the firm's own account type. */
+  /** Groups the list under an optgroup - the firm's own account type. */
   group?: string | null;
 }
 
@@ -76,7 +76,7 @@ export interface ClaimOption {
  *
  * `allowOther` keeps the escape hatch. A member can buy something we have not
  * listed yet, and refusing the claim because our catalogue is behind would
- * punish them for our gap — picking "Not listed" reveals a text box and the
+ * punish them for our gap - picking "Not listed" reveals a text box and the
  * claim goes through with whatever they type.
  */
 export function ClaimSelect({
@@ -88,7 +88,7 @@ export function ClaimSelect({
   full,
   placeholder = "Select…",
   allowOther,
-  otherLabel = "Not listed — type it in",
+  otherLabel = "Not listed - type it in",
 }: {
   label: string;
   value: string;
@@ -102,7 +102,7 @@ export function ClaimSelect({
 }) {
   const id = useId();
   const known = options.some((option) => option.value === value);
-  // Anything the catalogue does not know is "other" — including a value the
+  // Anything the catalogue does not know is "other" - including a value the
   // receipt parser proposed, which is exactly when the text box should already
   // be showing with that value in it.
   const [manual, setManual] = useState(Boolean(value) && !known);

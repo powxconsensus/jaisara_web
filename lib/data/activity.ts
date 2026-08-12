@@ -6,7 +6,7 @@ import type { Receipt } from "@/lib/data/receipts";
  *
  * Fetched on the server with a revalidate window rather than polled from the
  * browser. A landing page gets a lot of visitors and this data changes when a
- * claim is approved — minutes to hours — so an open connection or a per-visitor
+ * claim is approved - minutes to hours - so an open connection or a per-visitor
  * poll would be a lot of traffic for content that rarely moves. Rendering it
  * into the cached HTML also means the deck is populated on first paint instead
  * of appearing a moment later.
@@ -64,7 +64,7 @@ export async function fetchRecentActivity(take = 8): Promise<ActivityEntry[]> {
  * The card was designed around a list price and two percentages; the API
  * reports what was actually paid and what the buyer actually got back. Rather
  * than re-derive a "discount" nobody recorded, the discount is zeroed and the
- * cashback percentage is computed from the two real figures — so the printed
+ * cashback percentage is computed from the two real figures - so the printed
  * numbers are the real ones and only the rate is inferred.
  */
 export function toReceipts(entries: ActivityEntry[]): Receipt[] {
@@ -87,7 +87,7 @@ export function toReceipts(entries: ActivityEntry[]): Receipt[] {
         // The figure that was actually credited, so the card never prints a
         // rounded re-derivation of it.
         cashbackUsd: cashback,
-        // Never the firm's order number — that is the key a claim is made
+        // Never the firm's order number - that is the key a claim is made
         // against, and publishing one would let anyone claim that purchase.
         id: entry.ref,
         status: entry.status,
@@ -95,7 +95,7 @@ export function toReceipts(entries: ActivityEntry[]): Receipt[] {
     });
 }
 
-/** "JUST NOW" / "4 MIN AGO" — the deck prints these upper-case. */
+/** "JUST NOW" / "4 MIN AGO" - the deck prints these upper-case. */
 function relativeAgo(iso: string): string {
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
   if (minutes < 1) return "JUST NOW";

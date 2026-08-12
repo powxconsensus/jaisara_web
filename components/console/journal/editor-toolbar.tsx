@@ -7,7 +7,7 @@ import { ImagePickerButton, useImageUpload } from "./image-upload";
  * Formatting controls for the markdown surface.
  *
  * Each button wraps or prefixes the current selection and puts the caret back
- * where the writer expects it — after the inserted markup with nothing
+ * where the writer expects it - after the inserted markup with nothing
  * selected, or *inside* the markup with the placeholder selected when there
  * was no selection to wrap. Getting that wrong is what makes a toolbar
  * something writers stop using after the second try.
@@ -39,7 +39,7 @@ const COMMANDS: (Command | "divider")[] = [
   "divider",
   { label: "LINK", title: "Link", wrap: ["[", "](https://)"], placeholder: "link text" },
   { label: "CODE", title: "Code block", wrap: ["```\n", "\n```"], placeholder: "code block" },
-  { label: "—", title: "Divider", linePrefix: "", placeholder: "\n---\n" },
+  { label: "-", title: "Divider", linePrefix: "", placeholder: "\n---\n" },
 ];
 
 export function EditorToolbar({

@@ -1,8 +1,3 @@
-import { FIRMS } from "@/lib/data/firms";
-import { CountUp } from "@/components/ui/count-up";
-
-const MARKS = FIRMS.slice(0, 5).map((firm) => firm.mark);
-
 /**
  * The marketing panel beside the auth form (handoff §4.4). Hidden on phones,
  * where the form alone should fill the screen.
@@ -33,12 +28,15 @@ export function AccessPanel() {
 
       <p className="relative font-mono text-[10px] tracking-[0.24em] text-muted">ACCESS // JAISARA</p>
 
-      <div className="relative max-w-[22ch]">
+      <div className="relative max-w-[24ch]">
         <p className="font-display text-[clamp(28px,3.2vw,42px)] font-black uppercase leading-none tracking-[-0.025em] [animation:jsUp_.8s_.1s_both]">
-          You already bought the challenge.
+          One deal.
         </p>
         <p className="mt-2.5 font-serif text-[clamp(30px,3.4vw,46px)] italic leading-[1.05] text-primary [animation:jsUp_.8s_.2s_both]">
-          Get paid for it.
+          Two rewards.
+        </p>
+        <p className="mt-4 max-w-[34ch] text-[14px] leading-[1.65] text-muted">
+          Save with the coupon at checkout, then collect cashback after your purchase is verified.
         </p>
 
         <div
@@ -66,20 +64,15 @@ export function AccessPanel() {
         </div>
       </div>
 
-      <div className="relative flex items-center gap-3">
-        <span className="flex" aria-hidden="true">
-          {MARKS.map((mark) => (
-            <span
-              key={mark}
-              className="-ml-[7px] grid size-7 place-items-center rounded-lg border border-hair bg-surface-2 font-mono text-[8.5px] text-muted"
-            >
-              {mark}
-            </span>
-          ))}
-        </span>
-        <span className="font-mono text-[10px] tracking-[0.08em] text-muted">
-          <CountUp to={1284} className="text-fg" /> EARNING THIS MONTH
-        </span>
+      <div className="relative grid grid-cols-3 gap-2">
+        {["USE COUPON", "SUBMIT RECEIPT", "GET REWARDED"].map((label) => (
+          <span
+            key={label}
+            className="rounded-[10px] border border-hair bg-[color-mix(in_oklab,var(--surface)_72%,transparent)] px-2 py-3 text-center font-mono text-[8px] tracking-[0.08em] text-muted"
+          >
+            {label}
+          </span>
+        ))}
       </div>
     </div>
   );

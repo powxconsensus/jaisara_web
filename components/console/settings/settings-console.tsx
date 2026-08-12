@@ -86,8 +86,8 @@ const EMPTY_TIER = {
  * This was read-only, which made the club unusable as a lever: the API could
  * create and edit tiers but nothing in the console reached it, so changing what
  * a tier pays meant a database write. A tier's split is the whole point of
- * having tiers — it is the rate a member is being promised for referring
- * people — so it has to be editable by the person accountable for it.
+ * having tiers - it is the rate a member is being promised for referring
+ * people - so it has to be editable by the person accountable for it.
  *
  * A tier either carries all three split percentages or none. Half a split is
  * not a thing the ledger can apply, and letting it be saved would leave the
@@ -273,7 +273,7 @@ function TierTable() {
                 <p className="mt-2 text-[11px] text-muted">Higher outranks lower.</p>
               </div>
               <div>
-                <FieldLabel htmlFor="tier-referrals">QUALIFIES AT — REFERRALS</FieldLabel>
+                <FieldLabel htmlFor="tier-referrals">QUALIFIES AT - REFERRALS</FieldLabel>
                 <TextInput
                   id="tier-referrals"
                   inputMode="numeric"
@@ -284,7 +284,7 @@ function TierTable() {
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="tier-volume">QUALIFIES AT — VOLUME (USD)</FieldLabel>
+                <FieldLabel htmlFor="tier-volume">QUALIFIES AT - VOLUME (USD)</FieldLabel>
                 <TextInput
                   id="tier-volume"
                   inputMode="decimal"
@@ -300,7 +300,7 @@ function TierTable() {
                 <TextInput
                   id="tier-buyer"
                   inputMode="decimal"
-                  placeholder="—"
+                  placeholder="-"
                   value={form.buyerPct}
                   onChange={(event) => setForm({ ...form, buyerPct: event.target.value })}
                 />
@@ -310,7 +310,7 @@ function TierTable() {
                 <TextInput
                   id="tier-referrer"
                   inputMode="decimal"
-                  placeholder="—"
+                  placeholder="-"
                   value={form.referrerPct}
                   onChange={(event) => setForm({ ...form, referrerPct: event.target.value })}
                 />
@@ -320,7 +320,7 @@ function TierTable() {
                 <TextInput
                   id="tier-platform"
                   inputMode="decimal"
-                  placeholder="—"
+                  placeholder="-"
                   value={form.platformPct}
                   onChange={(event) => setForm({ ...form, platformPct: event.target.value })}
                 />
@@ -339,7 +339,7 @@ function TierTable() {
             </div>
 
             {/* Caught here rather than at the API, because the API accepts a
-                partial split and simply never applies it — a silent no-op is
+                partial split and simply never applies it - a silent no-op is
                 the worst outcome for a field that decides what people earn. */}
             {splitPartial && (
               <p className="mt-4 text-[12px] text-warning">
@@ -390,7 +390,7 @@ function SettingsTable() {
     // the input is neither, so a "30" does not become the string "30".
     //
     // The test is on shape, not truthiness. Truthiness sent zero through as the
-    // string "0" — so setting a hold period or a minimum to 0 stored a type the
+    // string "0" - so setting a hold period or a minimum to 0 stored a type the
     // API then had to guess at. Blank stays blank rather than becoming 0.
     const trimmed = draft.trim();
     const numeric = trimmed !== "" && Number.isFinite(Number(trimmed));
@@ -412,7 +412,7 @@ function SettingsTable() {
       <PanelHeader
         eyebrow="KNOBS"
         title="Settings"
-        description="Singleton values the API reads at runtime. Changes take effect immediately — the service cache is invalidated on write."
+        description="Singleton values the API reads at runtime. Changes take effect immediately - the service cache is invalidated on write."
       />
 
       {error && (
@@ -534,7 +534,7 @@ function AuditLog() {
                   <Badge tone={toneFor(entry.action)}>{entry.action}</Badge>
                 </Td>
                 <Td className="font-mono text-[10.5px] text-muted">
-                  {entry.entityType ?? "—"}
+                  {entry.entityType ?? "-"}
                   {entry.entityId && (
                     <span className="block">{entry.entityId.slice(0, 18)}…</span>
                   )}

@@ -16,13 +16,13 @@ import { ErrorNote, Scroller, Skeleton } from "./widget-ui";
  * Two kinds of thing live here and they behave differently on purpose. A
  * **question** expands in place, because its answer is short, specific to this
  * member, and reading it should not cost a screen transition. A **guide** is a
- * published article — long enough to deserve its own view.
+ * published article - long enough to deserve its own view.
  *
  * The answers themselves come from the member's own rows, fetched when the row
  * is opened rather than up front: six answers is six queries against claims,
  * payouts and the ledger, and most members open one.
  *
- * "Did that help? / No — ask a human" is the deflection gate. It is the honest
+ * "Did that help? / No - ask a human" is the deflection gate. It is the honest
  * version of a contact button: offered *after* an answer, so the conversation
  * it starts already carries what was tried.
  */
@@ -54,7 +54,7 @@ export function AnswersView({
   /**
    * The question list loads signed out too.
    *
-   * The questions are public — it is only the *answers* that are personal. A
+   * The questions are public - it is only the *answers* that are personal. A
    * signed-out visitor should still see that "why was my claim rejected?" is
    * something this desk handles; hiding the list makes the panel look empty at
    * exactly the moment somebody is deciding whether to sign up.
@@ -121,7 +121,7 @@ export function AnswersView({
   };
 
   const needle = query.trim().toLowerCase();
-  // Matches the category too, so "money" finds the whole group — the design
+  // Matches the category too, so "money" finds the whole group - the design
   // searches question, answer and category together.
   const matched = needle
     ? options.filter((option) =>
@@ -149,7 +149,7 @@ export function AnswersView({
           placeholder="Search or describe the problem"
           className="w-full rounded-xl border border-hair bg-surface-2 py-[13px] pl-[38px] pr-[13px] text-[13.5px] outline-none transition-colors focus:border-primary"
         />
-        {/* Drawn rather than an icon font — one ring and one stroke, so it
+        {/* Drawn rather than an icon font - one ring and one stroke, so it
             inherits the muted colour exactly like the design specifies. */}
         <span
           aria-hidden
@@ -183,7 +183,7 @@ export function AnswersView({
                   >
                     {option.label}
                   </span>
-                  {/* Primary while closed — it is the invitation. Muted once
+                  {/* Primary while closed - it is the invitation. Muted once
                       open, because the answer below it is now the thing to
                       read and "CLOSE" should not compete with it. */}
                   <span
@@ -199,7 +199,7 @@ export function AnswersView({
                   <div className="px-0.5 pb-1.5 [animation:jsUp_.3s_cubic-bezier(.2,.8,.2,1)_both]">
                     {!signedIn ? (
                       <p className="pb-3.5 text-[13.2px] leading-[1.72] text-muted">
-                        This one is answered from your own claims and payouts — sign in and it
+                        This one is answered from your own claims and payouts - sign in and it
                         fills in with your figures.
                       </p>
                     ) : answer === "loading" || answer === undefined ? (
@@ -243,7 +243,7 @@ export function AnswersView({
                         onClick={() => onAskHuman(option.label)}
                         className="cursor-pointer rounded-[7px] border border-hair px-3 py-[7px] font-mono text-[9px] tracking-[0.13em] text-muted transition hover:border-primary hover:text-primary"
                       >
-                        NO — ASK A HUMAN
+                        NO - ASK A HUMAN
                       </button>
                     </div>
                   </div>
@@ -292,7 +292,7 @@ export function AnswersView({
             NO MATCH IN THE INDEX
           </p>
           <p className="mb-[17px] text-[13.5px] leading-[1.6]">
-            Tell the desk in your own words — the assistant will try first, and pass it to a person
+            Tell the desk in your own words - the assistant will try first, and pass it to a person
             if it can&rsquo;t settle it.
           </p>
           <button

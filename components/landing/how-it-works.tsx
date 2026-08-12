@@ -3,7 +3,7 @@ import { HOW_IT_WORKS } from "@/lib/data/content";
 import { Reveal } from "@/components/ui/reveal";
 
 /**
- * [04] HOW IT WORKS — five numbered steps plus a closing card, laid out as
+ * Five numbered steps plus a closing card, laid out as
  * cells sharing hairline gaps. On phones each step collapses to a two-column
  * grid with the number beside the title.
  */
@@ -11,7 +11,7 @@ export function HowItWorks() {
   return (
     <Reveal className="mx-auto max-w-[var(--maxw)] px-[var(--pad)] pb-[var(--secpb)] pt-[var(--secpt)]">
       <p className="mb-7 font-mono text-[10px] uppercase tracking-[0.24em] text-muted">
-        [ 04 ] How it works
+        How it works
       </p>
 
       <div className="grid gap-px overflow-hidden rounded-card border border-hair bg-hair md:grid-cols-2 lg:grid-cols-3">

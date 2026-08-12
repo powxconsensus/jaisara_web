@@ -165,13 +165,14 @@
     /* Only on desktop does the hero claim the viewport; below that it sizes
        to its content or the ground eats the copy. */
     --herominh: clamp(700px, calc(100dvh - 26px), 1060px);
-    --display: clamp(42px, 5.6vw, 84px);
+    --display: clamp(72px, 7.2vw, 112px);
     --groundh: clamp(244px, 23vw, 336px);
     --groundplane: 700px;
     --groundrot: 79deg;
     --groundpersp: 1000px;
     --groundgrid: 132px;
 
+    --rcpt-w: min(452px, 100%);
     --rcpt-mb: 150px;
   }
 }
@@ -1127,4 +1128,3 @@
     min-height: 460px;
   }
 }
-

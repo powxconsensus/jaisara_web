@@ -12,7 +12,7 @@ export const metadata: Metadata = {
  * The root not-found boundary.
  *
  * It renders above the `(site)` route group, so the navbar and footer that
- * every other page inherits are not here — they have to be added explicitly.
+ * every other page inherits are not here - they have to be added explicitly.
  * A 404 without them strands the visitor on a page with no way out except the
  * back button.
  */

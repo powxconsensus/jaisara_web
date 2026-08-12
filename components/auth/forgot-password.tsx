@@ -6,7 +6,7 @@ import { apiErrorMessage } from "@/lib/auth-types";
 /**
  * Resetting a password, on its own screen.
  *
- * It used to be a link that fired a request from underneath the sign-in form —
+ * It used to be a link that fired a request from underneath the sign-in form -
  * the page did not change, so the only feedback was a toast, and the email
  * field it read from was the one still sitting above a lit "Log in" button.
  * Somebody who had just admitted they cannot log in was left looking at the
@@ -81,7 +81,7 @@ export function ForgotPassword({
           />
 
           <div className="px-[26px] pb-[26px] pt-5">
-            {/* Never "we found your account" — that answers a question an
+            {/* Never "we found your account" - that answers a question an
                 attacker is asking, not one the member is. */}
             <p className="text-[13px] leading-[1.7] text-muted">
               If there is a Jaisara account for

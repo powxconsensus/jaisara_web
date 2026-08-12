@@ -9,7 +9,7 @@ export interface JournalPost {
 }
 
 export const POSTS: JournalPost[] = [
-  { slug: "how-prop-firm-affiliate-commission-works", title: "How prop firm affiliate commission actually works", category: "Explainers", readingTime: "6 min", date: "28 Jul 2026", excerpt: "Every firm pays a cut on each challenge sold. Here is where that money comes from, who touches it, and why we hand most of it back.", featured: true },
+  { slug: "how-prop-firm-cashback-verification-works", title: "How prop firm cashback verification works", category: "Explainers", readingTime: "6 min", date: "28 Jul 2026", excerpt: "From coupon to receipt, verification, pending balance and payout: every stage of a Jaisara reward explained.", featured: true },
   { slug: "nine-mistakes-that-void-your-cashback", title: "Nine mistakes that void your cashback", category: "Guides", readingTime: "4 min", date: "21 Jul 2026", excerpt: "Missing coupon, wrong email, a refund three weeks later. The short list of things that stop a claim from clearing." },
   { slug: "two-step-vs-instant-funding-2026", title: "Two-step vs instant funding in 2026", category: "Analysis", readingTime: "8 min", date: "14 Jul 2026", excerpt: "Cheaper up front is not cheaper overall. We ran the numbers across 42 firms and the gap is wider than most traders assume." },
   { slug: "what-we-changed-after-4000-claims", title: "What we changed after reading 4,000 claims", category: "Product", readingTime: "5 min", date: "06 Jul 2026", excerpt: "Manual entry, auto-claim, and a parser that stopped guessing. A short post-mortem on the claim flow." },
@@ -28,13 +28,13 @@ export type ArticleBlock =
   | { type: "quote"; text: string };
 
 export const ARTICLE: ArticleBlock[] = [
-  { type: "p", text: "Every prop firm runs an affiliate programme. When a trader buys a challenge through a partner link or coupon, the firm pays that partner a percentage of the sale — typically between 10% and 30% depending on volume." },
-  { type: "h", text: "Where the money comes from" },
-  { type: "p", text: "It is not a discount the firm absorbs at a loss. Acquisition cost is budgeted into the price of the challenge in the same way an ad spend would be. Paying an affiliate 15% is cheaper than paying a platform for the same conversion, which is why the rates are as generous as they are." },
-  { type: "quote", text: "The commission already exists. The only question is who keeps it." },
-  { type: "p", text: "Most comparison sites keep the entire cut. A smaller group pass part of it back as cashback, which is the model we run: you get a share, the person who invited you gets a share, and we keep enough to operate." },
+  { type: "p", text: "A Jaisara reward starts when you use an eligible coupon at the firm’s checkout. The coupon identifies the deal and gives you the advertised checkout discount." },
+  { type: "h", text: "How the purchase is verified" },
+  { type: "p", text: "Submit the receipt or use an available sync option. We match the order number and purchase details against the firm’s records before approving cashback." },
+  { type: "quote", text: "Keep the coupon, order email and order number together until the reward clears." },
+  { type: "p", text: "Once verified, the displayed reward appears as pending in your wallet. The claim timeline shows each state so you can see whether anything needs attention." },
   { type: "h", text: "Why cashback is not instant" },
-  { type: "p", text: "Firms only confirm commission once their refund window closes — usually 30 days. Paying you before that would mean clawing money back every time an order is reversed, so the balance sits as pending until the firm settles." },
+  { type: "p", text: "Eligible cashback remains pending for the hold period shown for the deal. This allows refunds, reversals and duplicate claims to be resolved before the balance becomes withdrawable." },
   { type: "h", text: "What to check before you buy" },
   { type: "p", text: "Confirm the coupon applied at checkout, use the same email you registered with, and keep the order confirmation. Those three things resolve almost every claim dispute we see." },
 ];

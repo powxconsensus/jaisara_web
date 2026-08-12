@@ -1,7 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/cn";
 
-/** The Jaisara mark: a turquoise `J` tile + wordmark. Placeholder for a real logo. */
+/** Compact brand mark on mobile, mark plus wordmark where space allows. */
 export function Logo({
   href = "/",
   className,
@@ -15,10 +16,16 @@ export function Logo({
       aria-label="Jaisara home"
       className={cn("flex flex-none items-center gap-2.5 text-fg hover:text-fg", className)}
     >
-      <span className="grid size-[26px] place-items-center rounded-[8px] bg-primary font-display text-sm font-black text-on-primary">
-        J
+      <Image
+        src="/assets/brand/jaisara-mark.png"
+        width={760}
+        height={760}
+        alt=""
+        className="size-9 rounded-[10px] bg-[#02070e] object-contain p-[5px]"
+      />
+      <span className="hidden font-display text-sm font-black uppercase tracking-[0.12em] sm:inline">
+        Jaisara
       </span>
-      <span className="font-display text-sm font-black uppercase tracking-[0.12em]">Jaisara</span>
     </Link>
   );
 }

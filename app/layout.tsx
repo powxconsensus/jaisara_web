@@ -8,7 +8,7 @@ import { AuthProvider } from "@/components/auth/auth-context";
 
 export const metadata: Metadata = {
   title: {
-    default: "Jaisara — Prop firm cashback",
+    default: "Jaisara - Prop firm cashback",
     template: "%s · Jaisara",
   },
   description:

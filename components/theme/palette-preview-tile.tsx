@@ -6,7 +6,7 @@ import { CheckIcon } from "@/components/ui/icons";
 /**
  * A palette rendered as a **miniature of the real interface**, not a swatch
  * chip (handoff §4.9): a mini nav bar, a card showing a figure in that
- * palette's accent, a primary button and a club-gold dot — all on the
+ * palette's accent, a primary button and a club-gold dot - all on the
  * palette's true background.
  *
  * The tile renders the family in the *current mode*, so what you see is what

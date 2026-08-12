@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
  * Loads the next page when the end of the list comes into view.
  *
  * `rootMargin` fires it 300px early so the next rows are usually already there
- * by the time the reader reaches them — an infinite scroll that only starts
+ * by the time the reader reaches them - an infinite scroll that only starts
  * fetching once you hit the bottom still makes you wait, it just hides the
  * button that would have told you to.
  *
@@ -27,8 +27,8 @@ export function InfiniteScrollSentinel({
 }) {
   const sentinel = useRef<HTMLDivElement>(null);
 
-  // The observer reads the handler through a ref so that a parent re-render —
-  // which produces a new `onLoadMore` identity every time — does not tear the
+  // The observer reads the handler through a ref so that a parent re-render -
+  // which produces a new `onLoadMore` identity every time - does not tear the
   // observer down and rebuild it. Synced in an effect, not during render:
   // a ref written while rendering is not guaranteed to survive a discarded
   // render attempt.

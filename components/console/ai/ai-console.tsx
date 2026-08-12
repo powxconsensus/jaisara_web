@@ -32,7 +32,7 @@ import {
  * Which model reads receipts and answers support, and the keys behind them.
  *
  * This page exists because a provider retiring a preview model is a Tuesday,
- * and the fix should not be a redeploy. Everything here is operational data —
+ * and the fix should not be a redeploy. Everything here is operational data -
  * it changes on the provider's schedule, not ours.
  *
  * Two things it deliberately never shows: a key, and any part of one beyond the
@@ -51,7 +51,7 @@ export function AiConsole() {
       <PageHeader
         eyebrow="ADMINISTRATION"
         title="AI providers"
-        description="Tried in priority order — the first that answers wins, and one that fails is passed over for a minute. Receipt reading needs a provider that accepts images."
+        description="Tried in priority order - the first that answers wins, and one that fails is passed over for a minute. Receipt reading needs a provider that accepts images."
         actions={
           editable ? (
             <Button size="sm" onClick={() => setAdding((open) => !open)}>
@@ -83,7 +83,7 @@ export function AiConsole() {
               message={
                 overview.data.environmentProviders.length > 0
                   ? "The API is running from the AI_* environment block. Import it to manage providers from this page."
-                  : "Receipts are entered by hand and the assistant answers from each member's own rows. That is a supported way to run — add a provider to change it."
+                  : "Receipts are entered by hand and the assistant answers from each member's own rows. That is a supported way to run - add a provider to change it."
               }
             />
           ) : (
@@ -143,7 +143,7 @@ function SourceBanner({
     toast(
       result.imported.length > 0
         ? `Imported ${result.imported.join(", ")}`
-        : `Nothing imported — ${result.skipped.join(", ") || "no providers in the environment"}`,
+        : `Nothing imported - ${result.skipped.join(", ") || "no providers in the environment"}`,
     );
     onChange();
   }
@@ -279,7 +279,7 @@ function ProviderCard({
           <TestLine label="Chat" step={test.chat} />
           <TestLine label="Vision" step={test.vision} />
           <p className="mt-1 text-[var(--text-muted)]">
-            The receipt is generated, not a member&apos;s — testing a provider never sends a real
+            The receipt is generated, not a member&apos;s - testing a provider never sends a real
             document anywhere.
           </p>
         </div>
@@ -450,7 +450,7 @@ function ProviderForm({ provider, onDone }: { provider?: AiProviderView; onDone:
           onChange={(event) => set("baseUrl", event.target.value)}
         />
         <Hint>
-          Include the version path. Must be https and on the public internet — receipt images are
+          Include the version path. Must be https and on the public internet - receipt images are
           posted here.
         </Hint>
       </div>
@@ -526,7 +526,7 @@ function ProviderForm({ provider, onDone }: { provider?: AiProviderView; onDone:
         <Hint>
           {badJson(form.visionRequestOptions)
             ? "That is not valid JSON."
-            : "Separate from chat because the two models differ. Groq's Qwen needs reasoning_effort: none, and the same field on that provider's chat model is a 400 — which is exactly why these are two boxes."}
+            : "Separate from chat because the two models differ. Groq's Qwen needs reasoning_effort: none, and the same field on that provider's chat model is a 400 - which is exactly why these are two boxes."}
         </Hint>
       </div>
 
@@ -567,7 +567,7 @@ function ModelField({
   allowEmpty?: boolean;
 }) {
   // A provider that is not saved yet, or one with no `/models` endpoint, still
-  // has to be configurable — so the list is an aid, never a gate.
+  // has to be configurable - so the list is an aid, never a gate.
   const known = models.length > 0 && (value === "" || models.includes(value));
 
   return (
@@ -575,7 +575,7 @@ function ModelField({
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       {known ? (
         <Select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
-          {allowEmpty && <option value="">— reuse the chat model —</option>}
+          {allowEmpty && <option value="">- reuse the chat model -</option>}
           {models.map((model) => (
             <option key={model} value={model}>
               {model}
@@ -587,7 +587,7 @@ function ModelField({
       )}
       <Hint>
         {models.length > 0 && value && !models.includes(value)
-          ? `“${value}” is not in this provider's current list — it may have been retired.`
+          ? `“${value}” is not in this provider's current list - it may have been retired.`
           : hint}
       </Hint>
     </div>
@@ -646,7 +646,7 @@ function KeyTable({
           provider.keys.map((key) => (
             <Tr key={key.id}>
               <Td>{key.label}</Td>
-              <Td className="font-mono">{key.tail ? `…${key.tail}` : "—"}</Td>
+              <Td className="font-mono">{key.tail ? `…${key.tail}` : "-"}</Td>
               <Td>
                 <Badge tone={key.status === "ACTIVE" ? "success" : "neutral"}>{key.status}</Badge>
               </Td>
@@ -694,7 +694,7 @@ function KeyTable({
             Add key
           </Button>
           <p className="w-full text-[length:var(--ct-small)] text-[var(--text-muted)]">
-            Encrypted before it is stored and never returned — not here, not by the API. Add a second
+            Encrypted before it is stored and never returned - not here, not by the API. Add a second
             key rather than replacing one: the pool rotates between them when a provider rate-limits.
           </p>
         </form>

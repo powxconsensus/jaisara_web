@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { PublicStats } from "@/lib/data/deals";
 import type { Receipt } from "@/lib/data/receipts";
 import { CountUp } from "@/components/ui/count-up";
-import { HeroCta } from "./hero-cta";
 import { ReceiptDeck } from "@/components/receipt/receipt-deck";
 import { LiveMarquee } from "@/components/shell/live-marquee";
 import { ImpactProvider } from "./impact-context";
@@ -13,7 +12,7 @@ import { HeroGround } from "./hero-ground";
 /**
  * The three figures under the headline, from the ledger and the catalogue.
  *
- * "Paid to traders" counts cleared cashback only — quoting pending amounts as
+ * "Paid to traders" counts cleared cashback only - quoting pending amounts as
  * paid would be a marketing claim the ledger cannot back up.
  */
 function statsFor(stats?: PublicStats) {
@@ -31,8 +30,7 @@ function statsFor(stats?: PublicStats) {
 
 /**
  * Landing hero: copy left, receipt right, collapsing to one column below
- * 1180px. Copy here is locked (handoff §3) — the promise is plain "cashback",
- * never "our cut, shared".
+ * 1180px. The promise is deliberately benefit-led: coupon plus cashback.
  *
  * Layer order is load-bearing. Atmosphere, ground and scrim all paint before
  * the content wrapper and none of them carries a z-index above it, so the copy
@@ -72,12 +70,8 @@ export function Hero({
         />
 
         <div className="relative mx-auto flex w-full max-w-[var(--maxw)] flex-1 flex-col">
-          <div className="grid min-h-0 flex-1 items-center gap-[clamp(30px,5vw,70px)] lg:grid-cols-[1.05fr_.95fr]">
-            <div>
-              <p className="mb-[clamp(22px,3vw,34px)] font-mono text-[10px] tracking-[0.24em] text-muted [animation:jsUp_.7s_both]">
-                PROP FIRM CASHBACK · {stats?.firmCount ?? 0} FIRMS INDEXED
-              </p>
-
+          <div className="grid min-h-0 flex-1 items-center gap-[clamp(30px,4vw,62px)] lg:grid-cols-[1.12fr_.88fr]">
+            <div className="max-w-[720px]">
               <h1 className="mb-[clamp(22px,3vw,32px)] font-display text-[length:var(--display)] font-black uppercase leading-[0.92] tracking-[-0.02em]">
                 <span
                   className="block text-transparent [animation:jsUp_.8s_.05s_cubic-bezier(.2,.8,.2,1)_both]"
@@ -85,48 +79,35 @@ export function Hero({
                     WebkitTextStroke: "1.2px color-mix(in oklab, var(--text) 74%, transparent)",
                   }}
                 >
-                  Cashback
+                  Save
                 </span>
-                <span className="block [animation:jsUp_.8s_.15s_cubic-bezier(.2,.8,.2,1)_both]">
-                  on every
-                </span>
-                <span className="block text-primary [animation:jsUp_.8s_.25s_cubic-bezier(.2,.8,.2,1)_both]">
-                  challenge
+                <span className="block text-primary [animation:jsUp_.8s_.15s_cubic-bezier(.2,.8,.2,1)_both]">
+                  twice
                   <span className="font-serif font-normal normal-case italic tracking-normal">
                     .
                   </span>
                 </span>
               </h1>
 
-              <p className="mb-[30px] max-w-[42ch] text-[15.5px] leading-[1.7] text-muted [animation:jsUp_.8s_.34s_both]">
-                Use a Jaisara coupon at the firm&rsquo;s checkout: the price drops straight away,
-                then we pay you cashback on top. Tracked to the cent, withdrawable in USDT or gift
-                cards.
+              <p className="mb-[34px] max-w-[42ch] text-[clamp(16px,1.5vw,19px)] leading-[1.62] text-muted [animation:jsUp_.8s_.3s_both]">
+                Get a coupon discount at checkout, then earn cashback after verification. One
+                Jaisara deal gives you both.
               </p>
 
-              <div className="flex flex-wrap gap-2 [animation:jsUp_.8s_.42s_both] md:gap-2.5">
-                {/* On phones the primary CTA takes the full row and the two
-                  secondary actions share the next one. */}
+              <div className="flex flex-wrap gap-2.5 [animation:jsUp_.8s_.4s_both]">
                 <Link
                   href="/deals"
                   className="flex w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-btn bg-primary px-[26px] py-4 font-mono text-xs font-semibold uppercase tracking-[0.15em] text-on-primary transition hover:-translate-y-0.5 hover:brightness-[1.08] md:w-auto"
                 >
-                  Start earning<span className="text-sm">↗</span>
+                  Browse deals<span className="text-sm">↗</span>
                 </Link>
-                <HeroCta
-                  className="flex flex-[1_1_42%] items-center justify-center whitespace-nowrap rounded-btn border px-3.5 py-[15px] font-mono text-[11px] uppercase tracking-[0.15em] transition hover:border-primary md:flex-none md:text-xs"
-                  style={{
-                    borderColor: "color-mix(in oklab, var(--text) 26%, transparent)",
-                    background: "color-mix(in oklab, var(--surface) 62%, transparent)",
-                  }}
-                />
                 <Link
                   href="/#estimator"
-                  className="flex flex-[1_1_42%] items-center justify-center gap-2 whitespace-nowrap rounded-btn border px-3 py-[15px] font-mono text-[11px] uppercase tracking-[0.15em] transition hover:border-primary md:flex-none md:text-xs"
+                  className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-btn border px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.15em] transition hover:border-primary md:w-auto md:text-xs"
                   style={{ borderColor: "color-mix(in oklab, var(--primary) 34%, transparent)" }}
                 >
                   <span className="size-1.5 rounded-[2px] bg-primary" />
-                  Estimate yours
+                  Estimate cashback
                 </Link>
               </div>
 

@@ -2,7 +2,7 @@
  * What a landing does to the ledger floor (handoff, Hero spec).
  *
  * The rule that shaped all of this: **seams read bright, not dark.** A black
- * trench on a near-black floor is invisible — a crack has to be a glowing seam
+ * trench on a near-black floor is invisible - a crack has to be a glowing seam
  * with the darkness *around* it. And it must stay restrained: if it reads as an
  * explosion it is wrong.
  *
@@ -25,7 +25,7 @@ export const FX = {
   dust: "dust",
 } as const;
 
-/** Resting opacities — these live in the markup and are restored by fill:'none'. */
+/** Resting opacities - these live in the markup and are restored by fill:'none'. */
 export const REST = { glow: 0.42, ray: 0.1, core: 0 } as const;
 
 const ALL_FX = Object.values(FX)
@@ -41,7 +41,7 @@ function query(root: HTMLElement, name: string): HTMLElement[] {
 }
 
 /**
- * Break the ledger. Called **once** per landing — see `ImpactEvent`.
+ * Break the ledger. Called **once** per landing - see `ImpactEvent`.
  *
  * `hot` is the claim's status: a paid claim lands at full intensity, a pending
  * one at 0.66× across the board, so the two states feel different without

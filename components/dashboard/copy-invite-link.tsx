@@ -15,7 +15,7 @@ export function CopyInviteLink({ link }: { link: string }) {
       setTimeout(() => setCopied(false), 1800);
       toast("Invite link copied");
     } catch {
-      toast("Could not copy — select the link manually", "warning");
+      toast("Could not copy - select the link manually", "warning");
     }
   };
 

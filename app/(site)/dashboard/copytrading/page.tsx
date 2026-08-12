@@ -5,15 +5,15 @@ import { WaitlistForm } from "@/components/dashboard/waitlist-form";
 export const metadata: Metadata = { title: "Copytrading" };
 
 /**
- * Copytrading — announced, not built.
+ * Copytrading - announced, not built.
  *
  * This page used to end in two grey cards captioned PLACEHOLDER, over a striped
  * rectangle standing in for a chart. That is a screenshot of unfinished work,
  * not a product page: it tells a member nothing and makes the whole dashboard
  * look half-done.
  *
- * So it says what is actually known — what the feature is, how it will work
- * with the wallet they already have, and what is deliberately not decided yet —
+ * So it says what is actually known - what the feature is, how it will work
+ * with the wallet they already have, and what is deliberately not decided yet -
  * and gives them one real button. Nothing here is fabricated: no invented
  * trader names, no example returns, no launch date we cannot commit to.
  */
@@ -65,7 +65,7 @@ export default function CopytradingPage() {
           copied trader can move. If you have a view, the assistant will pass it on.
         </p>
         <p className="text-[13px] leading-[1.65] text-muted">
-          In the meantime, cashback is the part that already works —{" "}
+          In the meantime, cashback is the part that already works -{" "}
           <Link href="/deals" className="text-primary underline underline-offset-2">
             browse the firms we track
           </Link>
@@ -83,7 +83,7 @@ const STEPS = [
   },
   {
     title: "You copy from your own funded account",
-    body: "Trades mirror into an account you own at the firm you chose. Jaisara never holds your trading capital — the same reason we pay cashback to your wallet rather than crediting it at the firm.",
+    body: "Trades mirror into an account you own at the firm you chose. Jaisara never holds your trading capital - the same reason we pay cashback to your wallet rather than crediting it at the firm.",
   },
   {
     title: "One wallet, both ways to earn",

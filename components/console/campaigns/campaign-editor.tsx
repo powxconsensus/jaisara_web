@@ -8,7 +8,7 @@ import { Segmented, Textarea } from "@/components/console/ui";
  * The message body.
  *
  * HTML and plain text used to sit side by side, each getting half the width to
- * show what is really a full-width document — so both were cramped and neither
+ * show what is really a full-width document - so both were cramped and neither
  * was readable. They are the same message in two encodings, never edited at
  * once, so a toggle is the honest control: one editor, full width, with the
  * rendered result a click away.
@@ -75,7 +75,7 @@ export function CampaignEditor({
           />
           <p className="mt-2 text-[11px] leading-5 text-muted">
             Sent alongside the HTML. Some clients show only this, and a missing text part is a
-            spam signal in its own right — so it is required, not optional.
+            spam signal in its own right - so it is required, not optional.
           </p>
         </>
       )}

@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-context";
 import { useToast } from "@/components/shell/toast";
 import { FieldLabel, TextInput } from "@/components/ui/field";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { apiFetch } from "@/lib/api-fetch";
 
 export function DeleteAccountCard() {
   const router = useRouter();
@@ -51,7 +52,7 @@ export function DeleteAccountCard() {
 
     setPending(true);
     try {
-      const response = await fetch("/api/auth/delete-account", {
+      const response = await apiFetch("/api/auth/delete-account", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

@@ -3,7 +3,7 @@
 import { useTheme } from "./use-theme";
 
 /**
- * Light ⇄ dark toggle. It flips `data-mode` only — the palette family is
+ * Light ⇄ dark toggle. It flips `data-mode` only - the palette family is
  * preserved, because the two are independent axes (handoff §1.3). Every family
  * defines both sides, so there is nothing to remember and nothing to pair.
  */

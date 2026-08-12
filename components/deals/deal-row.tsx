@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 /**
  * One row of the deals index.
  *
- * Both figures are labelled — `14% cashback`, `20% off` — never a bare
+ * Both figures are labelled - `14% cashback`, `20% off` - never a bare
  * percentage (handoff §4.2). On phones the row collapses to three columns
  * (rank / name+meta / cashback); the type and coupon columns drop, and the
  * compare toggle overlays the rank cell.
@@ -23,15 +23,15 @@ export function DealRow({
   onToggleCompare: () => void;
 }) {
   return (
-    <div className="group relative grid grid-cols-[24px_minmax(0,1fr)_62px] items-center gap-x-[clamp(12px,2.2vw,30px)] gap-y-1.5 border-t border-hair-soft px-2.5 py-[13px] transition duration-[250ms] ease-[cubic-bezier(.2,.8,.2,1)] hover:translate-x-2 hover:bg-[color-mix(in_oklab,var(--surface)_70%,transparent)] md:grid-cols-[26px_minmax(0,1fr)_96px_34px] md:py-[clamp(15px,2.5vw,22px)] lg:grid-cols-[26px_40px_minmax(0,1fr)_104px_96px_96px_34px]">
+    <div className="group relative grid grid-cols-[24px_minmax(0,1fr)_62px] items-center gap-x-[clamp(12px,2.2vw,30px)] gap-y-1.5 border-b border-hair-soft px-4 py-[15px] transition duration-[250ms] ease-[cubic-bezier(.2,.8,.2,1)] last:border-b-0 hover:bg-[linear-gradient(90deg,color-mix(in_oklab,var(--primary)_8%,transparent),color-mix(in_oklab,var(--surface)_72%,transparent))] md:grid-cols-[26px_minmax(0,1fr)_96px_34px] md:px-5 md:py-[clamp(18px,2.5vw,25px)] lg:grid-cols-[26px_40px_minmax(0,1fr)_104px_96px_96px_34px]">
       {/* The whole row is a link; the compare button sits above it. */}
       <Link
         href={`/firm/${firm.slug}`}
         className="absolute inset-0 z-0"
         aria-label={
           firm.cashback > 0
-            ? `${firm.name} — ${firm.cashback}% cashback, ${firm.discount}% off`
-            : `${firm.name} — cashback rate coming, ${firm.discount}% off`
+            ? `${firm.name} - ${firm.cashback}% cashback, ${firm.discount}% off`
+            : `${firm.name} - cashback rate coming, ${firm.discount}% off`
         }
       />
 
@@ -39,7 +39,7 @@ export function DealRow({
         {String(rank).padStart(2, "0")}
       </span>
 
-      <span className="pointer-events-none z-10 hidden lg:block">
+      <span className="pointer-events-none z-10 hidden transition-transform duration-300 group-hover:scale-105 lg:block">
         <FirmMark
           name={firm.name}
           mark={firm.mark}
@@ -54,7 +54,7 @@ export function DealRow({
           {firm.name}
         </p>
         {/* Only facts we have. A firm with no coupon discount and no recorded
-            profit split used to render "0% OFF · — SPLIT", which states two
+            profit split used to render "0% OFF · - SPLIT", which states two
             things that are not true rather than saying nothing. */}
         <p
           className={cn(
@@ -65,7 +65,7 @@ export function DealRow({
           {[
             firm.tag,
             firm.discount > 0 ? `${firm.discount}% off` : null,
-            firm.split && firm.split !== "—" ? `${firm.split} split` : null,
+            firm.split && firm.split !== "-" ? `${firm.split} split` : null,
             firm.payout,
           ]
             .filter(Boolean)
@@ -82,7 +82,7 @@ export function DealRow({
       </span>
 
       <div className="pointer-events-none z-10 self-center text-right">
-        {/* Never a zero: a firm whose commission rate has not been entered has
+        {/* Never a zero: a firm whose cashback rate has not been published has
             no rate to show, and "0% cashback" reads as an offer rather than as
             missing data. */}
         {firm.cashback > 0 ? (
@@ -105,7 +105,11 @@ export function DealRow({
         type="button"
         onClick={onToggleCompare}
         aria-pressed={comparing}
-        title={comparing ? `Remove ${firm.name} from compare` : `Compare ${firm.name}`}
+        title={
+          comparing
+            ? `Remove ${firm.name} from compare`
+            : `Compare ${firm.name}`
+        }
         className={cn(
           "z-10 col-start-1 row-start-1 grid size-[34px] cursor-pointer place-items-center justify-self-end rounded-[10px] border text-[15px] transition-all duration-[180ms] md:col-start-auto md:row-start-auto",
           comparing

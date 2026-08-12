@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from "react";
  * The journal's markdown renderer.
  *
  * Shared by the public post page and the console editor's preview so that what
- * an author sees while writing is the same component the reader gets — a
+ * an author sees while writing is the same component the reader gets - a
  * preview rendered by a second, near-identical implementation drifts, and the
  * drift only ever shows up after publishing.
  *
@@ -32,7 +32,7 @@ function renderBlocks(body: string): ReactNode[] {
       continue;
     }
 
-    // Fenced code — consumed verbatim, never parsed for inline markup.
+    // Fenced code - consumed verbatim, never parsed for inline markup.
     if (line.trimStart().startsWith("```")) {
       const language = line.trim().slice(3).trim();
       const body: string[] = [];
@@ -267,7 +267,7 @@ function inline(text: string): ReactNode {
 /**
  * Only http(s) and site-relative links render as links.
  *
- * `javascript:` is the reason this exists — an author account is trusted to
+ * `javascript:` is the reason this exists - an author account is trusted to
  * write, not to run script in every reader's session.
  */
 function isSafeUrl(url: string): boolean {

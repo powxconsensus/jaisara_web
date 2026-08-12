@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/ui/reveal";
 
 /**
- * Worked examples of a Club payout — invented numbers, not member activity.
+ * Worked examples of a Club payout - invented numbers, not member activity.
  *
  * The code always said "illustrative"; the page did not. Two named people with
  * exact amounts read as real earnings to anybody looking at it, which is a
@@ -15,10 +15,9 @@ const EXAMPLES = [
 ];
 
 /**
- * [05] JAISARA CLUB — the referral layer, in gold.
+ * The referral layer, in gold.
  *
- * Copy rule (handoff §3): rewards are "paid by Jaisara, never deducted from
- * theirs" — never "from our cut".
+ * Club copy makes the member benefit and non-deduction rule explicit.
  */
 export function ClubBand() {
   return (
@@ -33,7 +32,7 @@ export function ClubBand() {
       >
         <div>
           <p className="mb-[18px] font-mono text-[10px] uppercase tracking-[0.24em] text-club">
-            [ 05 ] Jaisara Club
+            Jaisara Club
           </p>
           <h2 className="mb-4 font-display text-[clamp(26px,3.4vw,40px)] font-black uppercase leading-none tracking-[-0.025em]">
             Invite once.
@@ -45,8 +44,8 @@ export function ClubBand() {
             .
           </h2>
           <p className="mb-[26px] max-w-[44ch] text-[15px] leading-[1.65] text-muted">
-            Members earn 20% on top of the cashback of everyone they refer — paid by Jaisara, never
-            deducted from theirs.
+            Earn a separate Club reward when people you invite receive eligible cashback. Their
+            advertised cashback is never reduced.
           </p>
           <Link
             href="/dashboard/club"
@@ -59,7 +58,7 @@ export function ClubBand() {
 
         <div className="flex flex-col gap-2.5">
           <p className="font-mono text-[9px] tracking-[0.18em] text-muted">
-            [ EXAMPLE — HOW A CLUB PAYOUT ADDS UP ]
+            [ EXAMPLE: HOW A CLUB REWARD ADDS UP ]
           </p>
           {EXAMPLES.map((example) => (
             <div

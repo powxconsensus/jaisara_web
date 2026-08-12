@@ -6,13 +6,14 @@ import { useAuth } from "@/components/auth/auth-context";
 import { useWallet } from "@/components/wallet/use-wallet";
 import { StatusPill } from "@/components/ui/status-pill";
 import type { LedgerStatus } from "@/lib/data/wallet";
+import { apiFetch } from "@/lib/api-fetch";
 
 /**
  * The wallet.
  *
  * Every figure here is the member's own, read from the API. The previous
  * version rendered a fixed $184.50 with an invented ledger and greeted
- * everybody as "Rahul" — convincing in a design review and actively
+ * everybody as "Rahul" - convincing in a design review and actively
  * misleading in the product.
  */
 
@@ -42,7 +43,7 @@ export function WalletView() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/wallet/history?take=25", {
+    void apiFetch("/api/wallet/history?take=25", {
       cache: "no-store",
       signal: controller.signal,
     })
@@ -97,10 +98,10 @@ export function WalletView() {
             AVAILABLE TO WITHDRAW
           </p>
           <p data-count className="font-mono text-[clamp(30px,5vw,44px)] leading-none text-primary">
-            {wallet ? `$${wallet.availableUsd}` : loading ? "—" : "$0.00"}
+            {wallet ? `$${wallet.availableUsd}` : loading ? "-" : "$0.00"}
           </p>
           <p className="mt-3 font-mono text-[10px] tracking-[0.12em] text-muted">
-            {wallet ? `$${wallet.pendingUsd} PENDING` : "PENDING —"}
+            {wallet ? `$${wallet.pendingUsd} PENDING` : "PENDING -"}
             {wallet && !wallet.canWithdraw && (
               <> · MINIMUM ${wallet.minWithdrawalUsd} TO WITHDRAW</>
             )}
@@ -171,7 +172,7 @@ export function WalletView() {
               <div className="flex items-center gap-3">
                 <StatusPill status={pillFor(row.state)} />
                 <span data-count className="font-mono text-[13.5px]">
-                  {row.state === "REVERSED" ? "—" : `+$${row.amountUsd}`}
+                  {row.state === "REVERSED" ? "-" : `+$${row.amountUsd}`}
                 </span>
               </div>
             </div>

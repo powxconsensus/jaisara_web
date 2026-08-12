@@ -68,7 +68,7 @@ const STATUS_TONE: Record<CampaignStatus, Tone> = {
 /**
  * A new campaign starts from blocks, not from a string of HTML.
  *
- * `bodyHtml` and `bodyText` are no longer edited directly — they are compiled
+ * `bodyHtml` and `bodyText` are no longer edited directly - they are compiled
  * from `design` when the draft is saved. Keeping them out of this shape is what
  * stops the two drifting: there is now exactly one thing an author edits.
  */
@@ -114,8 +114,8 @@ export function CampaignStudio() {
         testEmails: campaign.audience?.testEmails?.join(", ") ?? "",
       });
       // A campaign drafted before the composer existed has no design. Rather
-      // than reverse-engineering blocks out of its HTML — which would quietly
-      // rewrite what somebody already approved — it opens on a fresh starter
+      // than reverse-engineering blocks out of its HTML - which would quietly
+      // rewrite what somebody already approved - it opens on a fresh starter
       // and the stored HTML stays untouched until they save.
       setDesign(isEmailDesign(campaign.design) ? campaign.design : starterDesign());
     } catch (caught) {
@@ -198,7 +198,7 @@ export function CampaignStudio() {
         ? `Queued for ${result.queued ?? 0} recipient${result.queued === 1 ? "" : "s"}.`
         : action === "schedule"
           ? "Scheduled."
-          : "Cancelled — anything already sent cannot be recalled.",
+          : "Cancelled - anything already sent cannot be recalled.",
       action === "cancel" ? "warning" : "success",
     );
     await campaigns.reload();
@@ -307,7 +307,7 @@ export function CampaignStudio() {
           </aside>
 
           {/* The editing pane scrolls on its own, so the campaign list and the
-              audience figures stay visible while a long body is written —
+              audience figures stay visible while a long body is written -
               those numbers are the check somebody makes before sending. */}
           <div className="console-scroll min-h-0 min-w-0 space-y-2 overflow-y-auto pr-0.5">
             {loadError && <ErrorNote>{loadError}</ErrorNote>}
@@ -348,7 +348,7 @@ export function CampaignStudio() {
 
                   <div>
                     <FieldLabel htmlFor="campaign-tests">
-                      TEST RECIPIENTS — LEAVE BLANK TO MAIL EVERY OPTED-IN MEMBER
+                      TEST RECIPIENTS - LEAVE BLANK TO MAIL EVERY OPTED-IN MEMBER
                     </FieldLabel>
                     <TextInput
                       id="campaign-tests"
@@ -360,7 +360,7 @@ export function CampaignStudio() {
                       }
                     />
                     <p className="mt-2 text-[11px] leading-5 text-muted">
-                      With addresses here the send goes only to them — the safe way to see the
+                      With addresses here the send goes only to them - the safe way to see the
                       real thing in a real inbox before it reaches the member base.
                     </p>
                   </div>
@@ -433,7 +433,7 @@ export function CampaignStudio() {
                 <PanelHeader
                   eyebrow="SEND CONTROL"
                   title="Delivery"
-                  description="Preview the audience first — the button stays locked until you have seen the number you are about to mail."
+                  description="Preview the audience first - the button stays locked until you have seen the number you are about to mail."
                 />
 
                 <div className="mt-5 flex flex-wrap items-end gap-3">

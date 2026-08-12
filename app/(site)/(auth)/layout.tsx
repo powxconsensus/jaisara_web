@@ -2,7 +2,7 @@ import { AccessPanel } from "@/components/auth/access-panel";
 
 /**
  * Two equal-height panels, vertically centred, with 28px clearance below the
- * floating navbar (handoff §4.4 — an earlier build had the panel touching it).
+ * floating navbar (handoff §4.4 - an earlier build had the panel touching it).
  */
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (

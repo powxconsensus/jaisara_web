@@ -1,5 +1,5 @@
 /**
- * The patch of ledger directly under the receipt — everything that reacts to a
+ * The patch of ledger directly under the receipt - everything that reacts to a
  * landing. Pure markup at rest; `ground-impact.ts` drives it.
  *
  * The whole group is positioned and sized from the card's live rect
@@ -24,7 +24,7 @@ export function ImpactField() {
       data-imp=""
       className="absolute left-[var(--impx,72%)] top-[var(--impy,52%)] h-[var(--impw,560px)] w-[var(--impw,560px)] [transform-style:preserve-3d] [transform:translate(-50%,-50%)_rotateX(var(--groundrot))]"
     >
-      {/* Contact shadow — the receipt's own weight on the floor. */}
+      {/* Contact shadow - the receipt's own weight on the floor. */}
       <div
         className="absolute left-1/2 top-1/2 size-[46%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[22px]"
         style={{ background: "radial-gradient(circle, rgba(0,0,0,.6), transparent 70%)" }}
@@ -41,7 +41,7 @@ export function ImpactField() {
         }}
       />
 
-      {/* Conic rays — light escaping the seams. */}
+      {/* Conic rays - light escaping the seams. */}
       <div
         data-fx={FX.ray}
         className="absolute left-1/2 top-1/2 size-[96%] -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-1000 ease-out"
@@ -67,7 +67,7 @@ export function ImpactField() {
             transform: `rotate(${fracture.angle}deg) scaleX(.02)`,
           }}
         >
-          {/* Darkness around the seam, not in it — that is what gives it depth. */}
+          {/* Darkness around the seam, not in it - that is what gives it depth. */}
           <div
             className="absolute inset-y-[-70%] left-0 right-[-1%] blur-[7px]"
             style={{

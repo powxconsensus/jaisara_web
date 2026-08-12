@@ -2,8 +2,8 @@
  * The email a campaign is built from, and how it becomes HTML.
  *
  * Writing marketing HTML by hand is the reason campaigns do not get sent. It
- * is not ordinary HTML either — mail clients strip `<style>`, ignore most
- * modern CSS, and Outlook still renders through Word — so the safe subset is
+ * is not ordinary HTML either - mail clients strip `<style>`, ignore most
+ * modern CSS, and Outlook still renders through Word - so the safe subset is
  * narrow and unobvious, and getting it wrong is invisible until it lands in
  * somebody's inbox looking broken.
  *
@@ -25,7 +25,7 @@ export interface EmailBlock {
   text?: string;
   /** Image source, or the button's destination. */
   url?: string;
-  /** Alt text. Required in spirit — a blocked image with no alt is a blank gap. */
+  /** Alt text. Required in spirit - a blocked image with no alt is a blank gap. */
   alt?: string;
 }
 
@@ -93,7 +93,7 @@ export function isEmailDesign(value: unknown): value is EmailDesign {
  * Escapes text for HTML.
  *
  * Campaign copy is written by an admin, but it still ends up inside markup we
- * generate — an unescaped `&` alone is enough to break a link, and an
+ * generate - an unescaped `&` alone is enough to break a link, and an
  * unescaped `<` swallows the rest of the paragraph.
  */
 function escapeHtml(value: string): string {
@@ -108,7 +108,7 @@ function escapeHtml(value: string): string {
  * Whether a URL is safe to put in an email.
  *
  * `javascript:` in an `href` is the obvious one, but `data:` matters more here
- * — a data URI in an `<img>` is stripped by most clients and flagged by spam
+ * - a data URI in an `<img>` is stripped by most clients and flagged by spam
  * filters, so an image pasted as base64 would silently vanish for recipients
  * while looking fine in the studio preview.
  */
@@ -156,7 +156,7 @@ export function compileHtml(design: EmailDesign): string {
  * The plain-text alternative.
  *
  * Generated rather than typed. It used to be a second textarea the author had
- * to keep in sync by hand, which meant it was always the previous draft —
+ * to keep in sync by hand, which meant it was always the previous draft -
  * and a text part that contradicts the HTML is a spam signal on its own.
  */
 export function compileText(design: EmailDesign): string {
@@ -179,7 +179,7 @@ export function compileText(design: EmailDesign): string {
         }
         break;
       case "divider":
-        lines.push("—", "");
+        lines.push("-", "");
         break;
       case "spacer":
         lines.push("");
@@ -188,7 +188,7 @@ export function compileText(design: EmailDesign): string {
   }
 
   // The footer template adds the unsubscribe line to both parts, so it is not
-  // repeated here — two unsubscribe links in one email reads as a mistake.
+  // repeated here - two unsubscribe links in one email reads as a mistake.
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 

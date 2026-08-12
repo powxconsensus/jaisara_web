@@ -22,7 +22,7 @@ export function pointsToUsd(points: string | number | null | undefined): string 
 
 /** A decimal string that is already in dollars, e.g. `"4281.39"`. */
 export function usd(amount: string | number | null | undefined, currency = "USD"): string {
-  if (amount === null || amount === undefined || amount === "") return "—";
+  if (amount === null || amount === undefined || amount === "") return "-";
 
   const value = Number(amount);
   if (!Number.isFinite(value)) return String(amount);
@@ -36,19 +36,19 @@ export function usd(amount: string | number | null | undefined, currency = "USD"
 }
 
 export function shortDate(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value));
 }
 
 export function dateTime(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
 }
 
-/** "3 days ago" / "in 2 hours" — for hold periods and queue age. */
+/** "3 days ago" / "in 2 hours" - for hold periods and queue age. */
 /**
  * Whether a timestamp is older than `ms`.
  *
@@ -64,7 +64,7 @@ export function isOlderThan(value: string | null | undefined, ms: number): boole
 }
 
 export function relativeTime(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
 
   const deltaMs = new Date(value).getTime() - Date.now();
   const units: [Intl.RelativeTimeFormatUnit, number][] = [
@@ -95,7 +95,7 @@ export function humanRole(role: string): string {
 
 /** `#6570839` stays as typed; a blank shows as an em dash rather than nothing. */
 export function orNone(value: string | null | undefined): string {
-  return value && value.trim() ? value : "—";
+  return value && value.trim() ? value : "-";
 }
 
 export function slugify(value: string): string {

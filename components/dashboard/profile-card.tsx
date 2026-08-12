@@ -6,12 +6,13 @@ import { useAuth } from "@/components/auth/auth-context";
 import { useToast } from "@/components/shell/toast";
 import { SecuritySection } from "@/components/dashboard/security-card";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { apiFetch } from "@/lib/api-fetch";
 
 /**
  * Matched to the API's own cap on a profile photo.
  *
  * Checked here as well as there so somebody who picks a 6MB photo is told
- * immediately instead of after uploading it — the server remains the one that
+ * immediately instead of after uploading it - the server remains the one that
  * decides, since nothing in the browser can be trusted to enforce it.
  */
 const PHOTO_MAX_BYTES = 500 * 1024;
@@ -77,7 +78,7 @@ export function ProfileCard() {
   const saveName = async () => {
     setNameBusy(true);
     try {
-      const response = await fetch("/api/auth/me", {
+      const response = await apiFetch("/api/auth/me", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ displayName: displayName.trim() }),
@@ -89,7 +90,7 @@ export function ProfileCard() {
         return;
       }
 
-      // Drop the local override so the field reads from the session again —
+      // Drop the local override so the field reads from the session again -
       // otherwise it would keep showing the typed value even after a refresh
       // returned something different.
       setName(null);
@@ -104,7 +105,7 @@ export function ProfileCard() {
 
   const uploadPhoto = async (file: File) => {
     if (file.size > PHOTO_MAX_BYTES) {
-      toast(`That image is ${Math.round(file.size / 1024)}KB — the limit is 500KB.`, "warning");
+      toast(`That image is ${Math.round(file.size / 1024)}KB - the limit is 500KB.`, "warning");
       return;
     }
 
@@ -112,7 +113,7 @@ export function ProfileCard() {
     try {
       const body = new FormData();
       body.set("file", file);
-      const response = await fetch("/api/auth/me/photo", { method: "POST", body });
+      const response = await apiFetch("/api/auth/me/photo", { method: "POST", body });
       const payload: unknown = await response.json().catch(() => null);
 
       if (!response.ok) {
@@ -132,7 +133,7 @@ export function ProfileCard() {
   const removePhoto = async () => {
     setPhotoBusy(true);
     try {
-      const response = await fetch("/api/auth/me/photo", { method: "DELETE" });
+      const response = await apiFetch("/api/auth/me/photo", { method: "DELETE" });
       if (!response.ok) {
         const payload: unknown = await response.json().catch(() => null);
         toast(apiErrorMessage(payload, "Could not remove that photo."), "warning");
@@ -153,7 +154,7 @@ export function ProfileCard() {
       await navigator.clipboard.writeText(referralCode);
       toast("Referral code copied");
     } catch {
-      toast("Could not copy — select it manually", "warning");
+      toast("Could not copy - select it manually", "warning");
     }
   };
 
@@ -163,7 +164,7 @@ export function ProfileCard() {
     setEmailBusy(true);
 
     try {
-      const response = await fetch("/api/auth/email-change", {
+      const response = await apiFetch("/api/auth/email-change", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ newEmail, currentPassword }),
@@ -191,7 +192,7 @@ export function ProfileCard() {
     setEmailBusy(true);
 
     try {
-      const response = await fetch("/api/auth/email-change", { method: "DELETE" });
+      const response = await apiFetch("/api/auth/email-change", { method: "DELETE" });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         setEmailError(apiErrorMessage(body, "Could not cancel the email change."));
@@ -230,7 +231,7 @@ export function ProfileCard() {
           {avatarUrl && photoFailed !== avatarUrl ? (
             // A plain `<img>` rather than `next/image`. The optimizer would
             // need a `remotePatterns` entry per environment for the API origin,
-            // and would then proxy every avatar through the Next server — real
+            // and would then proxy every avatar through the Next server - real
             // build coupling and a round trip, to optimise a 56px image the API
             // already caps at 500KB.
             // eslint-disable-next-line @next/next/no-img-element
@@ -256,7 +257,7 @@ export function ProfileCard() {
           onChange={(event) => {
             const file = event.target.files?.[0];
             // Reset first, so picking the same file after a failure still
-            // fires a change event — which is exactly when you would retry.
+            // fires a change event - which is exactly when you would retry.
             event.target.value = "";
             if (file) void uploadPhoto(file);
           }}
@@ -364,7 +365,7 @@ export function ProfileCard() {
             PAYOUT DEFAULT
           </p>
           <div className="flex items-center justify-between gap-2.5 rounded-[10px] border border-hair bg-surface-2 px-3.5 py-3">
-            <span className="text-sm">USDT · TRC-20</span>
+            <span className="text-sm">USDT · Polygon, Tron or Arbitrum</span>
             <Link
               href="/dashboard/withdraw"
               className="font-mono text-[9px] tracking-[0.14em] text-primary"
@@ -376,7 +377,7 @@ export function ProfileCard() {
       </div>
 
       {/* The only save in this grid, and it does the work. It used to sit
-          beside a second inline Save while itself only firing a toast — so the
+          beside a second inline Save while itself only firing a toast - so the
           obvious button was the one that saved nothing. Disabled rather than
           hidden: a button that vanishes reads as a bug when you are looking
           for it. */}

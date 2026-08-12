@@ -1,6 +1,6 @@
 import { apiRequest } from "@/lib/auth-server";
-import { FIRMS, type Firm, type PayoutCadence } from "@/lib/data/firms";
-import { ESTIMATOR_FIRMS, type EstimatorFirm } from "@/lib/data/estimator";
+import type { Firm, PayoutCadence } from "@/lib/data/firms";
+import type { EstimatorFirm } from "@/lib/data/estimator";
 
 /**
  * The real firm catalogue.
@@ -11,14 +11,14 @@ import { ESTIMATOR_FIRMS, type EstimatorFirm } from "@/lib/data/estimator";
  * where no firm has been published yet. A deals page that renders nothing
  * reads as broken rather than as new.
  *
- * Fetched on the server with a revalidate window — the catalogue changes when
+ * Fetched on the server with a revalidate window - the catalogue changes when
  * an admin edits it, not per request, and every visitor should get cached HTML.
  */
 
 /**
  * Five minutes in production; five seconds while developing.
  *
- * The long window is right for visitors — the catalogue changes when an admin
+ * The long window is right for visitors - the catalogue changes when an admin
  * edits it, not per request. It is wrong for the person doing the editing: a
  * challenge published in the console stayed invisible on the storefront for
  * five minutes, which reads as "the save did not work" rather than "the page
@@ -44,7 +44,6 @@ interface DealProduct {
   kind: string;
   listPrice: string | null;
   currency: string;
-  estCommissionRate: string | null;
   estCashbackPct: number | null;
   tradingPlatform: string | null;
 }
@@ -96,10 +95,10 @@ export async function fetchDeal(slug: string): Promise<Deal | null> {
   }
 }
 
-/** Real firms when the catalogue has any, the designed set while it is empty. */
+/** Only published catalogue rows are public deals. */
 export async function fetchFirms(): Promise<Firm[]> {
   const deals = await fetchDeals();
-  return deals.length > 0 ? deals.map(toFirm) : FIRMS;
+  return deals.map(toFirm);
 }
 
 export function toFirm(deal: Deal): Firm {
@@ -121,9 +120,9 @@ export function toFirm(deal: Deal): Firm {
     cashback: Number(cashback.toFixed(1)),
     discount: Number(coupon?.discountPct ?? 0),
     coupon: coupon?.code ?? deal.defaultCouponCode ?? "JAISARA",
-    split: deal.profitSplit ?? "—",
+    split: deal.profitSplit ?? "-",
     payout: normalisePayout(deal.payoutCadence),
-    platform: deal.tradingPlatforms.join("/") || "—",
+    platform: deal.tradingPlatforms.join("/") || "-",
     ...(deal.fulfillment === "RESELL" ? { tag: "Reseller" as const } : {}),
   };
 }
@@ -164,9 +163,9 @@ export interface PublicStats {
   paidToTradersUsd: string;
 }
 
-/** Headline figures, with the designed placeholders while the ledger is empty. */
+/** Headline figures. Failure is represented as zero, never invented activity. */
 export async function fetchStats(): Promise<PublicStats> {
-  const fallback: PublicStats = { firmCount: FIRMS.length, memberCount: 0, paidToTradersUsd: "0.00" };
+  const fallback: PublicStats = { firmCount: 0, memberCount: 0, paidToTradersUsd: "0.00" };
 
   try {
     const response = await apiRequest("/activity/stats", {
@@ -176,10 +175,7 @@ export async function fetchStats(): Promise<PublicStats> {
     } as RequestInit);
 
     if (!response.ok) return fallback;
-    const stats = (await response.json()) as PublicStats;
-    // A brand-new install reports zero firms; the storefront still has the
-    // designed catalogue to show, so keep the counts consistent with it.
-    return stats.firmCount > 0 ? stats : fallback;
+    return (await response.json()) as PublicStats;
   } catch {
     return fallback;
   }
@@ -212,13 +208,20 @@ export function toEstimatorFirms(deals: Deal[]): EstimatorFirm[] {
         logoUrl: deal.logoUrl,
         cashbackPct: Number(best.toFixed(1)),
         discountPct: Number(coupon?.discountPct ?? 0),
-        plans: [...new Set(priced.map((product) => planLabel(product.kind)))].slice(0, 3),
-        sizes: priced
+        plans: [
+          ...new Set(
+            priced.map((product) => product.family?.trim() || planLabel(product.kind)),
+          ),
+        ],
+        products: priced
           .map((product) => ({
+            slug: product.slug,
+            plan: product.family?.trim() || planLabel(product.kind),
             label: product.accountSize
               ? `$${Math.round(product.accountSize / 1000)}K`
               : product.name,
             price: Math.round(Number(product.listPrice)),
+            cashbackPct: Number((product.estCashbackPct ?? 0).toFixed(2)),
           }))
           .sort((a, b) => a.price - b.price),
       } satisfies EstimatorFirm;
@@ -237,10 +240,9 @@ function planLabel(kind: string): string {
   return labels[kind] ?? "Challenge";
 }
 
-/** Real challenges when any are listed, the designed ladder while none are. */
+/** Only listed, priced challenges may be used for estimates. */
 export async function fetchEstimatorFirms(): Promise<EstimatorFirm[]> {
-  const real = toEstimatorFirms(await fetchDeals());
-  return real.length > 0 ? real : ESTIMATOR_FIRMS;
+  return toEstimatorFirms(await fetchDeals());
 }
 
 /** What the claim form needs: the firm's id, name and best rate. */
@@ -257,7 +259,7 @@ export function toClaimPlatforms(deals: Deal[]) {
      * What this firm actually sells, so the claim form can offer it rather
      * than asking somebody to retype it.
      *
-     * `family` is the firm's own account type — LucidPro, LucidFlex and so on.
+     * `family` is the firm's own account type - LucidPro, LucidFlex and so on.
      * It groups the list, which is how a member finds their plan: they
      * remember the type they bought long before the exact size.
      */
@@ -268,7 +270,7 @@ export function toClaimPlatforms(deals: Deal[]) {
     })),
     /**
      * Whose coupon was used. Almost always exactly one, which is why the
-     * field is a select and not a text box — a mistyped code is a claim that
+     * field is a select and not a text box - a mistyped code is a claim that
      * cannot be attributed.
      */
     coupons: deal.coupons.map((coupon) => coupon.code),

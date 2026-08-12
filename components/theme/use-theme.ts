@@ -15,7 +15,7 @@ import {
 interface UseThemeResult {
   palette: PaletteKey;
   mode: Mode;
-  /** False during SSR and hydration — guard palette-specific labels with it. */
+  /** False during SSR and hydration - guard palette-specific labels with it. */
   mounted: boolean;
   setPalette: (palette: PaletteKey) => void;
   setMode: (mode: Mode) => void;
@@ -27,7 +27,7 @@ const subscribeToNothing = () => () => {};
 
 /**
  * Reads theme prefs from the external store (localStorage). No context is
- * needed — every consumer subscribes to the same store, and the pre-paint
+ * needed - every consumer subscribes to the same store, and the pre-paint
  * script in <head> has already applied both attributes before React runs.
  */
 export function useTheme(): UseThemeResult {

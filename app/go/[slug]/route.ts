@@ -6,7 +6,7 @@ import { authApiUrl, authenticatedRequest } from "@/lib/auth-server";
  *
  * This exists so the click is attributed to the member who made it. The API's
  * `/go/:slug` records the click and builds the firm's URL with the member's
- * sub-id attached — but it authenticates by bearer token, and a browser
+ * sub-id attached - but it authenticates by bearer token, and a browser
  * navigating straight to the API sends only cookies. Routing through here
  * attaches the token, so a signed-in member's click is logged as theirs
  * instead of as an anonymous one.
@@ -16,7 +16,7 @@ import { authApiUrl, authenticatedRequest } from "@/lib/auth-server";
  * to this firm forty minutes before this order" is what turns a manual review
  * into an approval.
  *
- * `redirect: "manual"` is the load-bearing detail — without it `fetch` follows
+ * `redirect: "manual"` is the load-bearing detail - without it `fetch` follows
  * the 302 itself, and the member would get the firm's HTML served from our own
  * domain rather than being sent to the firm.
  */
@@ -41,7 +41,7 @@ export async function GET(
       });
     }
   } catch {
-    // Fall through — a member who wanted to buy should still reach the firm.
+    // Fall through - a member who wanted to buy should still reach the firm.
   }
 
   /**

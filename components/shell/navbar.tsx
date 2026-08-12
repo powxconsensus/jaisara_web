@@ -46,7 +46,7 @@ export function Navbar() {
     router.refresh();
   };
 
-  // Close the overlay whenever the route changes — including browser back,
+  // Close the overlay whenever the route changes - including browser back,
   // which no link handler would catch. Adjusting state during render is
   // React's recommended alternative to a route-watching effect.
   const [menuPath, setMenuPath] = useState(pathname);
@@ -58,7 +58,7 @@ export function Navbar() {
   return (
     <div className="sticky top-3.5 z-[90] px-[var(--pad)]">
       {/* No console branch here any more. The console lives in its own route
-          group with its own fixed frame, so this bar never renders there —
+          group with its own fixed frame, so this bar never renders there -
           widening it for a surface it cannot appear on was dead code. */}
       <div className="relative mx-auto max-w-[var(--maxw)]">
         <div
@@ -106,7 +106,7 @@ export function Navbar() {
               account monogram, as in the prototype's signed-in state. */}
           {signedIn ? (
             <Link href="/dashboard" className="hidden flex-none items-center gap-2 text-fg md:flex">
-              {/* Only once the real balance is known — an invented number
+              {/* Only once the real balance is known - an invented number
                   here is the first thing a member sees. */}
               {wallet && (
                 <span
@@ -126,7 +126,7 @@ export function Navbar() {
           ) : null}
 
           {/* Signing out belongs where you always are, not three clicks deep in
-              account settings. Icon only — the label is the tooltip and the
+              account settings. Icon only - the label is the tooltip and the
               accessible name. */}
           {signedIn ? (
             <button
@@ -149,7 +149,7 @@ export function Navbar() {
           ) : null}
 
           {/* Stays above the overlay and becomes the close control in the
-              identical slot — a requirement from the handoff. */}
+              identical slot - a requirement from the handoff. */}
           <button
             type="button"
             ref={menuTriggerRef}

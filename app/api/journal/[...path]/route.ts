@@ -17,7 +17,7 @@ async function forward(request: NextRequest, context: { params: Promise<{ path: 
       {
         method,
         headers: contentType ? { "content-type": contentType } : undefined,
-        // Bytes, not text — an image upload is multipart with its own boundary,
+        // Bytes, not text - an image upload is multipart with its own boundary,
         // and decoding it to a string corrupts anything not valid UTF-8.
         body: ["GET", "HEAD"].includes(method) ? undefined : await request.arrayBuffer(),
       },

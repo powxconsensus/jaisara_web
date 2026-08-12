@@ -121,7 +121,7 @@ export function MemberPanel({
 
         {record.suspendedNote && (
           <p className="mt-5 rounded-[11px] border border-hair p-4 text-[12.5px] leading-6 text-muted">
-            <span className="font-mono text-[9px] tracking-[0.14em] text-danger">SUSPENDED — </span>
+            <span className="font-mono text-[9px] tracking-[0.14em] text-danger">SUSPENDED - </span>
             {record.suspendedNote}
             {record.suspendedAt && (
               <span className="text-muted"> ({dateTime(record.suspendedAt)})</span>
@@ -159,7 +159,7 @@ export function MemberPanel({
                 label: "Referred by",
                 value: record.referredBy
                   ? (record.referredBy.displayName ?? record.referredBy.referralCode)
-                  : "—",
+                  : "-",
               },
               { label: "Club tier", value: orNone(record.clubTierKey) },
               { label: "KYC", value: record.kycStatus },
@@ -188,7 +188,7 @@ export function MemberPanel({
           {ASSIGNABLE_ROLES.map((role) => {
             const granting = !held.has(role);
             // An owner's roles are managed by another owner through the API,
-            // never by toggling here — the button would imply a demotion path
+            // never by toggling here - the button would imply a demotion path
             // this screen does not implement safely.
             const disabled = !canManageRoles || isOwner || pending;
 
@@ -333,7 +333,7 @@ function summary(action: NonNullable<PendingAction>, member: AdminUserDetail) {
     return action.granting ? (
       <>
         {who} will be able to sign in to this console with the {humanRole(action.role)} role.
-        Check the address character by character — this is the one action that hands over access.
+        Check the address character by character - this is the one action that hands over access.
       </>
     ) : (
       <>Removes the {humanRole(action.role)} role from {who}. Their member account is untouched.</>

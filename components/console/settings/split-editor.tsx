@@ -163,7 +163,7 @@ export function SplitEditor() {
                   </Td>
                   <Td className="whitespace-nowrap text-muted">
                     {rule.alwaysApplied ? (
-                      <span title="The default split — it has applied to every order since launch.">
+                      <span title="The default split - it has applied to every order since launch.">
                         Always
                       </span>
                     ) : (
@@ -264,7 +264,7 @@ export function SplitEditor() {
                   className="font-mono text-[12px]"
                   style={{ color: balanced ? "var(--success)" : "var(--danger)" }}
                 >
-                  {total.toFixed(2)}% {balanced ? "✓" : "— must be exactly 100"}
+                  {total.toFixed(2)}% {balanced ? "✓" : "- must be exactly 100"}
                 </span>
               </div>
 
@@ -292,7 +292,7 @@ export function SplitEditor() {
                 ))}
               </div>
 
-              {/* The split as a bar — three percentages read as numbers, but
+              {/* The split as a bar - three percentages read as numbers, but
                   what an owner is deciding is a proportion. */}
               <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-surface-2">
                 <span
@@ -401,7 +401,7 @@ export function SplitEditor() {
         <Panel>
           <EmptyState
             title="Read-only"
-            message="Changing the split is owner-level (config:manage). Deliberately not granted to admins — it is what the platform keeps."
+            message="Changing the split is owner-level (config:manage). Deliberately not granted to admins - it is what the platform keeps."
           />
         </Panel>
       )}
@@ -426,7 +426,7 @@ export function SplitEditor() {
             <strong className="text-fg">{form.holdDays} days</strong>.
             <br />
             <br />
-            Conversions already approved are untouched — each one froze the rule that applied at
+            Conversions already approved are untouched - each one froze the rule that applied at
             the time, and this does not rewrite them.
           </>
         }

@@ -7,7 +7,7 @@ import { useEffect, useRef, type RefObject } from "react";
  * rAF, and a watchdog for environments that throttle rAF (background tabs,
  * embedded previews) so the canvas never freezes mid-frame.
  *
- * The painter owns its own particle state — pass one built by a factory and
+ * The painter owns its own particle state - pass one built by a factory and
  * memoised per component, never a module-level singleton, or two mounts share
  * one set of particles.
  */
@@ -69,7 +69,7 @@ export function useCanvasLoop(paint: Painter): RefObject<HTMLCanvasElement | nul
   return canvasRef;
 }
 
-/** Deep Teal's accent — the seed value, replaced on the first painted frame. */
+/** Deep Teal's accent - the seed value, replaced on the first painted frame. */
 export const DEFAULT_ACCENT_RGB = "153,225,217";
 
 /**

@@ -1,7 +1,7 @@
 /**
  * Motion for the hero receipt (handoff §2).
  *
- * ARCHITECTURE — read before changing any of this.
+ * ARCHITECTURE - read before changing any of this.
  *
  * The resting state (`opacity:1; transform:none`) is the card's own *static*
  * style, and nothing here ever writes `opacity` or `transform` as a persistent
@@ -12,14 +12,14 @@
  *
  * Two earlier implementations stored a phase (out/mid/in) in state and painted
  * it imperatively. Both shipped a permanently invisible receipt whenever a
- * timer in the chain was interrupted — the architecture was the bug. Do not
+ * timer in the chain was interrupted - the architecture was the bug. Do not
  * reintroduce a phase machine.
  */
 
 /** Full duration of one fall-and-rock cycle, ms. */
 export const FALL_DURATION_MS = 1150;
 
-/** Points on the timeline where other effects are scheduled, as 0–1 offsets. */
+/** Points on the timeline where other effects are scheduled, as 0-1 offsets. */
 export const CUE = {
   /** Swap the card's content while it is off-screen. */
   contentSwap: 0.23,
@@ -31,7 +31,7 @@ export const CUE = {
 
 /**
  * The card sinks out of frame, drops back in from above and rocks flat, as one
- * continuous motion. Pivots on `transform-origin: 8% 100%` — it lands on its
+ * continuous motion. Pivots on `transform-origin: 8% 100%` - it lands on its
  * bottom-left corner, which is the edge the fracture below answers.
  */
 const FALL_KEYFRAMES: Keyframe[] = [
@@ -93,7 +93,7 @@ export function playFall(card: HTMLElement): Animation | null {
 
 /**
  * Re-punch the stamp. Driven imperatively because a CSS `animation` with a
- * delay fires once on first paint and never again — that was a bug.
+ * delay fires once on first paint and never again - that was a bug.
  */
 export function playStamp(stamp: HTMLElement | null) {
   if (!stamp?.animate) return;
