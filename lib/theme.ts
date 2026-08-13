@@ -1,12 +1,12 @@
 /**
  * Palette metadata and theming rules (handoff §1.2, §1.3).
  *
- * Palette and mode are ORTHOGONAL. `data-theme` on <html> selects one of 15
+ * Palette and mode are ORTHOGONAL. `data-theme` on <html> selects one of 16
  * families; `data-mode` selects light or dark. Every family defines both, so
- * all 30 combinations are valid - light/dark is not a pairing of two palettes
+ * all 32 combinations are valid - light/dark is not a pairing of two palettes
  * and toggling mode never changes which family you are on.
  *
- * The 15 families are a *selection aid* while the brand is undecided, not a
+ * The 16 families are a *selection aid* while the brand is undecided, not a
  * shipped feature. Once one is chosen, keep it and the switcher collapses to
  * the mode toggle. This module is the single source of the list; the
  * CSS-variable values live in `app/globals.css`.
@@ -15,6 +15,7 @@
 export type Mode = "light" | "dark";
 
 export type PaletteKey =
+  | "jaisara"
   | "teal"
   | "light"
   | "obsidian"
@@ -45,7 +46,12 @@ export interface PaletteMeta {
   light: Swatch;
 }
 
-export const DEFAULT_PALETTE: PaletteKey = "teal";
+/**
+ * Whatever this is, its values must also be the `:root` block in globals.css -
+ * that block is what a visitor with JS disabled gets, since the theme script
+ * never runs to set `data-theme` for them.
+ */
+export const DEFAULT_PALETTE: PaletteKey = "jaisara";
 
 /**
  * Deep Teal and Bright Turquoise are both turquoise and shipped byte-identical
@@ -54,6 +60,8 @@ export const DEFAULT_PALETTE: PaletteKey = "teal";
  * light accent must clear 4.5:1 on white, since the primary CTA is 12px/600.
  */
 export const PALETTES: PaletteMeta[] = [
+  { key: "jaisara", name: "Jaisara Club", tag: "Official logo", nativeMode: "dark",
+    dark: ["#01050e", "#99e1d9", "#e4c590"], light: ["#f1f6f7", "#0b6e63", "#a8791f"] },
   { key: "teal", name: "Deep Teal", tag: "Signature", nativeMode: "dark",
     dark: ["#0b3037", "#99e1d9", "#e4c590"], light: ["#eff6f4", "#0c6e63", "#b07d2a"] },
   { key: "light", name: "Bright Turquoise", tag: "Airy", nativeMode: "light",

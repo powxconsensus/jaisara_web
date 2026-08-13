@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/auth-context";
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -12,6 +12,18 @@ import { apiFetch } from "@/lib/api-fetch";
  * balance on a product whose whole promise is "tracked to the cent" - so this
  * returns `null` until the real figure arrives and callers render nothing
  * rather than a placeholder number.
+ *
+ * ── Why this is a store rather than per-component state ───────────────────
+ *
+ * It used to hold its own `useState` per caller, which meant the navbar, the
+ * wallet page and the withdraw form each had a private copy. Requesting a
+ * payout debits the balance immediately (that is what makes double-spending
+ * impossible), so the moment the form succeeded every *other* copy was showing
+ * money the member no longer had - and the one screen where that is least
+ * forgivable is the one with a balance printed in the corner.
+ *
+ * One module-level snapshot, read through `useSyncExternalStore`, so
+ * `refreshWallet()` after a withdrawal updates every surface at once.
  */
 
 export interface WalletSummary {
@@ -19,53 +31,101 @@ export interface WalletSummary {
   pendingPoints: string;
   lifetimePoints: string;
   clubPoints: string;
+  /** Committed to a payout that has been requested but has not gone out. */
+  holdPoints: string;
   availableUsd: string;
   pendingUsd: string;
   lifetimeUsd: string;
   clubUsd: string;
+  holdUsd: string;
+  /** How many in-flight payouts that hold is spread across. */
+  holdCount: number;
+  minWithdrawalPoints: string;
   minWithdrawalUsd: string;
+  /** How much more is needed to reach the minimum. "0.00" once it is met. */
+  shortfallUsd: string;
   canWithdraw: boolean;
 }
 
-export function useWallet(): { wallet: WalletSummary | null; loading: boolean } {
+interface WalletState {
+  wallet: WalletSummary | null;
+  loading: boolean;
+}
+
+/** Frozen so `getServerSnapshot` is referentially stable across renders. */
+const EMPTY: WalletState = Object.freeze({ wallet: null, loading: false });
+const LOADING: WalletState = Object.freeze({ wallet: null, loading: true });
+
+let state: WalletState = EMPTY;
+let loadedOnce = false;
+let inFlight: AbortController | null = null;
+
+const listeners = new Set<() => void>();
+
+function set(next: WalletState) {
+  state = next;
+  for (const listener of listeners) listener();
+}
+
+function subscribe(onChange: () => void): () => void {
+  listeners.add(onChange);
+  return () => {
+    listeners.delete(onChange);
+  };
+}
+
+/**
+ * Re-reads the balance and tells every subscriber.
+ *
+ * Call it after anything that moves money - a withdrawal request is the one
+ * that matters, since the debit happens server-side the instant it succeeds.
+ */
+export async function refreshWallet(): Promise<void> {
+  // A newer read always wins; an aborted one must not overwrite it on the way
+  // out, hence the `own.signal.aborted` checks rather than a shared flag.
+  inFlight?.abort();
+  const own = new AbortController();
+  inFlight = own;
+  loadedOnce = true;
+  if (state.wallet === null) set(LOADING);
+
+  try {
+    const response = await apiFetch("/api/wallet", {
+      cache: "no-store",
+      signal: own.signal,
+    });
+    if (!response.ok) throw new Error("unavailable");
+    const body = (await response.json()) as WalletSummary;
+    if (!own.signal.aborted) set({ wallet: body, loading: false });
+  } catch {
+    // Signed in but the balance did not load: show nothing rather than a
+    // stale or invented figure.
+    if (!own.signal.aborted) set(EMPTY);
+  }
+}
+
+/** Sign-out, or a switch of account. The next member must never see this one. */
+function reset() {
+  inFlight?.abort();
+  inFlight = null;
+  loadedOnce = false;
+  if (state !== EMPTY) set(EMPTY);
+}
+
+export function useWallet(): WalletState {
   const { status } = useAuth();
   const authenticated = status === "authenticated";
-  const [wallet, setWallet] = useState<WalletSummary | null>(null);
-  const [loading, setLoading] = useState(authenticated);
-
-  // Resetting on a sign-in/sign-out flip happens during render rather than in
-  // the effect - React's recommended alternative to a state-resetting effect,
-  // and it means the previous member's balance is never painted for a frame
-  // after a switch.
-  const [lastAuth, setLastAuth] = useState(authenticated);
-  if (lastAuth !== authenticated) {
-    setLastAuth(authenticated);
-    setWallet(null);
-    setLoading(authenticated);
-  }
+  const snapshot = useSyncExternalStore(subscribe, () => state, () => EMPTY);
 
   useEffect(() => {
-    if (!authenticated) return;
-
-    const controller = new AbortController();
-
-    void apiFetch("/api/wallet", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("unavailable");
-        const body = (await response.json()) as WalletSummary;
-        if (!controller.signal.aborted) setWallet(body);
-      })
-      .catch(() => {
-        // Signed in but the balance did not load: show nothing rather than a
-        // stale or invented figure.
-        if (!controller.signal.aborted) setWallet(null);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
-    return () => controller.abort();
+    if (!authenticated) {
+      reset();
+      return;
+    }
+    // Guarded, because several components call this hook and one balance does
+    // not need fetching once per subscriber.
+    if (!loadedOnce) void refreshWallet();
   }, [authenticated]);
 
-  return { wallet, loading };
+  return snapshot;
 }

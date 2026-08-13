@@ -8,7 +8,7 @@ import { PalettePreviewTile } from "./palette-preview-tile";
  * Appearance settings (handoff §4.9) - the only place a user manages the
  * palette long-term; the navbar control is a quick switch.
  *
- * ONE grid of 15 tiles, headed with the mode it is previewing. Do not split it
+ * ONE grid of 16 tiles, headed with the mode it is previewing. Do not split it
  * back into DARK and LIGHT sections: that split stopped meaning anything once
  * every family gained both sides. Mode is the toggle above, not a heading.
  *

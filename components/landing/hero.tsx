@@ -7,7 +7,9 @@ import { LiveMarquee } from "@/components/shell/live-marquee";
 import { ImpactProvider } from "./impact-context";
 import { HeroStage } from "./hero-stage";
 import { HeroAtmosphere } from "./hero-atmosphere";
+import { HeroWatermark } from "./hero-watermark";
 import { HeroGround } from "./hero-ground";
+import { HEADER_COUPON } from "@/lib/nav";
 
 /**
  * The three figures under the headline, from the ledger and the catalogue.
@@ -30,9 +32,10 @@ function statsFor(stats?: PublicStats) {
 
 /**
  * Landing hero: copy left, receipt right, collapsing to one column below
- * 1180px. The promise is deliberately benefit-led: coupon plus cashback.
+ * 1180px. The promise is deliberately benefit-led: the coupon discount is the
+ * firm's, and the cashback is what Jaisara adds on top of it.
  *
- * Layer order is load-bearing. Atmosphere, ground and scrim all paint before
+ * Layer order is load-bearing. Watermark, atmosphere, ground and scrim all paint before
  * the content wrapper and none of them carries a z-index above it, so the copy
  * sits on top by DOM order alone. Give the scrim a z-index and it covers the
  * headline.
@@ -49,6 +52,10 @@ export function Hero({
   return (
     <ImpactProvider>
       <HeroStage>
+        {/* Before the atmosphere, not after: the grid and the motes have to
+            pass in front of the mark or it reads as a decal on the glass.
+            See the note in hero-watermark.tsx. */}
+        <HeroWatermark />
         <HeroAtmosphere />
         <HeroGround />
 
@@ -72,26 +79,51 @@ export function Hero({
         <div className="relative mx-auto flex w-full max-w-[var(--maxw)] flex-1 flex-col">
           <div className="grid min-h-0 flex-1 items-center gap-[clamp(30px,4vw,62px)] lg:grid-cols-[1.12fr_.88fr]">
             <div className="max-w-[720px]">
-              <h1 className="mb-[clamp(22px,3vw,32px)] font-display text-[length:var(--display)] font-black uppercase leading-[0.92] tracking-[-0.02em]">
+              {/* The kicker. It gives the headline something to sit against -
+                  a display line starting hard at the top of the column had
+                  nothing to establish the voice first - and it says the two
+                  halves of the offer in four words before the headline says
+                  them in six. */}
+              <p className="mb-[clamp(14px,1.6vw,20px)] flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.24em] text-muted [animation:jsUp_.8s_both]">
+                <span className="size-1.5 flex-none rounded-[2px] bg-primary" />
+                Smarter deals. <span className="text-primary">Real cashback.</span>
+              </p>
+
+              {/* Three lines now rather than two, which is why `--display` is
+                  smaller than it was for "Save twice." - at the old desktop
+                  size this headline alone stood 310px tall and left the
+                  receipt column looking like a footnote. */}
+              <h1 className="mb-[clamp(20px,2.6vw,28px)] font-display text-[length:var(--display)] font-black uppercase leading-[0.94] tracking-[-0.02em]">
                 <span
                   className="block text-transparent [animation:jsUp_.8s_.05s_cubic-bezier(.2,.8,.2,1)_both]"
                   style={{
                     WebkitTextStroke: "1.2px color-mix(in oklab, var(--text) 74%, transparent)",
                   }}
                 >
-                  Save
+                  Cashback on
                 </span>
-                <span className="block text-primary [animation:jsUp_.8s_.15s_cubic-bezier(.2,.8,.2,1)_both]">
-                  twice
-                  <span className="font-serif font-normal normal-case italic tracking-normal">
+                <span className="block [animation:jsUp_.8s_.15s_cubic-bezier(.2,.8,.2,1)_both]">
+                  <span className="text-primary">every</span> prop firm
+                </span>
+                <span className="block [animation:jsUp_.8s_.22s_cubic-bezier(.2,.8,.2,1)_both]">
+                  purchase
+                  <span className="font-serif font-normal normal-case italic tracking-normal text-primary">
                     .
                   </span>
                 </span>
               </h1>
 
-              <p className="mb-[34px] max-w-[42ch] text-[clamp(16px,1.5vw,19px)] leading-[1.62] text-muted [animation:jsUp_.8s_.3s_both]">
-                Get a coupon discount at checkout, then earn cashback after verification. One
-                Jaisara deal gives you both.
+              {/* The code is read from `lib/nav.ts`, the same constant the
+                  navbar pill copies to the clipboard. Two places printing the
+                  code from two sources is how a campaign ships a coupon the
+                  copy button does not hand out. */}
+              <p className="mb-[30px] max-w-[46ch] text-[clamp(16px,1.5vw,19px)] leading-[1.62] text-muted [animation:jsUp_.8s_.3s_both]">
+                Always use code{" "}
+                <span className="font-mono font-medium tracking-[0.04em] text-primary">
+                  {HEADER_COUPON}
+                </span>{" "}
+                at checkout. You keep the firm&rsquo;s existing discount, and we pay you cashback on
+                top of it.
               </p>
 
               <div className="flex flex-wrap gap-2.5 [animation:jsUp_.8s_.4s_both]">

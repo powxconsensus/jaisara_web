@@ -11,6 +11,13 @@ import { Fragment, type ReactNode } from "react";
  * It builds React nodes rather than an HTML string. That is a deliberate
  * choice: post bodies are written by the `author` role, not by the public, but
  * an editor account should still not be one `<script>` away from every reader.
+ *
+ * The type scale here is the journal's: 17.5px body at 80% foreground, sized
+ * against the post page's 860px measure. Muted grey at 16.5px was the actual
+ * complaint behind "make it more readable" - the column being narrow was only
+ * half of it. Surfaces that need a different scale override it through
+ * `className` with arbitrary child variants (`[&_p]:text-[13.8px]`), which is
+ * what the support panel does; those win on specificity.
  */
 
 export function MarkdownBody({ body, className }: { body: string; className?: string }) {
@@ -93,7 +100,7 @@ function renderBlocks(body: string): ReactNode[] {
       nodes.push(
         <ul
           key={key++}
-          className="mb-6 list-disc space-y-2 pl-6 text-[16.5px] leading-[1.75] text-muted"
+          className="mb-6 list-disc space-y-2 pl-6 text-[17.5px] leading-[1.78] text-fg/80"
         >
           {items.map((item, itemIndex) => (
             <li key={itemIndex}>{inline(item)}</li>
@@ -113,7 +120,7 @@ function renderBlocks(body: string): ReactNode[] {
       nodes.push(
         <ol
           key={key++}
-          className="mb-6 list-decimal space-y-2 pl-6 text-[16.5px] leading-[1.75] text-muted"
+          className="mb-6 list-decimal space-y-2 pl-6 text-[17.5px] leading-[1.78] text-fg/80"
         >
           {items.map((item, itemIndex) => (
             <li key={itemIndex}>{inline(item)}</li>
@@ -151,7 +158,7 @@ function renderBlocks(body: string): ReactNode[] {
       index += 1;
     }
     nodes.push(
-      <p key={key++} className="mb-5 text-[16.5px] leading-[1.75] text-muted">
+      <p key={key++} className="mb-5 text-[17.5px] leading-[1.78] text-fg/80">
         {inline(paragraph.join(" "))}
       </p>,
     );
@@ -175,21 +182,21 @@ function renderHeading(level: number, text: string, key: number): ReactNode {
   const content = inline(text);
   if (level === 1) {
     return (
-      <h2 key={key} className="mb-3 mt-10 font-display text-[26px] font-black uppercase leading-tight">
+      <h2 key={key} className="mb-3.5 mt-12 font-display text-[30px] font-black uppercase leading-tight">
         {content}
       </h2>
     );
   }
   if (level === 2) {
     return (
-      <h2 key={key} className="mb-3 mt-9 font-display text-[22px] font-bold leading-tight">
+      <h2 key={key} className="mb-3 mt-10 font-display text-[25px] font-bold leading-tight">
         {content}
       </h2>
     );
   }
   if (level === 3) {
     return (
-      <h3 key={key} className="mb-3 mt-8 font-display text-lg font-bold">
+      <h3 key={key} className="mb-3 mt-8 font-display text-[20px] font-bold">
         {content}
       </h3>
     );

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CHAINS } from "@/lib/data/payouts";
 import { useToast } from "@/components/shell/toast";
-import { useWallet } from "@/components/wallet/use-wallet";
+import { refreshWallet, useWallet } from "@/components/wallet/use-wallet";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { apiFetch } from "@/lib/api-fetch";
@@ -246,7 +246,10 @@ export function WithdrawForm() {
       }
       setAmount("");
       toast("Payout requested.", "success");
-      await load();
+      // The balance was debited server-side the moment this succeeded, so
+      // every surface showing it is now wrong until it re-reads - including
+      // the figure in the navbar.
+      await Promise.all([load(), refreshWallet()]);
     } catch {
       setError("The payout service is unavailable. Please try again.");
     } finally {

@@ -14,6 +14,7 @@ interface JournalPost {
   coverUrl?: string | null;
   tags: string[];
   publishedAt?: string | null;
+  readMinutes: number;
   author: { displayName?: string | null };
 }
 
@@ -56,7 +57,7 @@ export default async function JournalPage() {
             <Cover post={featured} className="h-[220px] lg:order-2 lg:h-full lg:min-h-[220px]" />
             <div className="lg:order-1">
               <p className="mb-3 font-mono text-[9.5px] uppercase tracking-[0.16em] text-primary">
-                {featured.tags[0] ?? "Journal"} · {readTime(featured.excerpt ?? "")} ·{" "}
+                {featured.tags[0] ?? "Journal"} · {readTime(featured.readMinutes)} ·{" "}
                 {formatDate(featured.publishedAt)}
               </p>
               <h2 className="mb-3 font-display text-[clamp(22px,3vw,34px)] font-black uppercase leading-[1.02] tracking-[-0.02em] group-hover:text-primary">
@@ -76,7 +77,7 @@ export default async function JournalPage() {
                 className="group border-t border-hair-soft py-6 text-fg"
               >
                 <p className="mb-2.5 font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
-                  {post.tags[0] ?? "Journal"} · {readTime(post.excerpt ?? "")}
+                  {post.tags[0] ?? "Journal"} · {readTime(post.readMinutes)}
                 </p>
                 <h2 className="mb-2 font-display text-[17px] font-bold leading-[1.3] tracking-[-0.015em] group-hover:text-primary">
                   {post.title}
@@ -113,6 +114,7 @@ function formatDate(value?: string | null): string {
     : "Draft";
 }
 
-function readTime(text: string): string {
-  return `${Math.max(1, Math.ceil(text.trim().split(/\s+/).length / 200))} min read`;
+/** The API does the counting - see `readMinutes` in post.controller.ts. */
+function readTime(minutes: number): string {
+  return `${minutes} min read`;
 }

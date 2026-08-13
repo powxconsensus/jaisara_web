@@ -20,7 +20,7 @@ import {
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { consoleApi, errorMessage, useMutation, useResource } from "@/lib/console-api";
 import { isOlderThan, pointsToUsd, relativeTime } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
@@ -77,6 +77,111 @@ const STALE_MS = 2 * 24 * 60 * 60 * 1000;
 
 type Action = { kind: "paid" | "refund"; row: Withdrawal } | null;
 
+/**
+ * What happened to one payout during a wallet run.
+ *
+ * `unrecorded` is the state this whole type exists for: the transfer left the
+ * wallet and the API did not accept the record of it. It must not be retried -
+ * a retry sends the money a second time - so it is the one outcome that cannot
+ * be expressed as "failed" and cannot be shown in a toast that disappears. The
+ * hash stays on screen until somebody records it.
+ */
+type RunEntry =
+  | { state: "sent"; row: Withdrawal; txId: string }
+  | { state: "unrecorded"; row: Withdrawal; txId: string; message: string }
+  | { state: "failed"; row: Withdrawal; message: string }
+  | { state: "skipped"; row: Withdrawal };
+
+/**
+ * What a wallet run did, kept on screen until dismissed.
+ *
+ * A run can end several ways at once - some paid, one failed, the rest never
+ * attempted - and a toast can only say one thing and then vanishes. The
+ * unrecorded group is listed first and cannot be dismissed by accident: until
+ * somebody records those hashes, the member's wallet still shows the payout as
+ * owed while the money has already gone.
+ */
+function RunReport({
+  entries,
+  onDismiss,
+  onRecord,
+}: {
+  entries: RunEntry[];
+  onDismiss: () => void;
+  onRecord: (entry: Extract<RunEntry, { state: "unrecorded" }>) => void;
+}) {
+  const sent = entries.filter((entry) => entry.state === "sent");
+  const unrecorded = entries.filter(
+    (entry): entry is Extract<RunEntry, { state: "unrecorded" }> => entry.state === "unrecorded",
+  );
+  const failed = entries.filter(
+    (entry): entry is Extract<RunEntry, { state: "failed" }> => entry.state === "failed",
+  );
+  const skipped = entries.filter((entry) => entry.state === "skipped");
+
+  return (
+    <Panel
+      className="mb-3 p-3.5"
+      style={
+        unrecorded.length > 0
+          ? { borderColor: "color-mix(in oklab, var(--danger) 55%, transparent)" }
+          : undefined
+      }
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge tone="success">{sent.length} SENT</Badge>
+          {unrecorded.length > 0 && <Badge tone="danger">{unrecorded.length} NEEDS RECORDING</Badge>}
+          {failed.length > 0 && <Badge tone="warning">{failed.length} FAILED</Badge>}
+          {skipped.length > 0 && <Badge tone="neutral">{skipped.length} NOT ATTEMPTED</Badge>}
+        </div>
+        <Button size="sm" variant="outline" onClick={onDismiss}>
+          Dismiss
+        </Button>
+      </div>
+
+      {unrecorded.map((entry) => (
+        <div
+          key={entry.row.id}
+          className="mb-2 rounded-[10px] p-3"
+          style={{ background: "color-mix(in oklab, var(--danger) 12%, transparent)" }}
+        >
+          <p className="text-[12px] leading-5">
+            <strong className="text-fg">
+              {pointsToUsd(entry.row.netPoints)} reached {entry.row.user.email}
+            </strong>{" "}
+            but the ledger did not accept the record: {entry.message}
+          </p>
+          <p className="mt-1.5 text-[11px] text-muted">
+            Do not send this again. Record it with the hash below.
+          </p>
+          <p className="mt-2 break-all rounded-[8px] bg-surface-2 p-2 font-mono text-[10.5px] text-fg">
+            {entry.txId}
+          </p>
+          <span className="mt-2 inline-block">
+            <Button size="sm" onClick={() => onRecord(entry)}>
+              Record this payment
+            </Button>
+          </span>
+        </div>
+      ))}
+
+      {failed.map((entry) => (
+        <p key={entry.row.id} className="mb-1.5 text-[12px] leading-5 text-muted">
+          <strong className="text-fg">{entry.row.user.email}</strong> was not paid - {entry.message}
+        </p>
+      ))}
+
+      {(failed.length > 0 || skipped.length > 0) && (
+        <p className="mt-1 text-[11px] leading-[1.6] text-muted">
+          Nothing left the wallet for the {failed.length + skipped.length} payout(s) above, so they
+          are still selected and can be retried once the cause is fixed.
+        </p>
+      )}
+    </Panel>
+  );
+}
+
 export function PayoutQueue() {
   const { can } = useAccess();
   const { toast } = useToast();
@@ -85,6 +190,10 @@ export function PayoutQueue() {
   const [txId, setTxId] = useState("");
   const [cancelled, setCancelled] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [walletRun, setWalletRun] = useState<RunEntry[] | null>(null);
+  // Separate from `useMutation`'s `pending`: a wallet run spans many requests
+  // with waits for the wallet in between, and `pending` is false during those.
+  const [running, setRunning] = useState(false);
 
   const payouts = useResource<Withdrawal[]>("/api/admin/payouts", {
     query: { status: status || undefined },
@@ -144,41 +253,116 @@ export function PayoutQueue() {
     await payouts.reload();
   };
 
+  /**
+   * Send a selection of approved USDT payouts, one transfer at a time.
+   *
+   * There is no on-chain batch here on purpose: a batch is one transaction, so
+   * one bad address reverts it and nobody in the selection gets paid. These are
+   * separate transfers whose outcomes are independent.
+   *
+   * The loop stops at the first failure but never discards what already
+   * happened. That matters because the two halves of a payout are not atomic -
+   * the transfer settles on chain and only then is it recorded here - so a run
+   * can end with money out and no ledger entry. Every outcome is kept and shown
+   * (see `RunEntry`), everything processed is dropped from the selection, and
+   * the table is reloaded whatever happens. Pressing the button again must
+   * never be able to re-send something that already went out.
+   *
+   * It stops rather than continuing because failures here are systemic almost
+   * every time - wrong network, no gas, RPC down, the API unreachable - and
+   * carrying on would mean N more wallet prompts that fail the same way, or N
+   * more transfers with nothing recording them.
+   */
   const payWithWallet = async (payable: Withdrawal[]) => {
-    if (!walletConfig.data || payable.length === 0) return;
+    const config = walletConfig.data;
+    if (!config || payable.length === 0 || running) return;
+
     const chains = new Set(payable.map((row) => row.payoutAddress?.chain));
     if (chains.size !== 1) {
       setError("Select approved USDT payouts from one network at a time.");
       return;
     }
 
-    try {
-      for (const row of payable) {
-        const chain = row.payoutAddress?.chain as BrowserPayoutChain | undefined;
-        if (!chain || !(chain in walletConfig.data.networks) || !row.payoutAddress) {
-          throw new Error("This payout does not have a supported wallet network.");
-        }
-        const transactionId = await sendWithBrowserWallet({
+    setError(null);
+    setWalletRun(null);
+    setRunning(true);
+
+    const entries: RunEntry[] = [];
+    let halted = false;
+
+    for (const row of payable) {
+      if (halted) {
+        entries.push({ state: "skipped", row });
+        continue;
+      }
+
+      const chain = row.payoutAddress?.chain as BrowserPayoutChain | undefined;
+      if (!chain || !row.payoutAddress || !(chain in config.networks)) {
+        entries.push({
+          state: "failed",
+          row,
+          message: "This payout has no supported wallet network configured.",
+        });
+        halted = true;
+        continue;
+      }
+
+      let txId: string;
+      try {
+        txId = await sendWithBrowserWallet({
           chain,
           recipient: row.payoutAddress.address,
           amountUsdt: row.netAmountUsd,
-          environment: walletConfig.data.environment,
-          network: walletConfig.data.networks[chain],
+          environment: config.environment,
+          network: config.networks[chain],
         });
-        const recorded = await mutate(`/api/admin/payouts/${row.id}/paid`, {
-          body: { externalTxId: transactionId },
-        });
-        if (!recorded) return;
+      } catch (caught) {
+        // Nothing left the wallet, so this row is simply unpaid and can be
+        // retried once the cause is fixed.
+        entries.push({ state: "failed", row, message: errorMessage(caught, "The wallet payment failed.") });
+        halted = true;
+        continue;
       }
-      toast(
-        `${payable.length} USDT payout${payable.length === 1 ? "" : "s"} sent and recorded.`,
-        "success",
-      );
-      setSelected(new Set());
-      await payouts.reload();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The wallet payment failed.");
+
+      try {
+        // `consoleApi` directly rather than `mutate`: this needs the message
+        // from *this* call, and `mutate` only reports the most recent error
+        // through shared state.
+        await consoleApi(`/api/admin/payouts/${row.id}/paid`, {
+          method: "POST",
+          body: { externalTxId: txId },
+        });
+        entries.push({ state: "sent", row, txId });
+      } catch (caught) {
+        entries.push({
+          state: "unrecorded",
+          row,
+          txId,
+          message: errorMessage(caught, "The payout could not be recorded."),
+        });
+        halted = true;
+      }
     }
+
+    // Only what actually moved money comes out of the selection. A `failed`
+    // row never left the wallet and a `skipped` one was never attempted, so
+    // both stay ticked and the operator can retry the remainder in one click
+    // once the cause is fixed.
+    const spent = new Set(
+      entries
+        .filter((entry) => entry.state === "sent" || entry.state === "unrecorded")
+        .map((entry) => entry.row.id),
+    );
+    setSelected((previous) => new Set([...previous].filter((id) => !spent.has(id))));
+    setWalletRun(entries);
+    setRunning(false);
+
+    const sent = entries.filter((entry) => entry.state === "sent").length;
+    if (sent > 0 && !halted) {
+      toast(`${sent} USDT payout${sent === 1 ? "" : "s"} sent and recorded.`, "success");
+    }
+
+    await payouts.reload();
   };
 
   const run = async (reason: string) => {
@@ -205,6 +389,19 @@ export function PayoutQueue() {
         : `Balance returned to the member${cancelled ? " and the request cancelled" : ""}.`,
       action.kind === "paid" ? "success" : "warning",
     );
+
+    // If this closed an unrecorded row from a wallet run, that row is no longer
+    // a discrepancy - drop it, and drop the whole report once nothing is left
+    // in it worth reading.
+    const settled = action.row.id;
+    setWalletRun((previous) => {
+      if (!previous) return previous;
+      const next = previous.filter((entry) => entry.row.id !== settled);
+      return next.some((entry) => entry.state === "unrecorded" || entry.state === "failed")
+        ? next
+        : null;
+    });
+
     setAction(null);
     setTxId("");
     setCancelled(false);
@@ -246,31 +443,65 @@ export function PayoutQueue() {
         />
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTERS.map((filter) => (
           <FilterChip
             key={filter.label}
             active={status === filter.value}
-            onClick={() => setStatus(filter.value)}
+            onClick={() => {
+              setStatus(filter.value);
+              // A selection only means anything against the rows on screen.
+              // Carried across filters it silently reappears later, attached to
+              // payouts the operator has stopped looking at.
+              setSelected(new Set());
+            }}
           >
             {filter.label}
           </FilterChip>
         ))}
-        {canProcess && selectedRequested.length > 0 && selectedRequested.length === selectedRows.length && (
-          <Button size="sm" disabled={pending} onClick={() => void approveSelected()}>
+
+        {canProcess && selectedRequested.length > 0 && (
+          <Button
+            size="sm"
+            disabled={pending || running}
+            onClick={() => void approveSelected()}
+          >
             Approve selected ({selectedRequested.length})
           </Button>
         )}
-        {canProcess && selectedPayable.length > 0 && selectedPayable.length === selectedRows.length && (
+        {canProcess && selectedPayable.length > 0 && (
           <Button
             size="sm"
-            disabled={pending || !walletConfig.data}
+            disabled={pending || running || !walletConfig.data}
             onClick={() => void payWithWallet(selectedPayable)}
           >
-            Pay selected with wallet ({selectedPayable.length})
+            {running
+              ? "Sending…"
+              : `Pay selected with wallet (${selectedPayable.length})`}
           </Button>
         )}
+        {/* Both buttons used to be hidden whenever the selection was mixed,
+            which read as the console being broken. Each now acts on the part
+            of the selection it applies to, and this says what is left over. */}
+        {canProcess && selectedRows.length > selectedRequested.length + selectedPayable.length && (
+          <span className="text-[11px] text-muted">
+            {selectedRows.length - selectedRequested.length - selectedPayable.length} selected
+            payout(s) cannot be actioned in bulk - use the row buttons.
+          </span>
+        )}
       </div>
+
+      {walletRun && (
+        <RunReport
+          entries={walletRun}
+          onDismiss={() => setWalletRun(null)}
+          onRecord={(entry) => {
+            setError(null);
+            setTxId(entry.txId);
+            setAction({ kind: "paid", row: entry.row });
+          }}
+        />
+      )}
 
       {payouts.error && (
         <div className="mb-2">

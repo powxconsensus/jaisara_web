@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-context";
-import { useWallet } from "@/components/wallet/use-wallet";
+import { useWallet, type WalletSummary } from "@/components/wallet/use-wallet";
 import { StatusPill } from "@/components/ui/status-pill";
 import type { LedgerStatus } from "@/lib/data/wallet";
 import { apiFetch } from "@/lib/api-fetch";
+import { WithdrawalProgress } from "./withdrawal-progress";
 
 /**
  * The wallet.
@@ -15,6 +16,9 @@ import { apiFetch } from "@/lib/api-fetch";
  * version rendered a fixed $184.50 with an invented ledger and greeted
  * everybody as "Rahul" - convincing in a design review and actively
  * misleading in the product.
+ *
+ * The page answers three questions in order, because that is the order they
+ * get asked: what can I take out, where is the rest of it, and what happened.
  */
 
 interface LedgerRow {
@@ -59,11 +63,6 @@ export function WalletView() {
 
   const firstName = (user?.displayName ?? "").trim().split(/\s+/)[0];
 
-  const tiles = [
-    { label: "LIFETIME EARNED", value: wallet?.lifetimeUsd },
-    { label: "FROM THE CLUB", value: wallet?.clubUsd },
-  ];
-
   return (
     <div>
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
@@ -92,46 +91,30 @@ export function WalletView() {
         </Link>
       </div>
 
-      <div className="mb-4 grid gap-2.5 md:grid-cols-[1.4fr_1fr_1fr]">
-        <div className="rounded-card border border-hair bg-surface p-[clamp(20px,3vw,26px)]">
-          <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">
-            AVAILABLE TO WITHDRAW
-          </p>
-          <p data-count className="font-mono text-[clamp(30px,5vw,44px)] leading-none text-primary">
-            {wallet ? `$${wallet.availableUsd}` : loading ? "-" : "$0.00"}
-          </p>
-          <p className="mt-3 font-mono text-[10px] tracking-[0.12em] text-muted">
-            {wallet ? `$${wallet.pendingUsd} PENDING` : "PENDING -"}
-            {wallet && !wallet.canWithdraw && (
-              <> · MINIMUM ${wallet.minWithdrawalUsd} TO WITHDRAW</>
-            )}
-          </p>
-          {wallet?.canWithdraw && (
-            <Link
-              href="/dashboard/withdraw"
-              className="mt-5 inline-flex rounded-[10px] border border-hair px-4 py-2.5 font-mono text-[10px] tracking-[0.14em] text-primary transition hover:border-primary"
-            >
-              WITHDRAW
-            </Link>
-          )}
-        </div>
+      {/* Stacked rather than the balance and the two tiles sharing a row.
+          Beside a panel that carries a headline figure and a progress bar,
+          the tiles were squeezed to about 200px - narrow enough that
+          "LIFETIME EARNED" broke across two lines and its note ran to three.
+          They are secondary figures; they read better given the full width
+          below than starved of it alongside. */}
+      <BalancePanel wallet={wallet} loading={loading} />
 
-        {tiles.map((tile) => (
-          <div
-            key={tile.label}
-            className="rounded-card border border-hair bg-surface p-[clamp(20px,3vw,26px)]"
-          >
-            <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">
-              {tile.label}
-            </p>
-            <p data-count className="font-mono text-[clamp(22px,3vw,30px)] leading-none">
-              {tile.value ? `$${tile.value}` : "$0.00"}
-            </p>
-          </div>
-        ))}
+      {wallet && Number(wallet.holdPoints) > 0 && (
+        <div className="mt-2.5">
+          <HoldNote wallet={wallet} />
+        </div>
+      )}
+
+      <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+        <Tile label="LIFETIME EARNED" value={wallet?.lifetimeUsd} hint="Cashback and referrals, all time." />
+        <Tile
+          label="FROM THE CLUB"
+          value={wallet?.clubUsd}
+          hint="Referral share, already counted in lifetime."
+        />
       </div>
 
-      <div className="rounded-card border border-hair bg-surface px-5 pb-3 pt-1.5">
+      <div className="mt-2.5 rounded-card border border-hair bg-surface px-5 pb-3 pt-1.5">
         <p className="border-b border-hair-soft py-4 font-mono text-[9.5px] tracking-[0.18em] text-muted">
           RECENT CASHBACK
         </p>
@@ -179,6 +162,104 @@ export function WalletView() {
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+/** The headline balance, the threshold bar, and the way out. */
+function BalancePanel({ wallet, loading }: { wallet: WalletSummary | null; loading: boolean }) {
+  return (
+    <div className="relative overflow-hidden rounded-card border border-hair bg-surface p-[clamp(20px,3vw,28px)]">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-16 -top-24 size-[260px] rounded-full opacity-[0.12] blur-[70px]"
+        style={{ background: "var(--primary)" }}
+      />
+
+      {/* Figure left, progress right on a wide panel. A single column here
+          left the bar sitting under a very large number with a lot of empty
+          panel beside it. */}
+      <div className="relative grid items-center gap-x-[clamp(24px,4vw,56px)] gap-y-7 md:grid-cols-[minmax(0,auto)_minmax(0,1fr)]">
+        <div>
+          <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">
+            AVAILABLE TO WITHDRAW
+          </p>
+          <p
+            data-count
+            className="font-mono text-[clamp(34px,5.4vw,52px)] leading-none tracking-[-0.02em] text-primary"
+          >
+            {wallet ? `$${wallet.availableUsd}` : loading ? "-" : "$0.00"}
+          </p>
+
+          {wallet?.canWithdraw && (
+            <Link
+              href="/dashboard/withdraw"
+              className="mt-6 inline-flex items-center gap-2 rounded-[10px] bg-primary px-5 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-on-primary transition hover:brightness-[1.06]"
+            >
+              Withdraw<span className="text-sm">↗</span>
+            </Link>
+          )}
+        </div>
+
+        {wallet ? (
+          <WithdrawalProgress wallet={wallet} />
+        ) : (
+          <div aria-busy className="h-[76px] animate-pulse rounded-[11px] bg-surface-2" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Money the member has asked for that has not gone out yet.
+ *
+ * The debit happens the instant the request is accepted - that is what makes
+ * asking twice for the same balance impossible - so without this the balance
+ * simply drops and nothing in the product accounts for the difference. The
+ * copy says where it went and why it is not spendable, in that order.
+ */
+function HoldNote({ wallet }: { wallet: WalletSummary }) {
+  const many = wallet.holdCount !== 1;
+
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5 rounded-card border px-[clamp(18px,2.5vw,24px)] py-4"
+      style={{
+        borderColor: "color-mix(in oklab, var(--warning) 34%, transparent)",
+        background: "color-mix(in oklab, var(--warning) 8%, transparent)",
+      }}
+    >
+      <div className="flex items-baseline gap-3">
+        <span data-count className="font-mono text-[21px] leading-none text-warning">
+          ${wallet.holdUsd}
+        </span>
+        <span className="font-mono text-[9.5px] tracking-[0.16em] text-muted">
+          ON HOLD · {wallet.holdCount} PAYOUT{many ? "S" : ""} IN PROGRESS
+        </span>
+      </div>
+      <p className="max-w-[52ch] text-[12px] leading-[1.6] text-muted">
+        This left your available balance the moment you requested it, so it cannot be spent twice.
+        It arrives once the payout is sent, or comes back if it cannot be.
+      </p>
+      <Link
+        href="/dashboard/withdraw"
+        className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary hover:underline"
+      >
+        Payout history ↗
+      </Link>
+    </div>
+  );
+}
+
+function Tile({ label, value, hint }: { label: string; value?: string; hint?: string }) {
+  return (
+    <div className="flex flex-col rounded-card border border-hair bg-surface p-[clamp(20px,3vw,26px)]">
+      <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">{label}</p>
+      <p data-count className="font-mono text-[clamp(22px,3vw,30px)] leading-none">
+        {value ? `$${value}` : "$0.00"}
+      </p>
+      {hint && <p className="mt-auto pt-3 text-[11px] leading-[1.5] text-muted">{hint}</p>}
     </div>
   );
 }

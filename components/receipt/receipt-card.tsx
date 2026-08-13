@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Ref } from "react";
 import { money, percent } from "@/lib/format";
 import { RECEIPT_STATUS, receiptTotals, type Receipt } from "@/lib/data/receipts";
+import { BrandMark } from "@/components/ui/brand-mark";
 import { Perforation } from "./perforation";
 
 /** One itemised line with a dotted leader between label and figure. */
@@ -16,16 +17,43 @@ function Line({
 }) {
   const toneClass = tone === "success" ? "text-success" : tone === "muted" ? "text-muted" : "";
   return (
-    <div className={`flex items-baseline gap-2 py-3.5 ${toneClass}`}>
-      <span className="flex-none">{label}</span>
+    <div className={`flex items-baseline gap-2.5 py-[var(--rcpt-row)] ${toneClass}`}>
+      {/* Shrinkable and truncating rather than `flex-none`: the card is narrow
+          and a long firm name would otherwise push the figure off the edge of
+          the paper. The amount is the one thing that must never be clipped. */}
+      <span className="min-w-0 truncate">{label}</span>
       {/* A real border, not letter-spaced dots - it stretches to fill. */}
       <span
         aria-hidden="true"
         className="flex-1 border-b border-dotted"
         style={{ borderColor: "color-mix(in oklab, var(--text) 24%, transparent)" }}
       />
-      <span className="flex-none tabular-nums">{value}</span>
+      <span className="flex-none font-medium tabular-nums text-fg">{value}</span>
     </div>
+  );
+}
+
+/**
+ * The bracket at one corner of the sheet.
+ *
+ * Two edges of a box rather than four, so the accent traces the corner and
+ * stops - a full outline would just read as a second border. They sit *inside*
+ * the card's own border with a gap, which is what makes the corner look lit
+ * rather than framed.
+ */
+function Corner({ at }: { at: "tl" | "tr" | "bl" | "br" }) {
+  const edges = {
+    tl: "left-2.5 top-2.5 rounded-tl-[7px] border-l-2 border-t-2",
+    tr: "right-2.5 top-2.5 rounded-tr-[7px] border-r-2 border-t-2",
+    bl: "bottom-2.5 left-2.5 rounded-bl-[7px] border-b-2 border-l-2",
+    br: "bottom-2.5 right-2.5 rounded-br-[7px] border-b-2 border-r-2",
+  }[at];
+
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute size-[18px] border-primary md:size-[22px] ${edges}`}
+    />
   );
 }
 
@@ -37,23 +65,28 @@ export function ReceiptCard({
   receipt,
   cardRef,
   stampRef,
-  masked = false,
+  sample = false,
 }: {
   receipt: Receipt;
   cardRef?: Ref<HTMLDivElement>;
   stampRef?: Ref<HTMLDivElement>;
-  /** Empty-feed presentation: keep the receipt, conceal every ledger value. */
-  masked?: boolean;
+  /**
+   * There is no live feed yet, so the card is showing worked figures.
+   *
+   * It is not labelled as a sample - that was asked for and removed. What it
+   * does instead is describe the mechanism rather than report an event: the
+   * caption lines talk about what a coupon and a cashback rate do, in the
+   * present tense, and nothing claims that a particular person bought a
+   * particular thing at a particular time.
+   *
+   * That distinction is the whole reason this flag still exists, so keep it:
+   * do not reuse the live captions here. "LATEST ON THE PLATFORM · 4 MIN AGO"
+   * over invented figures is a false claim about the ledger, and a member name
+   * against them would be a fabricated testimonial.
+   */
+  sample?: boolean;
 }) {
-  const status = masked
-    ? {
-        stamp: "WAITING",
-        color: "var(--text-muted)",
-        who: "VERIFIED ACTIVITY ONLY",
-        footer: "REAL LEDGER ACTIVITY WILL APPEAR HERE",
-        dot: "var(--text-muted)",
-      }
-    : RECEIPT_STATUS[receipt.status];
+  const status = RECEIPT_STATUS[receipt.status];
   const { discount, youPay, cashback } = receiptTotals(receipt);
 
   return (
@@ -69,7 +102,7 @@ export function ReceiptCard({
       className="relative overflow-hidden rounded-receipt border border-hair bg-surface leading-[normal] [transform-origin:8%_100%]"
       style={{
         boxShadow:
-          "0 50px 100px -55px rgba(0,0,0,.8), 0 0 0 1px color-mix(in oklab, var(--primary) 12%, transparent)",
+          "0 50px 100px -55px rgba(0,0,0,.8), 0 0 0 1px color-mix(in oklab, var(--primary) 18%, transparent)",
       }}
     >
       {/* Corner light */}
@@ -99,22 +132,50 @@ export function ReceiptCard({
             "linear-gradient(100deg, transparent, color-mix(in oklab, var(--text) 5%, transparent), transparent)",
         }}
       />
+      {/* The accent pooling into each corner, under the brackets. Without it
+          the brackets float; with it the corner looks like the light source. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-receipt"
+        style={{
+          background: [
+            "radial-gradient(58px circle at 0% 0%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%)",
+            "radial-gradient(58px circle at 100% 0%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%)",
+            "radial-gradient(58px circle at 0% 100%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%)",
+            "radial-gradient(58px circle at 100% 100%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%)",
+          ].join(", "),
+        }}
+      />
+
+      <Corner at="tl" />
+      <Corner at="tr" />
+      <Corner at="bl" />
+      <Corner at="br" />
 
       <div className="relative">
-        <header className="px-[var(--rcpt-pad)] pb-1.5 pt-[var(--rcpt-pad)]">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="font-mono text-[10px] tracking-[0.2em]">JAISARA</span>
-            <span className="font-mono text-[9px] tracking-[0.1em] text-muted">
-              {masked ? "#•••••••" : receipt.id}
+        <header className="px-[var(--rcpt-pad)] pb-3 pt-[var(--rcpt-pad)]">
+          <div className="mb-1.5 flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2">
+              <BrandMark className="size-[15px] text-primary" />
+              <span className="font-mono text-[11.5px] font-medium tracking-[0.2em]">JAISARA</span>
             </span>
+            {/* No reference number without a real order behind it - a made-up
+                one looks exactly like a real one. */}
+            {!sample && (
+              <span className="font-mono text-[10px] tracking-[0.1em] text-muted">
+                {receipt.id}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-[7px]">
             <span
               className="size-[5px] flex-none rounded-[2px]"
-              style={{ background: status.dot }}
+              style={{ background: sample ? "var(--primary)" : status.dot }}
             />
-            <span className="font-mono text-[8.5px] tracking-[0.14em] text-muted">
-              {masked ? "WAITING FOR VERIFIED ACTIVITY" : `LATEST ON THE PLATFORM · ${receipt.ago}`}
+            <span className="font-mono text-[9.5px] tracking-[0.14em] text-muted">
+              {sample
+                ? "COUPON AT CHECKOUT · CASHBACK AFTER VERIFICATION"
+                : `LATEST ON THE PLATFORM · ${receipt.ago}`}
             </span>
           </div>
         </header>
@@ -122,61 +183,58 @@ export function ReceiptCard({
         <Perforation className="my-3.5" />
 
         {/* Itemised lines - replaced by a one-line summary on phones. */}
-        <div className="hidden px-[var(--rcpt-pad)] pb-8 pt-3.5 font-mono text-xs md:block">
+        <div className="hidden px-[var(--rcpt-pad)] pb-9 pt-4 font-mono text-[13.5px] text-muted md:block">
           <Line
-            label={masked ? "FIRM / PLAN" : `${receipt.firm.toUpperCase()} ${receipt.plan.toUpperCase()}`}
-            value={masked ? "$•••.••" : money(receipt.list)}
+            label={`${receipt.firm.toUpperCase()} ${receipt.plan.toUpperCase()}`}
+            value={money(receipt.list)}
           />
-          <Line
-            label={masked ? "COUPON ••••••" : `COUPON ${receipt.coupon}`}
-            value={masked ? "−$••.••" : `−${money(discount)}`}
-            tone="success"
-          />
-          <Line label="YOU PAID" value={masked ? "$•••.••" : money(youPay)} />
-          <Line
-            label="CASHBACK RATE"
-            value={masked ? "••%" : percent(receipt.cashbackPct)}
-            tone="muted"
-          />
+          <Line label={`COUPON ${receipt.coupon}`} value={`−${money(discount)}`} tone="success" />
+          <Line label="YOU PAID" value={money(youPay)} />
+          <Line label="CASHBACK RATE" value={percent(receipt.cashbackPct)} tone="muted" />
         </div>
 
         <Perforation className="mb-3.5 hidden md:block" />
 
         <footer className="px-[var(--rcpt-pad)] pb-[var(--rcpt-pad)]">
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div>
-              <p className="mb-[7px] font-mono text-[8.5px] tracking-[0.16em] text-muted">
-                {masked ? "MEMBER •••••" : receipt.who} - {status.who}
-              </p>
-              <p
-                data-count={masked ? undefined : true}
-                className="font-mono text-[30px] leading-none tracking-[-0.03em] text-primary md:text-[38px]"
-              >
-                {masked ? "+$••.••" : `+${money(cashback)}`}
-              </p>
-            </div>
+          {/* The stamp sits on the caption row and the figure runs full width
+              beneath it. They used to share one wrapping row, which held while
+              the card was 452px and broke the moment it narrowed: the amount
+              and the stamp stopped fitting side by side, the stamp wrapped,
+              and its -8deg rotation put it straight through the footnote. This
+              cannot wrap, at any width. */}
+          <div className="flex items-start justify-between gap-3">
+            <p className="mb-2 font-mono text-[9.5px] leading-[1.5] tracking-[0.16em] text-muted">
+              {sample ? "CASHBACK CREDITED TO YOUR WALLET" : `${receipt.who} - ${status.who}`}
+            </p>
             <div
               ref={stampRef}
-              className="rounded-lg border-2 px-3 py-2 font-mono text-xs tracking-[0.2em] [transform:rotate(-8deg)]"
+              className="-mt-0.5 flex-none rounded-lg border-2 px-2.5 py-1.5 font-mono text-[12px] font-medium tracking-[0.2em] [transform:rotate(-8deg)]"
               style={{ borderColor: status.color, color: status.color }}
             >
               {status.stamp}
             </div>
           </div>
 
-          <p className="mt-3.5 hidden font-mono text-[8.5px] tracking-[0.1em] text-muted md:block">
-            {status.footer}
+          <p
+            data-count={sample ? undefined : true}
+            className="font-mono text-[34px] font-medium leading-none tracking-[-0.03em] text-primary md:text-[44px]"
+          >
+            +{money(cashback)}
+          </p>
+
+          <p className="mt-4 hidden font-mono text-[9.5px] leading-[1.6] tracking-[0.1em] text-muted md:block">
+            {sample
+              ? "THE COUPON CUTS THE PRICE · THE CASHBACK COMES BACK AFTER"
+              : status.footer}
           </p>
           {/* Phone summary: the four lines collapsed into one string. */}
-          <p className="mt-2.5 w-full font-mono text-[9px] leading-[1.7] tracking-[0.06em] text-muted md:hidden">
-            {masked
-              ? "$•••.•• LIST · −$••.•• COUPON · PAID $•••.•• · CASHBACK HIDDEN"
-              : `${money(receipt.list)} LIST · −${money(discount)} COUPON · PAID ${money(youPay)} · ${receipt.status === "paid" ? "CASHBACK SENT" : "PENDING UNTIL REFUND WINDOW CLOSES"}`}
+          <p className="mt-2.5 w-full font-mono text-[10px] leading-[1.7] tracking-[0.06em] text-muted md:hidden">
+            {`${money(receipt.list)} LIST · −${money(discount)} COUPON · PAID ${money(youPay)} · ${receipt.status === "paid" ? "CASHBACK SENT" : "PENDING UNTIL REFUND WINDOW CLOSES"}`}
           </p>
 
           <Link
             href="/#estimator"
-            className="mt-3 inline-block border-b pb-0.5 font-mono text-[9px] tracking-[0.14em] text-primary"
+            className="mt-3.5 inline-block border-b pb-0.5 font-mono text-[10px] tracking-[0.14em] text-primary"
             style={{ borderColor: "color-mix(in oklab, var(--primary) 45%, transparent)" }}
           >
             RUN YOUR OWN NUMBERS ↓

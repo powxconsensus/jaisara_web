@@ -37,12 +37,29 @@ export interface Receipt {
   cashbackUsd?: number;
 }
 
-export const RECEIPTS: Receipt[] = [
-  { firm: "FundingPips", plan: "$10K Two-Step", coupon: "JAISARA20", list: 129, discountPct: 20, cashbackPct: 14, who: "R. SHARMA", ago: "JUST NOW", id: "#8842190", status: "pending" },
-  { firm: "FTMO", plan: "$25K Swing", coupon: "JAISARA15", list: 289, discountPct: 15, cashbackPct: 10, who: "A. MEHTA", ago: "4 MIN AGO", id: "#8842186", status: "paid" },
-  { firm: "Alpha Capital", plan: "$50K One-Step", coupon: "JSR-ALPHA", list: 249, discountPct: 25, cashbackPct: 16, who: "D. KAPOOR", ago: "11 MIN AGO", id: "#8842171", status: "pending" },
-  { firm: "The5ers", plan: "$20K Hyper Growth", coupon: "JAISARA10", list: 165, discountPct: 10, cashbackPct: 12, who: "S. RAO", ago: "18 MIN AGO", id: "#8842160", status: "paid" },
-  { firm: "Maven Trading", plan: "$15K Instant", coupon: "JSR-MAVEN", list: 119, discountPct: 18, cashbackPct: 15, who: "N. BHAT", ago: "26 MIN AGO", id: "#8842148", status: "paid" },
+/**
+ * What the hero shows before there is a single approved claim to show.
+ *
+ * The card used to blank every figure into bullets, which made the most
+ * important object on the page unreadable at exactly the moment a first-time
+ * visitor was deciding whether the product does anything. These are worked
+ * figures instead - the same arithmetic the estimator runs, on real list
+ * prices - and they are replaced by the live feed the moment it returns a row.
+ *
+ * The card is deliberately NOT badged as a sample. What keeps it honest is
+ * that it makes no claim to badge: `who`, `ago` and `id` are all blank and
+ * `ReceiptCard` does not print them in this mode, so there is no member, no
+ * timestamp and no order reference. It shows what the coupon and the cashback
+ * rate do to a price, which is true of every one of these firms.
+ *
+ * Leave those three fields empty. A name here would be a fabricated
+ * testimonial and a reference number would be indistinguishable from a real
+ * order - those are the two things that would turn worked figures into a lie.
+ */
+export const SAMPLE_RECEIPTS: Receipt[] = [
+  { firm: "FundingPips", plan: "$10K Two-Step", coupon: "JAISARA20", list: 129, discountPct: 20, cashbackPct: 14, who: "", ago: "", id: "", status: "paid" },
+  { firm: "FTMO", plan: "$25K Swing", coupon: "JAISARA15", list: 289, discountPct: 15, cashbackPct: 10, who: "", ago: "", id: "", status: "pending" },
+  { firm: "The5ers", plan: "$20K Hyper Growth", coupon: "JAISARA10", list: 165, discountPct: 10, cashbackPct: 12, who: "", ago: "", id: "", status: "paid" },
 ];
 
 /** Each status drives the stamp, accent, who-line, footer and dot together. */

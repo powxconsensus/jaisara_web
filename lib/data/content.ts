@@ -1,23 +1,41 @@
 /** Editorial content: how-it-works steps, FAQ, live feed lines. */
 
+/**
+ * Which medallion a step wears. A key rather than a component, so this module
+ * stays plain data - `how-it-works.tsx` owns the drawing and is the only place
+ * that has to change if the icon set does.
+ */
+export type HowStepIcon = "tag" | "card" | "receipt" | "wallet" | "share";
+
 export interface HowStep {
   title: string;
   body: string;
+  icon: HowStepIcon;
   /** The Club step is accented in gold. */
   club?: boolean;
 }
 
 export const HOW_IT_WORKS: HowStep[] = [
-  { title: "Pick a deal", body: "Choose your firm and copy the Jaisara coupon code." },
+  { title: "Pick a deal", body: "Choose your firm and copy the Jaisara coupon code.", icon: "tag" },
   {
     title: "Buy your challenge",
     body: "Apply the code at the firm's checkout and get the discount instantly.",
+    icon: "card",
   },
-  { title: "Upload the receipt", body: "Drop the order email in. We read the details - no forms." },
-  { title: "Get paid", body: "Cashback lands in your wallet. Withdraw after reaching the current minimum shown there." },
+  {
+    title: "Upload the receipt",
+    body: "Drop the order email in. We read the details - no forms.",
+    icon: "receipt",
+  },
+  {
+    title: "Get paid",
+    body: "Cashback lands in your wallet. Withdraw after reaching the current minimum shown there.",
+    icon: "wallet",
+  },
   {
     title: "Invite the desk",
     body: "Share your link and keep 20% of everything your referrals earn.",
+    icon: "share",
     club: true,
   },
 ];

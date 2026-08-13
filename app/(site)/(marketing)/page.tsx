@@ -33,11 +33,16 @@ export default async function LandingPage() {
   return (
     <>
       <Hero receipts={toReceipts(activity)} marquee={toMarquee(activity)} stats={stats} />
+      {/* Directly under the hero on purpose. The headline says what the
+          visitor gets; this says what they have to do to get it, and until
+          they know that nothing further down the page means anything. It used
+          to sit below the estimator, six screens from where the question is
+          asked. */}
+      <HowItWorks />
       <SponsoredFirms firms={sponsoredFirms} />
       <Split />
       <FirmIndex firms={firms} />
       <Estimator firms={estimatorFirms} />
-      <HowItWorks />
       <ClubBand />
       <FeedbackWall feedback={proof.feedback} />
       <Faq />

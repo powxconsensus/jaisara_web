@@ -13,7 +13,7 @@ const LIGHT_FIRST = PALETTES.filter((p) => p.nativeMode === "light").map((p) => 
  * Blocking inline script that applies both theme axes to <html> before first
  * paint, so there's no flash of the default (handoff §1.3). Kept tiny and
  * dependency-free because it's stringified into the document. An unknown
- * palette falls back to the :root (teal) block in CSS.
+ * palette falls back to the :root (Jaisara Club) block in CSS.
  */
 const script = `(function(){var d=document.documentElement;try{
 var p=localStorage.getItem(${JSON.stringify(ACCOUNT_PALETTE_STORAGE_KEY)})||localStorage.getItem(${JSON.stringify(PALETTE_STORAGE_KEY)})||${JSON.stringify(DEFAULT_PALETTE)};

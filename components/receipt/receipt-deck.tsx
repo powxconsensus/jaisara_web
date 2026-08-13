@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RECEIPT_INTERVAL_MS, type Receipt } from "@/lib/data/receipts";
+import { RECEIPT_INTERVAL_MS, SAMPLE_RECEIPTS, type Receipt } from "@/lib/data/receipts";
 import { useImpact, type ImpactEvent } from "@/components/landing/impact-context";
 import { ReceiptCard } from "./receipt-card";
 import {
@@ -11,21 +11,6 @@ import {
   playStamp,
   prefersReducedMotion,
 } from "./receipt-motion";
-
-/** Geometry-only input for the masked empty receipt. No value is presented as
- * activity; ReceiptCard replaces every visible field in masked mode. */
-const MASKED_RECEIPT: Receipt = {
-  firm: "",
-  plan: "",
-  coupon: "",
-  list: 0,
-  discountPct: 0,
-  cashbackPct: 0,
-  who: "",
-  ago: "",
-  id: "",
-  status: "pending",
-};
 
 /**
  * The hero receipt (handoff §2): a single sheet of paper, auto-advancing
@@ -41,14 +26,29 @@ const MASKED_RECEIPT: Receipt = {
  * focus-within so it can still be read.
  *
  * State is only `index` and a pause flag - deliberately NO animation phase. See
- * receipt-motion.ts for why that matters.
+ * receipt-motion.ts for why that matters. (`sample` is fixed once on mount
+ * alongside the deck and never changes, so it is not a phase.)
+ *
+ * With an empty feed it rotates through `SAMPLE_RECEIPTS` instead, labelled as
+ * examples on the card itself. There is deliberately no separate empty-state
+ * branch: one render path means the fall, the ground strike and the stamp are
+ * the same code whether the figures are live or illustrative.
  */
 export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
   // Captured once: the feed is server-rendered and fixed for the life of this
   // component, and a `deck` whose identity changed would land in the timer and
   // animation dependencies below - restarting rotation mid-cycle is exactly
   // the class of bug this component's architecture exists to prevent.
-  const [deck] = useState<Receipt[]>(() => receipts ?? []);
+  //
+  // With no live feed the deck falls back to worked examples rather than to an
+  // empty container or a card with every figure blanked out. `sample` is fixed
+  // at the same moment as the deck, so a card can never be labelled as an
+  // example while showing somebody's real cashback, or the reverse.
+  const [{ deck, sample }] = useState<{ deck: Receipt[]; sample: boolean }>(() =>
+    receipts && receipts.length > 0
+      ? { deck: receipts, sample: false }
+      : { deck: SAMPLE_RECEIPTS, sample: true },
+  );
   const [index, setIndex] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const stampRef = useRef<HTMLDivElement>(null);
@@ -80,7 +80,7 @@ export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
   const strike = useCallback((event: ImpactEvent) => impact?.emit(event), [impact]);
 
   const advance = useCallback(() => {
-    if (pausedRef.current || deck.length === 0) return;
+    if (pausedRef.current) return;
     const card = cardRef.current;
     const next = (indexRef.current + 1) % deck.length;
     const step = () => {
@@ -122,41 +122,15 @@ export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
 
   // Settle the first sheet onto the ground, so the hero opens with a landing.
   useEffect(() => {
-    if (deck.length === 0 || prefersReducedMotion()) return;
+    if (prefersReducedMotion()) return;
     const id = setTimeout(() => strike({ hot: deck[0].status === "paid" }), 900);
     return () => clearTimeout(id);
   }, [strike, deck]);
 
-  if (deck.length === 0) {
-    return (
-      <div
-        aria-label="No verified activity yet. Receipt values are hidden until real ledger activity is available."
-        className="flex justify-center pb-[var(--rcpt-mb)] pt-[var(--rcpt-top)] [perspective-origin:62%_38%] [perspective:var(--rcpt-persp)]"
-      >
-        <div className="w-[var(--rcpt-w)] motion-safe:[animation:var(--rcpt-float)]">
-          <div className="relative w-full [transform:var(--rcpt-tf)]">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-[-12%] inset-y-[-16%] rounded-full opacity-35 blur-[48px]"
-              style={{
-                background:
-                  "radial-gradient(closest-side, color-mix(in oklab, var(--primary) 22%, transparent), transparent 76%)",
-              }}
-            />
-            <div className="opacity-80 saturate-50">
-              <ReceiptCard
-                receipt={MASKED_RECEIPT}
-                cardRef={cardRef}
-                stampRef={stampRef}
-                masked
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // No `aria-label` describing this as an example. A screen reader should get
+  // exactly what the card says, and the card no longer badges itself - the
+  // honesty is in the content (no member, no timestamp, no reference), not in
+  // a caption only one audience hears.
   return (
     <div className="flex justify-center pb-[var(--rcpt-mb)] pt-[var(--rcpt-top)] [perspective-origin:62%_38%] [perspective:var(--rcpt-persp)]">
       <div className="w-[var(--rcpt-w)] motion-safe:[animation:var(--rcpt-float)]">
@@ -185,7 +159,12 @@ export function ReceiptDeck({ receipts }: { receipts?: Receipt[] }) {
             }}
           />
 
-          <ReceiptCard receipt={deck[index % deck.length]} cardRef={cardRef} stampRef={stampRef} />
+          <ReceiptCard
+            receipt={deck[index % deck.length]}
+            cardRef={cardRef}
+            stampRef={stampRef}
+            sample={sample}
+          />
         </div>
       </div>
     </div>

@@ -1,8 +1,15 @@
 import Link from "next/link";
-import Image from "next/image";
 import { cn } from "@/lib/cn";
+import { BrandMark } from "./brand-mark";
 
-/** Compact brand mark on mobile, mark plus wordmark where space allows. */
+/**
+ * The brand lockup, matching the official logo: mint mark, JAISARA in white,
+ * CLUB ruled off beneath it in the accent.
+ *
+ * The mark is masked rather than imaged (see `brand-mark.tsx`), so it takes the
+ * palette's accent instead of needing a dark plate behind it. Below `sm` the
+ * wordmark drops and the mark stands alone.
+ */
 export function Logo({
   href = "/",
   className,
@@ -13,18 +20,25 @@ export function Logo({
   return (
     <Link
       href={href}
-      aria-label="Jaisara home"
+      aria-label="Jaisara Club home"
       className={cn("flex flex-none items-center gap-2.5 text-fg hover:text-fg", className)}
     >
-      <Image
-        src="/assets/brand/jaisara-mark.png"
-        width={760}
-        height={760}
-        alt=""
-        className="size-9 rounded-[10px] bg-[#02070e] object-contain p-[5px]"
-      />
-      <span className="hidden font-display text-sm font-black uppercase tracking-[0.12em] sm:inline">
-        Jaisara
+      <BrandMark className="size-8 text-primary" />
+
+      <span className="hidden flex-col sm:flex">
+        <span className="font-display text-[13px] font-black uppercase leading-none tracking-[0.18em]">
+          Jaisara
+        </span>
+        {/* The rules either side of CLUB are the logo's own device. They are
+            hairlines rather than borders so they stay level with the cap
+            height of the word between them. */}
+        <span className="mt-[3px] flex items-center gap-1.5 text-primary">
+          <span className="h-px w-2 bg-current opacity-70" />
+          <span className="font-mono text-[7.5px] uppercase leading-none tracking-[0.34em]">
+            Club
+          </span>
+          <span className="h-px flex-1 bg-current opacity-70" />
+        </span>
       </span>
     </Link>
   );
