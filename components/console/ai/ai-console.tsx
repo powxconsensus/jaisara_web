@@ -150,7 +150,7 @@ function SourceBanner({
 
   return (
     <Panel>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3">
         <Badge tone={tone}>{overview.activeSource.toUpperCase()}</Badge>
         <span className="text-[length:var(--ct-body)] text-[var(--text-muted)]">{summary}</span>
 
@@ -162,7 +162,7 @@ function SourceBanner({
       </div>
 
       {!overview.canStoreKeys && (
-        <div className="border-t border-[var(--console-hair)] px-3 py-2 text-[length:var(--ct-small)] text-[var(--text-muted)]">
+        <div className="border-t border-[var(--console-hair)] px-4 py-3 text-[length:var(--ct-small)] text-[var(--text-muted)]">
           <strong className="text-[var(--text)]">AI_KEY_ENCRYPTION_KEY is not set</strong>, so keys
           cannot be stored. Generate one with <code>openssl rand -base64 32</code>, set it on this
           environment and restart. Without it a key would have to sit in the database in plaintext,
@@ -171,7 +171,7 @@ function SourceBanner({
       )}
 
       {overview.warnings.length > 0 && (
-        <ul className="border-t border-[var(--console-hair)] px-3 py-2 text-[length:var(--ct-small)] text-[var(--warning)]">
+        <ul className="border-t border-[var(--console-hair)] px-4 py-3 text-[length:var(--ct-small)] text-[var(--warning)]">
           {overview.warnings.map((warning) => (
             <li key={warning}>{warning}</li>
           ))}
@@ -251,7 +251,10 @@ function ProviderCard({
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-3 py-2 text-[length:var(--ct-body)] sm:grid-cols-4">
+      <dl
+        className="grid grid-cols-2 gap-x-5 gap-y-3 border-t border-[var(--console-hair)] px-4 py-4 text-[length:var(--ct-body)] sm:grid-cols-4"
+        style={{ background: "color-mix(in oklab, var(--bg) 45%, transparent)" }}
+      >
         <Fact label="Chat model" value={provider.chatModel} />
         <Fact
           label="Vision model"
@@ -269,13 +272,13 @@ function ProviderCard({
       </dl>
 
       {provider.lastCheckNote && !editing && (
-        <p className="border-t border-[var(--console-hair)] px-3 py-1.5 text-[length:var(--ct-small)] text-[var(--text-muted)]">
+        <p className="border-t border-[var(--console-hair)] px-4 py-2.5 text-[length:var(--ct-small)] text-[var(--text-muted)]">
           {provider.lastCheckNote}
         </p>
       )}
 
       {test && (
-        <div className="border-t border-[var(--console-hair)] px-3 py-2 text-[length:var(--ct-small)]">
+        <div className="border-t border-[var(--console-hair)] px-4 py-3 text-[length:var(--ct-small)]">
           <TestLine label="Chat" step={test.chat} />
           <TestLine label="Vision" step={test.vision} />
           <p className="mt-1 text-[var(--text-muted)]">
@@ -318,7 +321,7 @@ function TestLine({ label, step }: { label: string; step: AiTestResult["chat"] }
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[length:var(--ct-label)] tracking-wider text-[var(--text-muted)]">
+      <dt className="mb-1 font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
         {label.toUpperCase()}
       </dt>
       <dd className="truncate font-mono text-[length:var(--ct-small)]">{value}</dd>
@@ -407,7 +410,7 @@ function ProviderForm({ provider, onDone }: { provider?: AiProviderView; onDone:
   return (
     <form
       onSubmit={submit}
-      className="grid gap-2 border-t border-[var(--console-hair)] px-3 py-2.5 sm:grid-cols-2"
+      className="grid gap-2 border-t border-[var(--console-hair)] px-4 py-3.5 sm:grid-cols-2"
     >
       {error && (
         <div className="sm:col-span-2">
@@ -667,7 +670,16 @@ function KeyTable({
       {error && <ErrorNote>{error}</ErrorNote>}
 
       {editable && canStoreKeys && (
-        <form onSubmit={add} className="flex flex-wrap items-end gap-2 px-3 py-2">
+        // Its own surface, ruled off from the key table above it. Adding a
+        // credential is a different act from reading the list of them, and a
+        // form that shares a background with the table it sits under reads as
+        // another row — which is how you end up typing a key into what you
+        // thought was a filter.
+        <form
+          onSubmit={add}
+          className="flex flex-wrap items-end gap-3 border-t border-[var(--console-hair)] px-4 py-4"
+          style={{ background: "color-mix(in oklab, var(--bg) 45%, transparent)" }}
+        >
           <div className="min-w-40 flex-1">
             <FieldLabel htmlFor={`label-${provider.id}`}>Label</FieldLabel>
             <TextInput
@@ -690,10 +702,10 @@ function KeyTable({
               onChange={(event) => setForm((f) => ({ ...f, apiKey: event.target.value }))}
             />
           </div>
-          <Button type="submit" size="sm" disabled={pending}>
+          <Button type="submit" disabled={pending}>
             Add key
           </Button>
-          <p className="w-full text-[length:var(--ct-small)] text-[var(--text-muted)]">
+          <p className="w-full max-w-[78ch] text-[length:var(--ct-small)] leading-[1.55] text-[var(--text-muted)]">
             Encrypted before it is stored and never returned - not here, not by the API. Add a second
             key rather than replacing one: the pool rotates between them when a provider rate-limits.
           </p>

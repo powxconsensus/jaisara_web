@@ -42,7 +42,7 @@ import { BlockComposer } from "./block-composer";
 import { SubjectFields } from "./campaign-editor";
 import { CampaignStatsPanel } from "./campaign-stats";
 import { SuppressionList } from "./suppression-list";
-import { HomepageProofEditor } from "./homepage-proof-editor";
+import { EmailTemplateStudio } from "@/components/console/email/template-studio";
 
 /**
  * The email studio.
@@ -78,7 +78,7 @@ const EMPTY = { name: "", subject: "", testEmails: "" };
 export function CampaignStudio() {
   const { can } = useAccess();
   const { toast } = useToast();
-  const [tab, setTab] = useState<"campaigns" | "homepage" | "suppressions">("campaigns");
+  const [tab, setTab] = useState<"campaigns" | "transactional" | "suppressions">("campaigns");
 
   const canManage = can(P.marketingManage);
   const canSend = can(P.marketingSend);
@@ -218,11 +218,17 @@ export function CampaignStudio() {
   };
 
   return (
-    <div className={cn("flex flex-col", tab === "campaigns" && "console-fill")}>
+    // `flex-1` for every tab, not just campaigns. The shell is a flex column
+    // now, so this claims its spare height and the tabs below can fill it —
+    // without it, Templates and Suppressions sat at their natural height with
+    // a band of empty page beneath, which is the same fault the queue pages
+    // had. `console-fill` stays on campaigns because that pane also needs a
+    // fixed height to scroll its own two columns independently.
+    <div className={cn("flex flex-1 flex-col", tab === "campaigns" && "console-fill")}>
       <PageHeader
         eyebrow="GROWTH"
-        title="Growth studio"
-        description="Manage published homepage proof and member email from one place."
+        title="Email studio"
+        description="Everything we email members: campaign sends, the wording of automated messages, and who we must not write to."
         actions={
           <Segmented
             label="Studio section"
@@ -230,7 +236,11 @@ export function CampaignStudio() {
             onChange={setTab}
             options={[
               { value: "campaigns", label: "Campaigns" },
-              { value: "homepage", label: "Homepage proof" },
+              // Next to Campaigns rather than in its own console section: both
+              // are "the words we email people", and splitting them put two
+              // email entries in the sidebar with no way to tell from the
+              // labels which one you wanted.
+              { value: "transactional", label: "Message wording" },
               { value: "suppressions", label: "Suppressions" },
             ]}
           />
@@ -239,13 +249,13 @@ export function CampaignStudio() {
 
       {tab === "suppressions" ? (
         <SuppressionList />
-      ) : tab === "homepage" ? (
-        <HomepageProofEditor />
+      ) : tab === "transactional" ? (
+        <EmailTemplateStudio />
       ) : (
         <div className="grid min-h-0 flex-1 gap-2 xl:grid-cols-[268px_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col gap-2">
             {subscribers.data && (
-              <div className="grid flex-none grid-cols-2 gap-2">
+              <div className="grid flex-none grid-cols-4 gap-1.5">
                 <StatTile
                   label="REACHABLE"
                   value={subscribers.data.reachable.toLocaleString("en-US")}
@@ -269,7 +279,7 @@ export function CampaignStudio() {
             )}
 
             {canManage && (
-              <Button className="w-full flex-none" onClick={startNew}>
+              <Button size="sm" className="w-full flex-none" onClick={startNew}>
                 + New email
               </Button>
             )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
@@ -62,6 +62,24 @@ export function ImportConsole() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [confirming, setConfirming] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  /**
+   * Preselect the affiliate account when there is an obvious one.
+   *
+   * Almost every import is ours, so making somebody pick "Jaisara" from a list
+   * of one or two on every upload is a click that only exists to be wrong
+   * occasionally. Preferring a `jaisara` account by name, and otherwise a sole
+   * account, covers both shapes without guessing when there is a real choice
+   * to make — with several accounts and none of them ours, it still asks.
+   */
+  const availableAccounts = accounts.data;
+  useEffect(() => {
+    if (accountId || !availableAccounts?.length) return;
+    const ours = availableAccounts.find((account) => /jaisara/i.test(account.name));
+    const only = availableAccounts.length === 1 ? availableAccounts[0] : undefined;
+    const preferred = ours ?? only;
+    if (preferred) setAccountId(preferred.id);
+  }, [accountId, availableAccounts]);
 
   const commit = useMutation();
   const platform = platforms.data?.find((entry) => entry.id === platformId);
@@ -156,7 +174,7 @@ export function ImportConsole() {
           />
 
           <form onSubmit={upload} className="mt-3 grid gap-3">
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <div>
                 <FieldLabel htmlFor="import-platform">FIRM</FieldLabel>
                 <Select
@@ -207,9 +225,8 @@ export function ImportConsole() {
                   Whose affiliate link earned this commission.
                 </p>
               </div>
-            </div>
 
-            <div>
+              <div>
               <FieldLabel htmlFor="import-file">CSV FILE</FieldLabel>
               <input
                 id="import-file"
@@ -228,6 +245,7 @@ export function ImportConsole() {
                   {file.name} · {fileSize(file.size)}
                 </p>
               )}
+              </div>
             </div>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-[11px] border border-hair p-4">

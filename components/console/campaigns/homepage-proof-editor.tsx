@@ -157,7 +157,18 @@ export function HomepageProofEditor() {
       <div className="grid gap-2 xl:grid-cols-[280px_minmax(0,1fr)]">
         <Panel className="p-2">
           {canManage && (
-            <Button className="mb-2 w-full" onClick={startNew}>+ Add feedback</Button>
+            <div className="mb-2 flex items-center justify-between gap-2 px-0.5">
+              <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
+                Feedback
+              </span>
+              <button
+                type="button"
+                onClick={startNew}
+                className="cursor-pointer rounded-[8px] border border-[var(--console-hair)] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-muted transition hover:border-primary hover:text-primary"
+              >
+                New +
+              </button>
+            </div>
           )}
           {data.feedback.length === 0 ? (
             <EmptyState title="No feedback yet" message="Add a sourced post, then publish it when the wording and link have been checked." />
@@ -236,7 +247,13 @@ export function HomepageProofEditor() {
               </div>
             </div>
             {error && <ErrorNote>{error}</ErrorNote>}
-            {canManage && <Button type="submit" size="lg" disabled={pending}>{pending ? "Saving…" : selectedId ? "Save feedback" : "Add feedback"}</Button>}
+            {canManage && (
+              <div className="flex justify-end border-t border-[var(--console-hair)] pt-4">
+                <Button type="submit" disabled={pending}>
+                  {pending ? "Saving…" : selectedId ? "Save feedback" : "Add feedback"}
+                </Button>
+              </div>
+            )}
           </form>
         </Panel>
       </div>

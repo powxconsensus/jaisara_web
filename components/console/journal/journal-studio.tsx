@@ -415,14 +415,14 @@ export function JournalStudio() {
                   // height. A viewport-relative minimum plus a drag handle let
                   // the field outgrow the frame it lives in, which is what put
                   // the save button below the fold on an empty draft.
-                  className="min-h-[220px] w-full flex-1 resize-none text-[14.5px] leading-[1.7]"
+                  className="mx-auto min-h-[220px] w-full max-w-[720px] flex-1 resize-none text-[14.5px] leading-[1.75]"
                 />
               )}
 
               {view === "posts" && <PostTable posts={posts.data ?? []} onOpen={choose} />}
 
               {view === "preview" && (
-                <div className="rounded-[8px] border border-[var(--console-hair)] bg-surface-2 p-5">
+                <div className="flex min-h-full flex-1 flex-col rounded-[8px] border border-[var(--console-hair)] bg-surface-2 p-5">
                   {form.body.trim() ? (
                     <MarkdownBody body={form.body} />
                   ) : (

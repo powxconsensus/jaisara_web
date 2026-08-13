@@ -866,6 +866,27 @@
     transform: none;
   }
 }
+/* Dialogs. Short and small-travel on purpose: a modal that animates in over
+   200ms reads as responsive, and one that travels far reads as a slideshow.
+   Both are held back by the reduced-motion rule further down. */
+@keyframes jsFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes jsPop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
 @keyframes jsReveal {
   from {
     opacity: 0;

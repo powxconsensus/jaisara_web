@@ -132,6 +132,12 @@ export function PageHeader({
  * actually read. Neutral tiles get no rule at all - colouring everything
  * colours nothing.
  */
+/**
+ * A number with a label. Used both four-across in a sidebar and two-across in
+ * a page header, so the label truncates rather than wrapping — a two-line
+ * label in one tile and a one-line label in its neighbour makes a row of
+ * tiles look broken.
+ */
 export function StatTile({
   label,
   value,
@@ -304,7 +310,11 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="px-5 py-10 text-center">
+    // `flex-1` and centred: in a panel that stretches, the message sits in the
+    // middle of the space rather than pinned under the header with a void
+    // below it. In a panel that does not stretch, this renders exactly as it
+    // did before — `flex-1` on a non-flex parent is inert.
+    <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 text-center">
       <p className="mb-2 font-mono text-[length:var(--ct-label)] tracking-[0.18em] text-muted">
         NOTHING HERE
       </p>

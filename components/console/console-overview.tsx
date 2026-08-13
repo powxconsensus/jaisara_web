@@ -153,7 +153,10 @@ export function ConsoleOverview() {
   const loading = claims.loading || payouts.loading;
 
   return (
-    <div>
+    // `flex-1` claims the shell's spare height so the queue panel below can
+    // fill it; an empty queue then centres its message instead of leaving a
+    // band of dead page under a short card.
+    <div className="flex flex-1 flex-col">
       <PageHeader
         eyebrow="OVERVIEW"
         title="What needs you"
@@ -185,7 +188,7 @@ export function ConsoleOverview() {
         </div>
       )}
 
-      <Panel>
+      <Panel className="flex flex-1 flex-col">
         <div className="flex items-center justify-between gap-3 border-b border-[var(--console-hair)] px-3 py-2">
           <div className="flex items-baseline gap-2">
             <h2 className="text-[length:var(--ct-title)] font-semibold leading-none">Your queue</h2>

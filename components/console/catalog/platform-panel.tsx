@@ -173,11 +173,20 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
 
   return (
     <div className="grid gap-2 xl:grid-cols-[248px_minmax(0,1fr)] xl:items-start">
-      <aside className="space-y-2 xl:sticky xl:top-0">
+      <aside className="flex min-h-0 flex-col gap-2 xl:sticky xl:top-0">
         {canManage && (
-          <Button className="w-full" size="lg" onClick={startNew}>
-            + New firm
-          </Button>
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
+              Firms
+            </span>
+            <button
+              type="button"
+              onClick={startNew}
+              className="cursor-pointer rounded-[8px] border border-hair px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-muted transition hover:border-club hover:text-club"
+            >
+              New +
+            </button>
+          </div>
         )}
         <RecordList className="max-h-[62vh] xl:max-h-[calc(100dvh-var(--topbar-h)-140px)]">
           {platforms.loading && rows.length === 0 ? (

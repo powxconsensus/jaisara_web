@@ -212,7 +212,10 @@ export function PayoutQueue() {
   };
 
   return (
-    <div>
+    // `flex-1` claims the shell's spare height so the queue panel below can
+    // fill it; an empty queue then centres its message instead of leaving a
+    // band of dead page under a short card.
+    <div className="flex flex-1 flex-col">
       <PageHeader
         eyebrow="MONEY"
         title="Payouts"
@@ -280,7 +283,7 @@ export function PayoutQueue() {
         </div>
       )}
 
-      <Panel className="p-2">
+      <Panel className="flex flex-1 flex-col p-2">
         {payouts.loading && rows.length === 0 ? (
           <LoadingRows rows={5} />
         ) : rows.length === 0 ? (

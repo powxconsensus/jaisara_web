@@ -277,7 +277,15 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
             layout size against this box with `h-full`, which is why the
             padding lives on an inner wrapper rather than here. */}
         <main className="console-scroll min-h-0 flex-1 overflow-y-auto">
-          <div className="min-h-full p-[var(--console-pad)]">{children}</div>
+          {/*
+            A flex column, not a plain block. Panels sat at their natural
+            height and left a band of empty page beneath them on every screen
+            that was not full — which reads as an unfinished layout rather
+            than as an empty queue. Now any page can add `flex-1` to the part
+            that should absorb the slack, and `EmptyState` centres itself in
+            whatever it is given.
+          */}
+          <div className="flex min-h-full flex-col p-[var(--console-pad)]">{children}</div>
         </main>
       </div>
     </div>

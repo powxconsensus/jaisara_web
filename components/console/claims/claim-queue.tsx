@@ -88,7 +88,10 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
     platforms.data?.find((platform) => platform.id === platformId)?.name ?? "this firm";
 
   return (
-    <div>
+    // `flex-1` claims the shell's spare height so the queue panel below can
+    // fill it; an empty queue then centres its message instead of leaving a
+    // band of dead page under a short card.
+    <div className="flex flex-1 flex-col">
       <PageHeader
         eyebrow="OPERATIONS"
         title="Claims"
@@ -202,7 +205,7 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
             }}
           />
         ) : (
-          <Panel>
+          <Panel className="flex flex-1 flex-col">
             <EmptyState
               title="Pick a claim"
               message="Choose one from the queue to see the receipt beside what the firm reported."

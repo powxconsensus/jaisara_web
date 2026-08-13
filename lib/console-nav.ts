@@ -92,9 +92,17 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   },
   {
     href: "/console/campaigns",
-    label: "Growth studio",
+    label: "Email studio",
     description:
-      "Manage homepage sponsors and sourced feedback, then draft and send member emails.",
+      "Campaign sends, the wording of every automated email, and the suppression list.",
+    permissions: [P.marketingView],
+    group: "Growth",
+  },
+  {
+    href: "/console/proof",
+    label: "Homepage proof",
+    description:
+      "Sponsor logos and the member feedback shown on the homepage. Page content rather than email, which is why it is not in the studio.",
     permissions: [P.marketingView],
     group: "Growth",
   },
@@ -140,6 +148,7 @@ export const SECTION_CODE: Record<string, string> = {
   "/console/payouts": "PO",
   "/console/settings": "SP",
   "/console/campaigns": "GR",
+  "/console/proof": "HP",
   "/console/blog": "JR",
   "/console/ai": "AI",
   "/console/people": "PR",

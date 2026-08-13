@@ -49,6 +49,14 @@ export function PayoutConfiguration() {
   const config = useResource<PayoutConfig>(canView ? "/api/admin/payouts/config" : null);
   const { mutate, pending, error, setError } = useMutation();
   const [draft, setDraft] = useState<PayoutConfig | null>(null);
+  /**
+   * Collapsed by default. Signer environment, limits and networks are decided
+   * once and then left alone, so the page should open on the queue rather than
+   * on a settings panel somebody has already read.
+   */
+  const [showPolicy, setShowPolicy] = useState(false);
+  /** Which chain the editor is showing. Editing is always one chain at a time. */
+  const [chainTab, setChainTab] = useState<PayoutChain>("POLYGON");
 
   if (!canView) return null;
 
@@ -143,7 +151,36 @@ export function PayoutConfiguration() {
       ) : config.error ? (
         <div className="mt-4"><ErrorNote>{config.error}</ErrorNote></div>
       ) : current && !editing ? (
-        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => setShowPolicy((open) => !open)}
+          aria-expanded={showPolicy}
+          className="mt-3 w-full cursor-pointer rounded-[11px] border border-hair px-4 py-3 text-left transition hover:border-club/50"
+        >
+          <span className="flex flex-wrap items-center gap-x-5 gap-y-1.5 font-mono text-[10px] tracking-[0.1em] text-muted">
+            <span>
+              MAX <span className="text-fg">{current.autoPayMaxUsdt}</span> USDT
+            </span>
+            <span>
+              KYC <span className="text-fg">{current.autoPayKycRequired ? "REQUIRED" : "OFF"}</span>
+            </span>
+            <span>
+              <span className="text-fg">{current.dailyWithdrawalRequestLimit}</span>/
+              {current.dailyLimitWindow === "UTC_DAY" ? "UTC DAY" : "24H"}
+            </span>
+            <span>
+              <span className="text-fg">
+                {CHAINS.filter((chain) => current.networks[chain].enabled).join(", ") || "NO"}
+              </span>{" "}
+              NETWORKS
+            </span>
+            <span className="ml-auto text-club">{showPolicy ? "HIDE −" : "DETAILS +"}</span>
+          </span>
+        </button>
+      ) : null}
+
+      {current && !editing && showPolicy ? (
+        <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           <Summary label="AUTO TRANSFER MAX" value={`${current.autoPayMaxUsdt} USDT net`} />
           <Summary
             label="KYC FOR AUTO"
@@ -158,7 +195,9 @@ export function PayoutConfiguration() {
             value={CHAINS.filter((chain) => current.networks[chain].enabled).join(", ") || "None"}
           />
         </div>
-      ) : current ? (
+      ) : null}
+
+      {config.loading || config.error ? null : current && editing ? (
         <div className="mt-5">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <Choice
@@ -223,7 +262,37 @@ export function PayoutConfiguration() {
           </div>
 
           <div className="mt-4 space-y-3">
-            {CHAINS.map((chain) => {
+            {/* One chain at a time, picked above, rather than three stacked
+                sections. Each chain carries a network id, a contract address
+                and a list of RPC URLs, so all three expanded is several
+                screens of scroll to change one number — and they are edited
+                one at a time anyway. */}
+            <div className="flex flex-wrap gap-1.5">
+              {CHAINS.map((chain) => (
+                <button
+                  key={chain}
+                  type="button"
+                  onClick={() => setChainTab(chain)}
+                  className="cursor-pointer rounded-[9px] border px-3.5 py-2 font-mono text-[9.5px] uppercase tracking-[0.16em] transition"
+                  style={{
+                    borderColor:
+                      chainTab === chain
+                        ? "color-mix(in oklab, var(--club) 46%, var(--hair))"
+                        : "var(--hair)",
+                    background:
+                      chainTab === chain
+                        ? "color-mix(in oklab, var(--club) 12%, transparent)"
+                        : "transparent",
+                    color: chainTab === chain ? "var(--club)" : "var(--muted)",
+                  }}
+                >
+                  {chain}
+                  {current.networks[chain].enabled ? " ·" : ""}
+                </button>
+              ))}
+            </div>
+
+            {CHAINS.filter((chain) => chain === chainTab).map((chain) => {
               const network = current.networks[chain];
               return (
                 <section key={chain} className="rounded-[12px] border border-hair p-3.5">
