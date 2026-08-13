@@ -19,6 +19,8 @@ export interface Firm {
   logoUrl?: string | null;
   /** Free-text descriptor shown under the name, e.g. "Two-step · instant". */
   kind: string;
+  /** Markets the firm deals in. Optional: older static rows carry none. */
+  markets?: string[];
   /** Percentage of the order value returned to the buyer. */
   cashback: number;
   /** Percentage taken off at the firm's checkout. */

@@ -66,6 +66,7 @@ export function DealRow({
             firm.tag,
             firm.discount > 0 ? `${firm.discount}% off` : null,
             firm.split && firm.split !== "-" ? `${firm.split} split` : null,
+            firm.markets?.length ? firm.markets.join("/") : null,
             firm.payout,
           ]
             .filter(Boolean)

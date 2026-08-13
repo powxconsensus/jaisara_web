@@ -79,8 +79,16 @@ export function DeleteAccountCard() {
 
   return (
     <>
+      {/*
+        `mt-8` rather than the `mb-4` the other settings cards use. The gap is
+        doing work here: this is the one card on the page that destroys
+        something, and sitting it flush against "Appearance" invites a
+        mis-aimed click on a control that schedules an account for deletion.
+        Adjacent margins collapse, so this reads as 32px of deliberate
+        separation regardless of what card ends up above it.
+      */}
       <section
-        className="mb-4 rounded-[18px] border bg-surface p-[clamp(20px,3vw,26px)]"
+        className="mb-4 mt-8 rounded-[18px] border bg-surface p-[clamp(20px,3vw,26px)]"
         style={{ borderColor: "color-mix(in oklab, var(--danger) 36%, var(--hair))" }}
       >
         <h2 className="mb-2 font-mono text-[9.5px] tracking-[0.22em] text-danger">

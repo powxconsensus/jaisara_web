@@ -26,6 +26,11 @@ import { FirmMark } from "@/components/ui/firm-mark";
 import { useMutation, useResource, type Resource } from "@/lib/console-api";
 import { orNone, slugify } from "@/lib/console-format";
 import {
+  PLATFORM_CATEGORIES,
+  CATEGORY_LABELS,
+  type PlatformCategory,
+} from "@/lib/platform-categories";
+import {
   ADMIN_PERMISSIONS as P,
   type ImportAdapter,
   type Platform,
@@ -66,6 +71,7 @@ const EMPTY = {
   defaultCouponCode: "",
   profitSplit: "",
   payoutCadence: "",
+  categories: [] as PlatformCategory[],
 };
 
 export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }) {
@@ -117,6 +123,7 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
       supportsSubId: platform.supportsSubId,
       subIdParam: platform.subIdParam ?? "",
       trackedLinkTemplate: platform.trackedLinkTemplate ?? "",
+      categories: platform.categories ?? [],
       exposesCustomerId: platform.exposesCustomerId,
       defaultCouponCode: platform.defaultCouponCode ?? "",
       profitSplit: platform.profitSplit ?? "",
@@ -150,6 +157,7 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
       defaultCouponCode: optional(form.defaultCouponCode),
       profitSplit: optional(form.profitSplit),
       payoutCadence: optional(form.payoutCadence),
+      categories: form.categories,
     };
 
     const saved = await mutate<Platform>(
@@ -309,6 +317,47 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
                     setForm({ ...form, defaultCouponCode: event.target.value.toUpperCase() })
                   }
                 />
+              </div>
+            </div>
+
+            {/* Toggles rather than a multi-select: there are four options and
+                they are not exclusive, so a row of chips shows the whole
+                answer at a glance and takes one click to change. A firm with
+                none selected is unclassified, which is allowed. */}
+            <div>
+              <FieldLabel htmlFor="platform-categories">MARKETS</FieldLabel>
+              <div id="platform-categories" className="flex flex-wrap gap-2">
+                {PLATFORM_CATEGORIES.map((category) => {
+                  const on = form.categories.includes(category);
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      disabled={!canManage}
+                      aria-pressed={on}
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          categories: on
+                            ? form.categories.filter((value) => value !== category)
+                            : [...form.categories, category],
+                        })
+                      }
+                      className="cursor-pointer rounded-[9px] border px-3.5 py-2 font-mono text-[9.5px] uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{
+                        borderColor: on
+                          ? "color-mix(in oklab, var(--club) 46%, var(--hair))"
+                          : "var(--hair)",
+                        background: on
+                          ? "color-mix(in oklab, var(--club) 12%, transparent)"
+                          : "transparent",
+                        color: on ? "var(--club)" : "var(--muted)",
+                      }}
+                    >
+                      {CATEGORY_LABELS[category]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

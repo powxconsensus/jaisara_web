@@ -20,7 +20,7 @@ export function AppearanceCard() {
   const { palette, mode, mounted, setPalette, setMode, resetToDefault } = useTheme();
 
   return (
-    <section className="rounded-[18px] border border-hair bg-surface p-[clamp(20px,3vw,28px)]">
+    <section className="mb-4 rounded-[18px] border border-hair bg-surface p-[clamp(20px,3vw,28px)]">
       <h2 className="mb-1.5 font-mono text-[9.5px] tracking-[0.22em] text-muted">APPEARANCE</h2>
       <p className="mb-5 text-[13px] leading-[1.6] text-muted">
         Mode and palette are independent - every palette has a light and a dark side. Each tile is

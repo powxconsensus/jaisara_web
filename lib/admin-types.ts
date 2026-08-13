@@ -1,3 +1,4 @@
+import type { PlatformCategory } from "@/lib/platform-categories";
 /**
  * Shapes the console reads back from the API.
  *
@@ -262,6 +263,7 @@ export interface Platform {
   profitSplit?: string | null;
   payoutCadence?: string | null;
   tradingPlatforms: string[];
+  categories: PlatformCategory[];
   createdAt?: string;
   statusMappings?: StatusMapping[];
   _count?: { products: number; coupons: number; orders: number };

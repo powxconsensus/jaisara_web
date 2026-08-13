@@ -10,7 +10,11 @@ export function CopyInviteLink({ link }: { link: string }) {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`https://${link}`);
+      // `link` is already absolute — the API composes it from `WEB_APP_URL`,
+      // scheme included. Prepending another produced `https://https://…`, which
+      // pasted as a dead link everywhere it was shared. The displayed text was
+      // right, so the bug was invisible until somebody actually used it.
+      await navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
       toast("Invite link copied");

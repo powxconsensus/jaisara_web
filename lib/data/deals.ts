@@ -1,6 +1,7 @@
 import { apiRequest } from "@/lib/auth-server";
 import type { Firm, PayoutCadence } from "@/lib/data/firms";
 import type { EstimatorFirm } from "@/lib/data/estimator";
+import { CATEGORY_LABELS, type PlatformCategory } from "@/lib/platform-categories";
 
 /**
  * The real firm catalogue.
@@ -59,6 +60,7 @@ export interface Deal {
   profitSplit: string | null;
   payoutCadence: string | null;
   tradingPlatforms: string[];
+  categories: PlatformCategory[];
   fulfillment: string;
   defaultCouponCode: string | null;
   products: DealProduct[];
@@ -117,6 +119,7 @@ export function toFirm(deal: Deal): Firm {
     mark: monogram(deal.name),
     logoUrl: deal.logoUrl,
     kind: describeKind(deal),
+    markets: (deal.categories ?? []).map((category) => CATEGORY_LABELS[category]),
     cashback: Number(cashback.toFixed(1)),
     discount: Number(coupon?.discountPct ?? 0),
     coupon: coupon?.code ?? deal.defaultCouponCode ?? "JAISARA",

@@ -369,13 +369,32 @@ export function AuthForm({
           )}
         </div>
 
+        {/*
+          A full-width row rather than the 9.5px muted text link this was.
+          Somebody arriving with a code from a friend could not find where to
+          put it — and a referral code that goes unentered is the one signup
+          detail that cannot be fixed afterwards, because the first valid code
+          is permanently attached and there is no second chance to attach one.
+          Styled to match the expanded card below so the two read as one
+          control in two states.
+        */}
         {isSignup && !referralVisible && (
           <button
             type="button"
             onClick={() => setReferralVisible(true)}
-            className="self-start cursor-pointer font-mono text-[9.5px] tracking-[0.12em] text-muted hover:text-club"
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-[12px] border border-dashed px-[15px] py-3.5 text-left transition hover:brightness-110"
+            style={{
+              background: "color-mix(in oklab, var(--club) 5%, var(--surface-2))",
+              borderColor: "color-mix(in oklab, var(--club) 34%, var(--hair))",
+            }}
           >
-            + ADD REFERRAL CODE
+            <span className="size-[5px] rounded-[2px] bg-club" />
+            <span className="font-mono text-[9px] tracking-[0.2em] text-club">
+              HAVE A REFERRAL CODE?
+            </span>
+            <span className="ml-auto font-mono text-[9px] tracking-[0.14em] text-muted">
+              ADD IT +
+            </span>
           </button>
         )}
 

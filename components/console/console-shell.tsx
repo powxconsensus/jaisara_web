@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth } from "@/components/auth/auth-context";
-import { NotFoundView } from "@/components/shell/not-found-view";
+import { NotFoundPage } from "@/components/shell/not-found-page";
 import { useAccess } from "@/components/console/use-permissions";
 import { CONSOLE_GROUPS, SECTION_CODE, visibleSections } from "@/lib/console-nav";
 import { humanRole } from "@/lib/console-format";
@@ -95,8 +95,11 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
     return <div aria-label="Loading the console" aria-busy="true" className="min-h-dvh" />;
   }
 
+  // Same screen the root 404 boundary renders, chrome included. A visitor
+  // without console permissions is not in a different kind of "missing" than
+  // one who mistyped a URL, and should not be shown a different kind of page.
   if (sections.length === 0) {
-    return <NotFoundView />;
+    return <NotFoundPage />;
   }
 
   const groups = CONSOLE_GROUPS.map((group) => ({
