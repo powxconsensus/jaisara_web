@@ -114,6 +114,21 @@ function reset() {
   if (state !== EMPTY) set(EMPTY);
 }
 
+/**
+ * Seeds the store with a balance the server already read.
+ *
+ * Called during render rather than from an effect, so the first paint has the
+ * real figure instead of a shimmer that resolves a round trip later. Ignored
+ * once anything has loaded, so it cannot overwrite a fresher balance - which
+ * matters after a withdrawal, where the server-rendered figure is stale the
+ * moment the request succeeds.
+ */
+export function seedWallet(wallet: WalletSummary | null): void {
+  if (loadedOnce || !wallet) return;
+  loadedOnce = true;
+  state = { wallet, loading: false };
+}
+
 export function useWallet(): WalletState {
   const { status } = useAuth();
   const authenticated = status === "authenticated";
@@ -125,7 +140,8 @@ export function useWallet(): WalletState {
       return;
     }
     // Guarded, because several components call this hook and one balance does
-    // not need fetching once per subscriber.
+    // not need fetching once per subscriber - and because a server-seeded
+    // balance has already set `loadedOnce`, so the mount fetch is skipped.
     if (!loadedOnce) void refreshWallet();
   }, [authenticated]);
 

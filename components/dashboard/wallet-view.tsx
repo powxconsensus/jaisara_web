@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-context";
-import { useWallet, type WalletSummary } from "@/components/wallet/use-wallet";
+import { useWallet, refreshWallet, type WalletSummary } from "@/components/wallet/use-wallet";
 import { StatusPill } from "@/components/ui/status-pill";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import type { LedgerStatus } from "@/lib/data/wallet";
-import { apiFetch } from "@/lib/api-fetch";
+import { useResource } from "@/lib/resource";
 import { conversionLabel, formatPoints } from "@/lib/points";
 import { greetingName } from "@/lib/identity";
 import { WithdrawalProgress } from "./withdrawal-progress";
@@ -45,23 +45,24 @@ function pillFor(state: string): LedgerStatus | "Approved" {
 export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
   const { user } = useAuth();
   const { wallet, loading } = useWallet();
-  const [ledger, setLedger] = useState<LedgerRow[] | null>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void apiFetch("/api/wallet/history?take=25", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => (response.ok ? ((await response.json()) as LedgerRow[]) : []))
-      .then((rows) => {
-        if (!controller.signal.aborted) setLedger(rows);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setLedger([]);
-      });
-    return () => controller.abort();
-  }, []);
+  // Served from cache on a repeat visit; the balance above it is seeded by the
+  // layout, so the whole page can paint without waiting on anything.
+  const history = useResource<LedgerRow[]>("/api/wallet/history", { query: { take: 25 } });
+  const ledger = history.data;
+
+  /**
+   * Both halves, because they are one question.
+   *
+   * The balance lives in its own store (the navbar shows it too, and a
+   * withdrawal has to move every copy at once) while the ledger goes through
+   * the resource cache. A member pressing refresh on the wallet means "tell me
+   * what I have", not "tell me half of it", so the button drives both.
+   */
+  const refreshAll = () => {
+    void refreshWallet();
+    void history.reload();
+  };
 
   // The handle when there is no name, so the greeting survives an account that
   // only ever set a username.
@@ -87,12 +88,19 @@ export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
             )}
           </h1>
         </div>
-        <Link
-          href="/dashboard/claim"
-          className="rounded-[10px] bg-primary px-5 py-3 font-mono text-[11px] uppercase tracking-[0.14em] text-on-primary transition hover:brightness-[1.06]"
-        >
-          Submit a claim
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <RefreshButton
+            onRefresh={refreshAll}
+            refreshing={history.refreshing}
+            fetchedAt={history.fetchedAt}
+          />
+          <Link
+            href="/dashboard/claim"
+            className="rounded-[10px] bg-primary px-5 py-3 font-mono text-[11px] uppercase tracking-[0.14em] text-on-primary transition hover:brightness-[1.06]"
+          >
+            Submit a claim
+          </Link>
+        </div>
       </div>
 
       {/* Stacked rather than the balance and the two tiles sharing a row.
@@ -129,7 +137,18 @@ export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
           RECENT CASHBACK
         </p>
 
-        {ledger === null ? (
+        {ledger === null && history.error ? (
+          // Not an empty state. A failed read used to fall through to "No
+          // cashback yet", which tells a member their earnings are gone.
+          <div className="px-2.5 py-12 text-center">
+            <p className="mb-2.5 font-mono text-[10px] tracking-[0.16em] text-warning">
+              COULD NOT LOAD
+            </p>
+            <p className="mx-auto max-w-[44ch] text-[12.5px] leading-6 text-muted">
+              {history.error} Your balance above is unaffected.
+            </p>
+          </div>
+        ) : ledger === null ? (
           <div aria-busy className="space-y-2 py-3">
             {[0, 1, 2].map((row) => (
               <div key={row} className="h-[52px] animate-pulse rounded-[11px] bg-surface-2" />

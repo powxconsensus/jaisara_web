@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/auth-server";
+import { DEFAULT_PUBLIC_SETTINGS, type PublicSettings } from "./settings-defaults";
 
 /**
  * The settings the browser is allowed to know.
@@ -10,28 +11,10 @@ import { apiRequest } from "@/lib/auth-server";
  * codebase keeps having to remove.
  */
 
-export interface PublicSettings {
-  /** How many points make a dollar. Always a power of ten. */
-  pointsPerUsd: number;
-  /** Whether the Jaisara Club is open, or shown as coming soon. */
-  clubEnabled: boolean;
-  clubScorePerReferral: number;
-  clubScorePerUsd: number;
-}
-
-/**
- * Used when the API cannot be reached.
- *
- * Deliberately matches the API's own defaults. A page that renders the club as
- * closed because a request timed out would be a worse lie than one that renders
- * it open and 404s on the click.
- */
-export const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
-  pointsPerUsd: 100,
-  clubEnabled: true,
-  clubScorePerReferral: 100,
-  clubScorePerUsd: 1,
-};
+// The shape and the fallback live in a module with no server-only imports, so
+// client components can read them too. Re-exported here because every existing
+// caller reaches for them through this file.
+export { DEFAULT_PUBLIC_SETTINGS, type PublicSettings };
 
 const REVALIDATE_SECONDS = process.env.NODE_ENV === "development" ? 5 : 60;
 const FETCH_TIMEOUT_MS = 5_000;

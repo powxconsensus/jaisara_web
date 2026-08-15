@@ -18,7 +18,7 @@ import {
   Tr,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { dateTime, humanRole, usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,

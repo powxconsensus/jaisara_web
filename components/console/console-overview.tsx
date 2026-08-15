@@ -1,17 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { PageHeader, Panel, StatTile, Badge } from "@/components/console/ui";
+import { PageHeader, Panel, RefreshButton, StatTile, Badge } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useResource } from "@/lib/console-api";
+import { usePointsPerUsd } from "@/components/console/points-rate";
+import { useResource } from "@/lib/resource";
 import { pointsToUsd, relativeTime, usd } from "@/lib/console-format";
-import {
-  ADMIN_PERMISSIONS as P,
-  type ClaimSummary,
-  type Product,
-  type SubscriberSummary,
-  type Withdrawal,
-} from "@/lib/admin-types";
+import { ADMIN_PERMISSIONS as P } from "@/lib/admin-types";
+
+/**
+ * What `/api/admin/overview` returns.
+ *
+ * Every field is nullable because the endpoint applies permissions per section.
+ * `null` means "you may not see this", which is different from zero - hence the
+ * tiles render "-" for it rather than "0".
+ */
+interface Overview {
+  matchedCount: number | null;
+  claims:
+    | {
+        id: string;
+        claimedExternalId: string | null;
+        claimedAmount: string | null;
+        createdAt: string;
+        platform: { name: string };
+        user: { email: string };
+      }[]
+    | null;
+  awaitingReport: number | null;
+  payouts:
+    | {
+        id: string;
+        points: string;
+        method: string;
+        requestedAt: string;
+        user: { email: string };
+        payoutAddress: { chain: string } | null;
+      }[]
+    | null;
+  payoutCount: number | null;
+  payoutTotalPoints: string | null;
+  unmapped: number | null;
+  reachable: number | null;
+}
 
 /**
  * Where a reviewer lands.
@@ -25,14 +56,6 @@ import {
  * Every tile is a live count, fetched only when the permission for it is held.
  */
 
-/** The list endpoints cap their page size, so a full page means "at least". */
-const CAP = 100;
-
-function atLeast(rows: unknown[] | null): string {
-  if (!rows) return "-";
-  return rows.length >= CAP ? `${CAP}+` : String(rows.length);
-}
-
 /** One line of work, whatever kind of work it is. */
 interface QueueRow {
   kind: "CLAIM" | "PAYOUT";
@@ -45,63 +68,62 @@ interface QueueRow {
 
 export function ConsoleOverview() {
   const { can, roles, permissions } = useAccess();
+  const pointsPerUsd = usePointsPerUsd();
 
-  const claims = useResource<ClaimSummary[]>("/api/admin/claims", {
-    query: { status: "MATCHED", take: CAP },
-    enabled: can(P.claimViewAll),
-  });
-  const waiting = useResource<ClaimSummary[]>("/api/admin/claims", {
-    query: { status: "AWAITING_REPORT", take: CAP },
-    enabled: can(P.claimViewAll),
-  });
-  const payouts = useResource<Withdrawal[]>("/api/admin/payouts", {
-    query: { status: "REQUESTED" },
-    enabled: can(P.withdrawalView),
-  });
-  const unmapped = useResource<Product[]>("/api/admin/catalog/products/unmapped", {
-    enabled: can(P.productView),
-  });
-  const subscribers = useResource<SubscriberSummary>("/api/admin/marketing/subscribers", {
-    enabled: can(P.marketingView),
-  });
+  /**
+   * One request, not five.
+   *
+   * Each of the five paid its own authentication pass and its own round trip of
+   * proxy and network overhead - and per-request overhead dominates here, so
+   * five cheap requests cost far more than one running five cheap queries. They
+   * were also all independent, which is what made merging safe: the endpoint
+   * runs them together and costs about what its slowest query costs.
+   *
+   * Permissions are applied server-side per section, so a reviewer who cannot
+   * see payouts gets `null` there rather than a 403 for the whole page.
+   */
+  const overview = useResource<Overview>("/api/admin/overview");
 
-  const owedPoints = (payouts.data ?? []).reduce(
-    (total, row) => total + Number(row.points || 0),
-    0,
-  );
+  const claims = overview.data?.claims ?? null;
+  const payouts = overview.data?.payouts ?? null;
+  const owedPoints = Number(overview.data?.payoutTotalPoints ?? 0);
+
+  const count = (value: number | null | undefined) =>
+    value === null || value === undefined ? "-" : value.toLocaleString("en-US");
 
   const tiles = [
     can(P.claimViewAll) && {
       label: "CLAIMS TO REVIEW",
-      value: atLeast(claims.data),
+      value: count(overview.data?.matchedCount),
       hint: "Matched to an order, waiting on a decision.",
-      tone: (claims.data?.length ?? 0) > 0 ? ("warning" as const) : ("neutral" as const),
+      tone: (overview.data?.matchedCount ?? 0) > 0 ? ("warning" as const) : ("neutral" as const),
       href: "/console/claims",
     },
     can(P.claimViewAll) && {
       label: "AWAITING REPORT",
-      value: atLeast(waiting.data),
+      // A real count, not the length of a capped page.
+      value: count(overview.data?.awaitingReport),
       hint: "Submitted; the firm has not reported the order yet.",
       tone: "neutral" as const,
       href: "/console/claims?status=AWAITING_REPORT",
     },
     can(P.withdrawalView) && {
       label: "PAYOUTS REQUESTED",
-      value: atLeast(payouts.data),
-      hint: owedPoints > 0 ? `${pointsToUsd(owedPoints)} in total.` : "Nobody is waiting to be paid.",
-      tone: (payouts.data?.length ?? 0) > 0 ? ("info" as const) : ("neutral" as const),
+      value: count(overview.data?.payoutCount),
+      hint: owedPoints > 0 ? `${pointsToUsd(owedPoints, pointsPerUsd)} in total.` : "Nobody is waiting to be paid.",
+      tone: (overview.data?.payoutCount ?? 0) > 0 ? ("info" as const) : ("neutral" as const),
       href: "/console/payouts",
     },
     can(P.productView) && {
       label: "UNMAPPED PRODUCTS",
-      value: atLeast(unmapped.data),
+      value: count(overview.data?.unmapped),
       hint: "Imported names with no challenge behind them.",
-      tone: (unmapped.data?.length ?? 0) > 0 ? ("warning" as const) : ("neutral" as const),
+      tone: (overview.data?.unmapped ?? 0) > 0 ? ("warning" as const) : ("neutral" as const),
       href: "/console/catalog",
     },
     can(P.marketingView) && {
       label: "REACHABLE MEMBERS",
-      value: subscribers.data ? subscribers.data.reachable.toLocaleString("en-US") : "-",
+      value: count(overview.data?.reachable),
       hint: "Active, verified and opted in.",
       tone: "neutral" as const,
       href: "/console/campaigns",
@@ -122,7 +144,7 @@ export function ConsoleOverview() {
    * a claim from this morning, and two separate lists hide that ordering.
    */
   const queue: QueueRow[] = [
-    ...(claims.data ?? []).map(
+    ...(claims ?? []).map(
       (claim): QueueRow => ({
         kind: "CLAIM",
         href: `/console/claims?claim=${claim.id}`,
@@ -134,11 +156,11 @@ export function ConsoleOverview() {
         tone: "warning",
       }),
     ),
-    ...(payouts.data ?? []).map(
+    ...(payouts ?? []).map(
       (payout): QueueRow => ({
         kind: "PAYOUT",
         href: "/console/payouts",
-        title: `Withdrawal · ${pointsToUsd(payout.points)}`,
+        title: `Withdrawal · ${pointsToUsd(payout.points, pointsPerUsd)}`,
         meta: [payout.user.email, payout.payoutAddress?.chain ?? payout.method]
           .filter(Boolean)
           .join(" · "),
@@ -150,7 +172,7 @@ export function ConsoleOverview() {
     .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
     .slice(0, 14);
 
-  const loading = claims.loading || payouts.loading;
+  const loading = overview.loading;
 
   return (
     // `flex-1` claims the shell's spare height so the queue panel below can
@@ -169,6 +191,15 @@ export function ConsoleOverview() {
               </Badge>
             ))}
             <Badge tone="neutral">{permissions.size} PERMS</Badge>
+            {/* Responses are served from cache and refreshed behind the reader,
+                so the age matters here: somebody about to release a payout
+                should see how old these counts are and be able to force the
+                question rather than reloading the page. */}
+            <RefreshButton
+              onRefresh={() => void overview.reload()}
+              refreshing={overview.refreshing}
+              fetchedAt={overview.fetchedAt}
+            />
           </div>
         }
       />

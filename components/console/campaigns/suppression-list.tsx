@@ -19,7 +19,7 @@ import {
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { dateTime } from "@/lib/console-format";
 import { ADMIN_PERMISSIONS as P, type Suppression } from "@/lib/admin-types";
 

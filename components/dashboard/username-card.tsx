@@ -6,6 +6,8 @@ import { useAuth } from "@/components/auth/auth-context";
 import { useToast } from "@/components/shell/toast";
 import { apiFetch } from "@/lib/api-fetch";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { useResource } from "@/lib/resource";
+import { invalidateAll } from "@/lib/resource-cache";
 
 /**
  * Choosing a username.
@@ -59,7 +61,6 @@ export function UsernameSection() {
   const fieldId = useId();
 
   const [open, setOpen] = useState(false);
-  const [allowance, setAllowance] = useState<Allowance | null>(null);
   const [draft, setDraft] = useState("");
   /**
    * The last completed check, tagged with the name it was for.
@@ -74,29 +75,23 @@ export function UsernameSection() {
   const [checking, setChecking] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
+
+  /**
+   * The allowance, through the shared cache.
+   *
+   * The card still works without it - the API is what actually enforces the
+   * change limit - so a failure is ignored rather than surfaced. `reload()`
+   * after a save replaces the hand-rolled reload key: the remaining count and
+   * the next-allowed date have to come from the server rather than be guessed
+   * at here.
+   */
+  const allowanceResource = useResource<Allowance>("/api/auth/me/username");
+  const allowance = allowanceResource.data;
 
   const current = allowance?.username ?? user?.username ?? null;
   const normalised = draft.trim().toLowerCase();
   const complaint = localComplaint(normalised);
   const isChange = current !== null;
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    void apiFetch("/api/auth/me/username", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => (response.ok ? ((await response.json()) as Allowance) : null))
-      .then((body) => {
-        if (!controller.signal.aborted && body) setAllowance(body);
-      })
-      .catch(() => {
-        // The card still works without it; the API is the one that enforces.
-      });
-
-    return () => controller.abort();
-    // Re-read after a save, so the remaining count and the next-allowed date
-    // come from the server rather than being guessed at here.
-  }, [reloadKey]);
 
   /** Nothing to ask the server about a blank, malformed, or unchanged name. */
   const worthChecking = Boolean(normalised) && !complaint && normalised !== current;
@@ -170,8 +165,10 @@ export function UsernameSection() {
       setOpen(false);
       setDraft("");
       setChecked(null);
-      setReloadKey((key) => key + 1);
-      await refresh();
+      // The handle is also the referral code, so a change moves the invite link
+      // and the club standing too - not just this card's allowance.
+      invalidateAll();
+      await Promise.all([allowanceResource.reload(), refresh()]);
       toast(isChange ? "Username changed." : "Username set.");
     } catch {
       toast("The account service is unavailable. Please try again.", "warning");

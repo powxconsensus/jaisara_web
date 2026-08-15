@@ -12,7 +12,7 @@ import {
   Tr,
   type Tone,
 } from "@/components/console/ui";
-import { useResource } from "@/lib/console-api";
+import { useResource } from "@/lib/resource";
 import { dateTime } from "@/lib/console-format";
 import type { CampaignDelivery, CampaignStats } from "@/lib/admin-types";
 

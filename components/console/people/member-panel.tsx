@@ -14,7 +14,8 @@ import {
   StatTile,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { usePointsPerUsd } from "@/components/console/points-rate";
+import { useMutation, useResource } from "@/lib/resource";
 import { dateTime, humanRole, orNone, pointsToUsd, shortDate } from "@/lib/console-format";
 import { primaryName, secondaryHandle } from "@/lib/identity";
 import {
@@ -56,6 +57,7 @@ export function MemberPanel({
   onChanged: () => void;
 }) {
   const { can, userId: selfId } = useAccess();
+  const pointsPerUsd = usePointsPerUsd();
   const { toast } = useToast();
   const member = useResource<AdminUserDetail>(`/api/admin/users/${userId}`);
   const { mutate, pending, error, setError } = useMutation();
@@ -153,8 +155,8 @@ export function MemberPanel({
         )}
 
         <div className="mt-6 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <StatTile label="AVAILABLE" value={pointsToUsd(record.wallet?.availablePoints)} />
-          <StatTile label="PENDING" value={pointsToUsd(record.wallet?.pendingPoints)} />
+          <StatTile label="AVAILABLE" value={pointsToUsd(record.wallet?.availablePoints, pointsPerUsd)} />
+          <StatTile label="PENDING" value={pointsToUsd(record.wallet?.pendingPoints, pointsPerUsd)} />
           <StatTile label="CLAIMS" value={record._count.claims} />
           <StatTile label="REFERRALS" value={record._count.referrals} />
         </div>

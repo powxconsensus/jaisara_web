@@ -17,7 +17,7 @@ import {
 } from "@/components/console/ui";
 import { ImagePickerButton, useImageUpload } from "@/components/console/journal/image-upload";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import {
   ADMIN_PERMISSIONS as P,
   type HomepageContentAdmin,

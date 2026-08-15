@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { CopyInviteLink } from "@/components/dashboard/copy-invite-link";
 import { useAuth } from "@/components/auth/auth-context";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import { pointsToUsd, shortDate } from "@/lib/console-format";
-import { apiFetch } from "@/lib/api-fetch";
+import { useResource } from "@/lib/resource";
 import { buildInviteLink, inviteRef } from "@/lib/invite";
 
 /**
@@ -55,19 +56,14 @@ function useOrigin(): string {
 
 export function ClubView({ pointsPerUsd }: { pointsPerUsd: number }) {
   const { user } = useAuth();
-  const [club, setClub] = useState<ClubStanding | null>(null);
   const origin = useOrigin();
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void apiFetch("/api/club", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => (response.ok ? ((await response.json()) as ClubStanding) : null))
-      .then((data) => {
-        if (!controller.signal.aborted) setClub(data);
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, []);
+  // Standing barely moves - a referral qualifies at most a few times a week -
+  // so serving it from cache and refreshing behind the reader costs nothing in
+  // accuracy and removes a shimmer from every visit. The invite link itself is
+  // composed from the session below and never waits on this at all.
+  const resource = useResource<ClubStanding>("/api/club");
+  const club = resource.data;
 
   // Composed from the session, so it is on screen before `/club` answers. The
   // API still returns `inviteUrl`; it is used only as a late fallback for a
@@ -87,15 +83,24 @@ export function ClubView({ pointsPerUsd }: { pointsPerUsd: number }) {
 
   return (
     <div>
-      <p className="mb-3.5 font-mono text-[10px] uppercase tracking-[0.24em] text-club">
-        [ Jaisara Club ]
-      </p>
-      <h1 className="mb-7 font-display text-[clamp(25px,3.3vw,34px)] font-black uppercase leading-none tracking-[-0.02em]">
-        Your invite,{" "}
-        <span className="font-serif font-normal normal-case italic tracking-normal text-club">
-          more rewards.
-        </span>
-      </h1>
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-3.5 font-mono text-[10px] uppercase tracking-[0.24em] text-club">
+            [ Jaisara Club ]
+          </p>
+          <h1 className="m-0 font-display text-[clamp(25px,3.3vw,34px)] font-black uppercase leading-none tracking-[-0.02em]">
+            Your invite,{" "}
+            <span className="font-serif font-normal normal-case italic tracking-normal text-club">
+              more rewards.
+            </span>
+          </h1>
+        </div>
+        <RefreshButton
+          onRefresh={() => void resource.reload()}
+          refreshing={resource.refreshing}
+          fetchedAt={resource.fetchedAt}
+        />
+      </div>
 
       <section
         className="mb-3.5 rounded-[18px] border p-[clamp(22px,3vw,30px)]"

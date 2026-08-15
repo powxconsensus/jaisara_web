@@ -23,6 +23,19 @@ export const metadata: Metadata = {
     "Use a Jaisara coupon at the firm's checkout: the price drops straight away, then we pay you cashback on top. Tracked to the cent, withdrawable in USDT or gift cards.",
 };
 
+/**
+ * Deliberately does *not* read the session here.
+ *
+ * Resolving it in the root layout removes the dashboard's auth waterfall, and
+ * costs the entire public site its static rendering: `cookies()` opts every
+ * descendant into per-request server rendering, so `/`, `/deals`, `/terms` and
+ * every prerendered firm page stop being served from cache. Measured, it took
+ * the build from a set of static and SSG routes to zero.
+ *
+ * That is the wrong trade - it slows the storefront to speed up the account
+ * area. The session is read in the layouts that actually need it, which are
+ * dynamic anyway, and seeded into this provider from there.
+ */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className={fontVariables}>

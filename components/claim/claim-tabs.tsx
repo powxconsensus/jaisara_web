@@ -7,6 +7,7 @@ import { useToast } from "@/components/shell/toast";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { apiFetch } from "@/lib/api-fetch";
+import { invalidateAll } from "@/lib/resource-cache";
 import {
   ClaimDate,
   ClaimField,
@@ -371,8 +372,14 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
         return;
       }
 
+      // The claims list is cached, so without this the member lands back on a
+      // list that does not contain the claim they just submitted - which is the
+      // single thing that page exists to reassure them about. Stale, not
+      // discarded: the list still paints instantly and corrects itself behind.
+      invalidateAll();
+
       toast("Claim submitted - we'll review it once the firm reports the order.", "success");
-      router.push("/dashboard");
+      router.push("/dashboard/claims");
       router.refresh();
     } catch {
       setError("The claims service is unavailable. Please try again.");

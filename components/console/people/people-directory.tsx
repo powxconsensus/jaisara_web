@@ -15,7 +15,7 @@ import {
   Select,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useResource } from "@/lib/console-api";
+import { useResource } from "@/lib/resource";
 import { humanRole, shortDate } from "@/lib/console-format";
 import { primaryName, secondaryHandle } from "@/lib/identity";
 import {

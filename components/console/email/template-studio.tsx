@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FieldLabel, TextInput } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { ADMIN_PERMISSIONS as P } from "@/lib/admin-types";
 import type { EmailDesign } from "@/lib/email-blocks";
 

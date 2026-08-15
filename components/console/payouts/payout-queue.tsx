@@ -20,7 +20,8 @@ import {
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { consoleApi, errorMessage, useMutation, useResource } from "@/lib/console-api";
+import { usePointsPerUsd } from "@/components/console/points-rate";
+import { requestJson, errorMessage, useMutation, useResource } from "@/lib/resource";
 import { isOlderThan, pointsToUsd, relativeTime } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
@@ -110,6 +111,7 @@ function RunReport({
   onDismiss: () => void;
   onRecord: (entry: Extract<RunEntry, { state: "unrecorded" }>) => void;
 }) {
+  const pointsPerUsd = usePointsPerUsd();
   const sent = entries.filter((entry) => entry.state === "sent");
   const unrecorded = entries.filter(
     (entry): entry is Extract<RunEntry, { state: "unrecorded" }> => entry.state === "unrecorded",
@@ -148,7 +150,7 @@ function RunReport({
         >
           <p className="text-[12px] leading-5">
             <strong className="text-fg">
-              {pointsToUsd(entry.row.netPoints)} reached {entry.row.user.email}
+              {pointsToUsd(entry.row.netPoints, pointsPerUsd)} reached {entry.row.user.email}
             </strong>{" "}
             but the ledger did not accept the record: {entry.message}
           </p>
@@ -184,6 +186,7 @@ function RunReport({
 
 export function PayoutQueue() {
   const { can } = useAccess();
+  const pointsPerUsd = usePointsPerUsd();
   const { toast } = useToast();
   const [status, setStatus] = useState<WithdrawalStatus | "">("REQUESTED");
   const [action, setAction] = useState<Action>(null);
@@ -325,10 +328,10 @@ export function PayoutQueue() {
       }
 
       try {
-        // `consoleApi` directly rather than `mutate`: this needs the message
+        // `requestJson` directly rather than `mutate`: this needs the message
         // from *this* call, and `mutate` only reports the most recent error
         // through shared state.
-        await consoleApi(`/api/admin/payouts/${row.id}/paid`, {
+        await requestJson(`/api/admin/payouts/${row.id}/paid`, {
           method: "POST",
           body: { externalTxId: txId },
         });
@@ -428,7 +431,7 @@ export function PayoutQueue() {
           value={rows.filter((row) => row.status === "REQUESTED").length}
           tone="warning"
         />
-        <StatTile label="OWED IN QUEUE" value={pointsToUsd(owed.toString())} />
+        <StatTile label="OWED IN QUEUE" value={pointsToUsd(owed.toString(), pointsPerUsd)} />
         <StatTile label="SHOWN" value={rows.length} hint="Capped at 100 per status." />
         {/* How long the person who has waited longest has been waiting.
             This slot used to restate the reader's own permissions - which the
@@ -564,10 +567,10 @@ export function PayoutQueue() {
                 </Td>
                 <Td>
                   <span data-count className="font-mono text-[13px]">
-                    {pointsToUsd(row.netPoints)} net
+                    {pointsToUsd(row.netPoints, pointsPerUsd)} net
                   </span>
                   <span className="mt-1 block text-[10.5px] text-muted">
-                    {pointsToUsd(row.points)} gross · {pointsToUsd(row.feePoints)} fee
+                    {pointsToUsd(row.points, pointsPerUsd)} gross · {pointsToUsd(row.feePoints, pointsPerUsd)} fee
                   </span>
                 </Td>
                 <Td>
@@ -682,7 +685,7 @@ export function PayoutQueue() {
               Confirm you have already {action.row.method === "USDT" ? "sent" : "assigned"}{" "}
               <strong className="text-fg">
                 {action.row.method === "USDT"
-                  ? `${pointsToUsd(action.row.netPoints)} USDT`
+                  ? `${pointsToUsd(action.row.netPoints, pointsPerUsd)} USDT`
                   : action.row.rewardItem?.name}
               </strong>{" "}
               to <strong className="text-fg">{action.row.user.email}</strong>
@@ -740,7 +743,7 @@ export function PayoutQueue() {
         summary={
           action ? (
             <>
-              <strong className="text-fg">{pointsToUsd(action.row.points)}</strong> goes back to{" "}
+              <strong className="text-fg">{pointsToUsd(action.row.points, pointsPerUsd)}</strong> goes back to{" "}
               <strong className="text-fg">{action.row.user.email}</strong>&rsquo;s available
               balance. Do this only if the transfer did <em>not</em> go out - otherwise they keep
               both.

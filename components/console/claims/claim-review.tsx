@@ -13,7 +13,8 @@ import {
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { usePointsPerUsd } from "@/components/console/points-rate";
+import { useMutation, useResource } from "@/lib/resource";
 import { dateTime, orNone, pointsToUsd, shortDate, usd } from "@/lib/console-format";
 import { ADMIN_PERMISSIONS as P, type ClaimDetail, type ClaimStatus } from "@/lib/admin-types";
 import { CLAIM_TONE } from "./claim-tone";
@@ -34,6 +35,7 @@ export function ClaimReview({
   onDecided: () => void;
 }) {
   const { can } = useAccess();
+  const pointsPerUsd = usePointsPerUsd();
   const claim = useResource<ClaimDetail>(`/api/admin/claims/${claimId}`);
   // Only used to learn *whether* a receipt exists; the bytes come from the
   // authenticated route below, which re-checks permission on every read and
@@ -238,12 +240,14 @@ export function ClaimReview({
                     label: `Buyer · ${record.conversion.buyerPct}%`,
                     value: pointsToUsd(
                       splitPoints(record.conversion.commissionPoints, record.conversion.buyerPct),
+                      pointsPerUsd,
                     ),
                   },
                   {
                     label: `Referrer · ${record.conversion.referrerPct}%`,
                     value: pointsToUsd(
                       splitPoints(record.conversion.commissionPoints, record.conversion.referrerPct),
+                      pointsPerUsd,
                     ),
                   },
                   { label: "Commission", value: usd(record.conversion.commissionAmountUsd) },

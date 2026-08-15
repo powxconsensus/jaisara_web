@@ -23,7 +23,7 @@ import {
 import { useAccess } from "@/components/console/use-permissions";
 import { ImagePickerButton, useImageUpload } from "@/components/console/journal/image-upload";
 import { FirmMark } from "@/components/ui/firm-mark";
-import { useMutation, useResource, type Resource } from "@/lib/console-api";
+import { useMutation, useResource, type Resource } from "@/lib/resource";
 import { orNone, slugify } from "@/lib/console-format";
 import {
   PLATFORM_CATEGORIES,

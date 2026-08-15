@@ -15,13 +15,17 @@
  * have gone on reporting every balance ten times too large, everywhere, with
  * nothing in the arithmetic to notice.
  *
- * It still defaults to 100 so existing callers are unchanged, but the default
- * is now a stated assumption instead of an invisible one, and any screen that
- * knows the real rate can pass it.
+ * The rate is **required**. It was optional with a default of 100, which read
+ * as harmless and was not: twelve console call sites quietly took the default
+ * while the member dashboard passed the real rate, so the two halves of the
+ * product would have disagreed about what a balance was worth the moment
+ * anybody changed the setting - and the half that was wrong was the one where
+ * an operator approves a payout. A required argument turns that from a silent
+ * mis-statement of somebody's money into a compile error.
  */
 export function pointsToUsd(
   points: string | number | null | undefined,
-  pointsPerUsd = 100,
+  pointsPerUsd: number,
 ): string {
   if (points === null || points === undefined || points === "") return "$0.00";
 

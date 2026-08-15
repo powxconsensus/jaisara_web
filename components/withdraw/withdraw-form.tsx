@@ -7,6 +7,7 @@ import { refreshWallet, useWallet } from "@/components/wallet/use-wallet";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { apiFetch } from "@/lib/api-fetch";
+import { invalidateAll } from "@/lib/resource-cache";
 
 type Method = "usdt" | "giftcard";
 
@@ -248,7 +249,9 @@ export function WithdrawForm() {
       toast("Payout requested.", "success");
       // The balance was debited server-side the moment this succeeded, so
       // every surface showing it is now wrong until it re-reads - including
-      // the figure in the navbar.
+      // the figure in the navbar and the cached wallet history, which now has
+      // a debit missing from it.
+      invalidateAll();
       await Promise.all([load(), refreshWallet()]);
     } catch {
       setError("The payout service is unavailable. Please try again.");

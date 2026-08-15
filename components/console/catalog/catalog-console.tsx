@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PageHeader, Segmented } from "@/components/console/ui";
-import { useResource } from "@/lib/console-api";
+import { useResource } from "@/lib/resource";
 import type { Platform } from "@/lib/admin-types";
 import { CouponPanel } from "./coupon-panel";
 import { PlatformPanel } from "./platform-panel";

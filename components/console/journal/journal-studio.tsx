@@ -23,7 +23,7 @@ import {
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { cn } from "@/lib/cn";
 import { readingStats, relativeTime, slugify } from "@/lib/console-format";
 import { ADMIN_PERMISSIONS as P, type BlogPost, type PostStatus } from "@/lib/admin-types";

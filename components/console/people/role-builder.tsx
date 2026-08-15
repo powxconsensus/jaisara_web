@@ -12,7 +12,7 @@ import {
   PanelHeader,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource, type Resource } from "@/lib/console-api";
+import { useMutation, useResource, type Resource } from "@/lib/resource";
 import { humanRole } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,

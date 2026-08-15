@@ -19,7 +19,7 @@ import {
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
 import { InfiniteScrollSentinel } from "@/components/console/infinite-scroll";
-import { usePagedResource, useResource } from "@/lib/console-api";
+import { usePagedResource, useResource } from "@/lib/resource";
 import { orNone, shortDate, usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,

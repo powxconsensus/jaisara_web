@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { StatusPill } from "@/components/ui/status-pill";
-import { apiFetch } from "@/lib/api-fetch";
+import { RefreshButton } from "@/components/ui/refresh-button";
+import { useResource } from "@/lib/resource";
 import { shortDate } from "@/lib/console-format";
 
 /**
@@ -85,20 +85,19 @@ function explain(claim: ClaimRow): string {
 }
 
 export function ClaimsView() {
-  const [claims, setClaims] = useState<ClaimRow[] | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void apiFetch("/api/claims?take=50", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => (response.ok ? ((await response.json()) as ClaimRow[]) : []))
-      .then((rows) => {
-        if (!controller.signal.aborted) setClaims(rows);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setClaims([]);
-      });
-    return () => controller.abort();
-  }, []);
+  /**
+   * Cached for a minute, then refreshed behind the reader.
+   *
+   * This page is checked repeatedly and changes rarely - somebody waiting on a
+   * decision opens it, leaves, and opens it again. Every one of those visits
+   * used to be a fresh round trip that redrew the same three rows behind a
+   * shimmer, because the fetch lived in a `useEffect` with `no-store` and so
+   * ran on every mount by construction. Now the second visit paints from cache
+   * with no request at all, and the refresh button is there for the member who
+   * genuinely wants to ask again.
+   */
+  const resource = useResource<ClaimRow[]>("/api/claims", { query: { take: 50 } });
+  const claims = resource.data;
 
   return (
     <div>
@@ -111,15 +110,47 @@ export function ClaimsView() {
             Every receipt you sent
           </h1>
         </div>
-        <Link
-          href="/dashboard/claim"
-          className="rounded-[10px] bg-primary px-5 py-3 font-mono text-[11px] uppercase tracking-[0.14em] text-on-primary transition hover:brightness-[1.06]"
-        >
-          Submit a claim
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <RefreshButton
+            onRefresh={() => void resource.reload()}
+            refreshing={resource.refreshing}
+            fetchedAt={resource.fetchedAt}
+          />
+          <Link
+            href="/dashboard/claim"
+            className="rounded-[10px] bg-primary px-5 py-3 font-mono text-[11px] uppercase tracking-[0.14em] text-on-primary transition hover:brightness-[1.06]"
+          >
+            Submit a claim
+          </Link>
+        </div>
       </div>
 
-      {claims === null ? (
+      {claims === null && resource.error ? (
+        /**
+         * A failure must not read as "you have no claims".
+         *
+         * The previous version turned any non-2xx into an empty array, so an
+         * API that was simply down told a member their receipts did not exist -
+         * the single most alarming thing this page can say, and a support
+         * ticket every time it happened.
+         */
+        <div className="rounded-card border border-hair bg-surface px-6 py-16 text-center">
+          <p className="mb-2.5 font-mono text-[10px] tracking-[0.16em] text-warning">
+            COULD NOT LOAD
+          </p>
+          <p className="mx-auto mb-5 max-w-[46ch] text-[12.5px] leading-6 text-muted">
+            {resource.error} Your claims are safe - this page just could not reach them.
+          </p>
+          <button
+            type="button"
+            onClick={() => void resource.reload()}
+            disabled={resource.refreshing}
+            className="cursor-pointer rounded-[10px] border border-hair px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-primary transition hover:border-primary disabled:cursor-wait disabled:opacity-55"
+          >
+            {resource.refreshing ? "Trying…" : "Try again"}
+          </button>
+        </div>
+      ) : claims === null ? (
         <div aria-busy className="space-y-2.5">
           {[0, 1, 2].map((row) => (
             <div key={row} className="h-[104px] animate-pulse rounded-card bg-surface-2" />

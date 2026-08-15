@@ -19,7 +19,7 @@ import {
   type Tone,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource, type Resource } from "@/lib/console-api";
+import { useMutation, useResource, type Resource } from "@/lib/resource";
 import { usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,

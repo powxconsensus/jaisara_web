@@ -20,7 +20,7 @@ import {
   Tr,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { consoleApi, errorMessage, useMutation, useResource } from "@/lib/console-api";
+import { requestJson, errorMessage, useMutation, useResource } from "@/lib/resource";
 import { dateTime, fileSize, shortDate, usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
@@ -132,7 +132,7 @@ export function ImportConsole() {
     if (force) body.set("force", "true");
 
     try {
-      const result = await consoleApi<ImportPreview>("/api/admin/imports", {
+      const result = await requestJson<ImportPreview>("/api/admin/imports", {
         method: "POST",
         body,
       });
