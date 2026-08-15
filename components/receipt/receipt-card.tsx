@@ -188,7 +188,9 @@ export function ReceiptCard({
             label={`${receipt.firm.toUpperCase()} ${receipt.plan.toUpperCase()}`}
             value={money(receipt.list)}
           />
-          <Line label={`COUPON ${receipt.coupon}`} value={`−${money(discount)}`} tone="success" />
+          {receipt.coupon ? (
+            <Line label={`COUPON ${receipt.coupon}`} value={`−${money(discount)}`} tone="success" />
+          ) : null}
           <Line label="YOU PAID" value={money(youPay)} />
           <Line label="CASHBACK RATE" value={percent(receipt.cashbackPct)} tone="muted" />
         </div>

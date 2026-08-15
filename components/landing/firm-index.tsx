@@ -3,6 +3,7 @@ import type { Firm } from "@/lib/data/firms";
 import { FirmMark } from "@/components/ui/firm-mark";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { money } from "@/lib/format";
 
 /**
  * The top firms this week.
@@ -51,8 +52,14 @@ export function FirmIndex({ firms = [] }: { firms?: Firm[] }) {
             <span className="min-w-0 flex-1 truncate font-display text-[17px] font-black uppercase leading-none tracking-[-0.02em] md:text-[clamp(19px,2.8vw,30px)]">
               {firm.name}
             </span>
+            {/* What the firm sells, in the space the bare type descriptor
+                used to occupy. "Evaluation" is a category; "6 challenges from
+                $149" is a reason to click. Falls back to the descriptor for a
+                firm whose catalogue is not filled in yet. */}
             <span className="hidden flex-none font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted lg:inline">
-              {firm.kind}
+              {firm.challenges?.length
+                ? `${firm.challenges.length} from ${money(firm.challenges[0].price)}`
+                : firm.kind}
             </span>
             <span className="hidden flex-none font-mono text-[11px] tracking-[0.08em] text-muted lg:inline">
               {firm.coupon}

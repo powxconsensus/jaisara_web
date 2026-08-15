@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-context";
 
 /**
@@ -17,7 +18,16 @@ import { useAuth } from "@/components/auth/auth-context";
  */
 export function FooterBand() {
   const { status } = useAuth();
+  const pathname = usePathname();
   const signedIn = status === "authenticated";
+
+  // Not on the shopping pages. This band is up to 168px of full-bleed signup
+  // pitch, and on `/deals` or a firm page it lands under somebody who is
+  // already deep in the funnel and comparing prices - so the last thing they
+  // see is an advert instead of a deal. Worse, for a signed-in member it
+  // points at the withdraw screen, which is a strange exit from a storefront.
+  // It still closes the pages whose job is to convince: home, about, journal.
+  if (pathname === "/deals" || pathname.startsWith("/firm/")) return null;
 
   return (
     <Link

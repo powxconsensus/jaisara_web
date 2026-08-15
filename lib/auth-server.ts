@@ -219,14 +219,96 @@ export async function currentRefreshToken(): Promise<string | undefined> {
   return (await cookies()).get(REFRESH_TOKEN_COOKIE)?.value;
 }
 
+/**
+ * Rotation state, shared across every route handler in this process.
+ *
+ * On `globalThis` rather than as a plain module-level `Map` for the same reason
+ * the Prisma client is: route handlers are bundled per route, so a module-level
+ * value can end up duplicated per bundle and per HMR reload - and a
+ * single-flight map that is not actually single is just a slower race.
+ */
+const rotationState = ((globalThis as GlobalWithRotations).__jaisaraRotations ??= {
+  inFlight: new Map<string, Promise<TokenPair | undefined>>(),
+  settled: new Map<string, { tokens: TokenPair; at: number }>(),
+});
+
+interface GlobalWithRotations {
+  __jaisaraRotations?: {
+    inFlight: Map<string, Promise<TokenPair | undefined>>;
+    settled: Map<string, { tokens: TokenPair; at: number }>;
+  };
+}
+
+/**
+ * How long a spent refresh token keeps answering with its replacement.
+ *
+ * Long enough to cover requests that read the cookie jar before the rotation
+ * landed - a page load fires its authenticated calls within a few hundred
+ * milliseconds of each other - and short enough that the pair is gone from
+ * memory long before the access token it carries expires.
+ */
+const ROTATION_GRACE_MS = 60_000;
+
+/**
+ * Exchanges a refresh token, once, however many callers ask at the same time.
+ *
+ * This is the fix for the site signing people out on its own. Refresh tokens
+ * are single-use *and* carry reuse detection: presenting one that has already
+ * been rotated is treated as a stolen credential and revokes the entire family
+ * - correctly, because that is what a leak looks like.
+ *
+ * The trouble is that one page load is many requests. `/api/auth/me` and
+ * `/api/wallet` are mounted on every screen, the dashboard adds `/api/club` and
+ * more, and each one is a separate route handler that reads the same cookie jar
+ * and independently decides the access token has expired. Fifteen minutes after
+ * signing in, they would all present the same refresh token at once: the first
+ * rotated it, the rest looked exactly like the attack, and the family - the
+ * fresh token included - was revoked. The user was signed out, having done
+ * nothing but load a page.
+ *
+ * So concurrent callers share one upstream call, and for a short window
+ * afterwards a straggler that still holds the spent token is handed the same
+ * replacement rather than being sent upstream to trip the alarm. The alarm
+ * itself is untouched: a token replayed after the window, or one from a family
+ * this process never rotated, still revokes everything.
+ *
+ * Per process, which is the honest limit - two instances behind a load balancer
+ * can still each rotate once. The API's own grace window covers that case by
+ * declining the second request without revoking the family.
+ */
 async function rotate(refreshToken: string, request: Request): Promise<TokenPair | undefined> {
-  const upstream = await apiRequest("/auth/refresh", {
-    method: "POST",
-    headers: upstreamHeaders(request),
-    body: JSON.stringify({ refreshToken }),
-  });
-  if (!upstream.ok) return undefined;
-  return (await upstream.json()) as TokenPair;
+  const now = Date.now();
+  for (const [key, entry] of rotationState.settled) {
+    if (now - entry.at > ROTATION_GRACE_MS) rotationState.settled.delete(key);
+  }
+
+  const settled = rotationState.settled.get(refreshToken);
+  if (settled) return settled.tokens;
+
+  const pending = rotationState.inFlight.get(refreshToken);
+  if (pending) return pending;
+
+  const attempt = (async () => {
+    const upstream = await apiRequest("/auth/refresh", {
+      method: "POST",
+      headers: upstreamHeaders(request),
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!upstream.ok) return undefined;
+    return (await upstream.json()) as TokenPair;
+  })();
+
+  rotationState.inFlight.set(refreshToken, attempt);
+  try {
+    const tokens = await attempt;
+    // Only successes are remembered. A failure can be transient - the API
+    // restarting mid-request - and caching that would keep the session locked
+    // out for the whole window over something that would have worked on retry.
+    if (tokens) rotationState.settled.set(refreshToken, { tokens, at: Date.now() });
+    return tokens;
+  } finally {
+    rotationState.inFlight.delete(refreshToken);
+  }
 }
 
 function durationSeconds(value: string | undefined, fallback: number): number {

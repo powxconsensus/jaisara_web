@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/auth-server";
-import type { Firm, PayoutCadence } from "@/lib/data/firms";
+import type { Challenge, Firm, PayoutCadence } from "@/lib/data/firms";
 import type { EstimatorFirm } from "@/lib/data/estimator";
 import { CATEGORY_LABELS, type PlatformCategory } from "@/lib/platform-categories";
 
@@ -103,6 +103,41 @@ export async function fetchFirms(): Promise<Firm[]> {
   return deals.map(toFirm);
 }
 
+/**
+ * The firm's catalogue, cheapest first.
+ *
+ * Unpriced rows are dropped: a challenge with no list price cannot state what
+ * it costs or what comes back, and a row reading "- / -" is worse than the row
+ * not being there. They stay in the estimator's input data and in the console,
+ * which is where a missing price should be noticed and fixed.
+ */
+function toChallenges(deal: Deal): Challenge[] {
+  return deal.products
+    .filter((product) => Number(product.listPrice) > 0)
+    .map((product) => {
+      const price = Number(product.listPrice);
+      const cashbackPct = product.estCashbackPct ?? 0;
+
+      return {
+        slug: product.slug,
+        firmSlug: deal.slug,
+        firmName: deal.name,
+        firmMark: monogram(deal.name),
+        firmLogoUrl: deal.logoUrl,
+        name: product.name,
+        plan: product.family?.trim() || null,
+        size: product.accountSize ? `$${Math.round(product.accountSize / 1000)}K` : null,
+        accountSize: product.accountSize,
+        price,
+        currency: product.currency,
+        cashbackPct: Number(cashbackPct.toFixed(1)),
+        // Rounded to the cent once, here, so no two screens can disagree.
+        cashbackUsd: Number(((price * cashbackPct) / 100).toFixed(2)),
+      } satisfies Challenge;
+    })
+    .sort((a, b) => a.price - b.price);
+}
+
 export function toFirm(deal: Deal): Firm {
   // The headline rate is the best a member can do at this firm, because that
   // is the number the storefront is comparing. Showing an average would make
@@ -122,7 +157,14 @@ export function toFirm(deal: Deal): Firm {
     markets: (deal.categories ?? []).map((category) => CATEGORY_LABELS[category]),
     cashback: Number(cashback.toFixed(1)),
     discount: Number(coupon?.discountPct ?? 0),
-    coupon: coupon?.code ?? deal.defaultCouponCode ?? "JAISARA",
+    // Empty when the firm has no published code, and never a house default.
+    // A code the firm does not recognise is worse than none: it is applied at
+    // checkout, silently ignored, and the purchase arrives unattributed - so
+    // no commission is paid and there is no cashback to share. The rest of the
+    // storefront treats "" as "no code to show", the same as it already does
+    // for an unpublished cashback rate.
+    coupon: coupon?.code ?? deal.defaultCouponCode ?? "",
+    challenges: toChallenges(deal),
     split: deal.profitSplit ?? "-",
     payout: normalisePayout(deal.payoutCadence),
     platform: deal.tradingPlatforms.join("/") || "-",

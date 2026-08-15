@@ -28,15 +28,6 @@ export interface ClaimPlatform {
   coupons: string[];
 }
 
-/**
- * Every firm ships under the house coupon unless it has its own.
- *
- * Fixed for now because it is always true, and a text box invites a typo into
- * the one field attribution depends on. The moment a firm has several, they
- * are already in `coupons` and the select fills itself in.
- */
-const HOUSE_COUPON = "JAISARA";
-
 type Mode = "auto" | "upload" | "manual";
 type Stage = "idle" | "parsing" | "parsed";
 
@@ -812,10 +803,11 @@ function ClaimFields({
     group: plan.family,
   }));
 
-  const coupons = [...new Set([...(firm?.coupons ?? []), HOUSE_COUPON])].map((code) => ({
-    value: code,
-    label: code,
-  }));
+  // Only the codes this firm has actually published. Seeding a house code here
+  // put a coupon the firm never issued onto somebody's claim, and made it the
+  // default answer for a firm that has none - `allowOther` already covers a
+  // code the catalogue has not caught up with.
+  const coupons = (firm?.coupons ?? []).map((code) => ({ value: code, label: code }));
 
   return (
     <div className="grid gap-[13px] md:grid-cols-2">
@@ -873,7 +865,7 @@ function ClaimFields({
 
       <ClaimSelect
         label="COUPON USED"
-        value={fields.coupon || HOUSE_COUPON}
+        value={fields.coupon}
         options={coupons}
         allowOther
         otherLabel="A different code - type it in"

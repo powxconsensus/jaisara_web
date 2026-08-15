@@ -78,7 +78,10 @@ export function toReceipts(entries: ActivityEntry[]): Receipt[] {
       return {
         firm: entry.firm,
         plan: entry.plan,
-        coupon: entry.coupon ?? "JAISARA",
+        // The code this purchase actually carried, or nothing. These are real
+        // orders by real members - naming a coupon they did not use states
+        // something false about somebody's purchase.
+        coupon: entry.coupon ?? "",
         list,
         discountPct: 0,
         cashbackPct,

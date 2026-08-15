@@ -47,7 +47,10 @@ export function GoogleCallback() {
         }
         setStatus("success");
         setMessage("Google verified. Opening your dashboard now.");
-        window.setTimeout(() => window.location.replace("/dashboard"), 650);
+        // Long enough to be read. At 650ms the success state was drawn and
+        // navigated away from inside a blink, so the last thing a member saw
+        // was the working state - which reads as a stall, not as success.
+        window.setTimeout(() => window.location.replace("/dashboard"), 1_200);
       } catch {
         setStatus("error");
         setMessage("The authentication service is unavailable. Please try again.");
@@ -55,60 +58,79 @@ export function GoogleCallback() {
     })();
   }, []);
 
+  const stage = status === "success" ? 3 : status === "error" ? 1 : 2;
+
+  /**
+   * The same column the form occupied, deliberately: width, eyebrow, display
+   * heading, sub-line, all in the same places.
+   *
+   * Returning from Google used to land on a small bordered card floating in
+   * the middle of the column, so the screen the member had just been filling
+   * in collapsed into a box a third its size. Nothing here is a card - coming
+   * back from the provider should read as the same page continuing, which is
+   * also how it reads to somebody who never left, because the redirect can
+   * resolve fast enough that this screen is only a flash.
+   */
   return (
-    <div className="relative w-full max-w-[420px] overflow-hidden rounded-[20px] border border-hair bg-surface p-8 text-center shadow-card">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-primary opacity-[0.14] blur-[70px]"
-      />
-      <div
-        className={`relative mx-auto mb-6 grid size-16 place-items-center rounded-[20px] border ${
-          status === "success"
-            ? "border-success bg-[color-mix(in_oklab,var(--success)_12%,var(--surface))] text-success"
-            : status === "error"
-              ? "border-danger bg-[color-mix(in_oklab,var(--danger)_10%,var(--surface))] text-danger"
-              : "border-primary bg-[color-mix(in_oklab,var(--primary)_10%,var(--surface))] text-primary"
-        }`}
-      >
-        {status === "working" ? (
-          <span className="size-7 animate-spin rounded-full border-2 border-current border-r-transparent" />
-        ) : status === "success" ? (
-          <span className="text-[28px] leading-none">✓</span>
-        ) : (
-          <span className="text-[24px] leading-none">!</span>
-        )}
-      </div>
-      <h1 className="font-display text-[25px] font-black uppercase leading-none">
+    <div className="w-full max-w-[420px] [animation:jsUp_.7s_.08s_cubic-bezier(.2,.8,.2,1)_both]">
+      <p className="mb-3.5 font-mono text-[10px] uppercase tracking-[0.24em] text-muted">
+        {status === "error" ? "Sign-in // interrupted" : "Google // signing you in"}
+      </p>
+      <h1 className="mb-2 font-display text-[28px] font-black uppercase leading-none tracking-[-0.02em]">
         {status === "working"
           ? "Connecting your account"
           : status === "success"
             ? "You are signed in"
             : "Sign-in interrupted"}
       </h1>
-      <p className="relative mt-3 text-sm leading-[1.65] text-muted">{message}</p>
+      <p className="mb-[26px] text-sm leading-[1.65] text-muted">{message}</p>
+
       {status !== "error" && (
-        <div className="relative mt-6 grid grid-cols-3 gap-2" aria-label="Sign-in progress">
-          {["Google", "Secure session", "Dashboard"].map((label, index) => {
-            const complete = status === "success" || index === 0;
+        <ol
+          className="mb-[26px] flex flex-col border-t border-hair-soft"
+          aria-label="Sign-in progress"
+        >
+          {["Google verified", "Secure session", "Your dashboard"].map((label, index) => {
+            const done = index < stage - 1 || status === "success";
+            const active = index === stage - 1 && status !== "success";
+
             return (
-              <div key={label}>
+              <li
+                key={label}
+                className="flex items-center gap-3.5 border-b border-hair-soft py-3.5"
+              >
                 <span
-                  className={`mx-auto block h-1.5 rounded-full ${
-                    complete ? "bg-primary" : "animate-pulse bg-hair"
+                  className={`grid size-5 flex-none place-items-center rounded-full border text-[10px] ${
+                    done
+                      ? "border-primary bg-primary text-on-primary"
+                      : active
+                        ? "border-primary text-primary"
+                        : "border-hair text-muted"
                   }`}
-                />
-                <span className="mt-2 block font-mono text-[8px] uppercase tracking-[0.08em] text-muted">
+                >
+                  {done ? (
+                    "✓"
+                  ) : active ? (
+                    <span className="size-2.5 animate-spin rounded-full border border-current border-r-transparent" />
+                  ) : null}
+                </span>
+                <span
+                  className={`font-mono text-[11px] uppercase tracking-[0.12em] ${
+                    done || active ? "text-fg" : "text-muted"
+                  }`}
+                >
                   {label}
                 </span>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ol>
       )}
+
       {status === "error" && (
         <Link
           href="/login"
-          className="mt-5 inline-flex rounded-[10px] bg-primary px-5 py-3 font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary"
+          className="inline-flex rounded-[11px] bg-primary px-5 py-3.5 font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-on-primary transition hover:-translate-y-px hover:brightness-[1.08]"
         >
           Back to login
         </Link>

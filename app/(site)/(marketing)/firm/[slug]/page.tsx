@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchDeals, fetchFirms, toFirm } from "@/lib/data/deals";
+import { ChallengeList } from "@/components/deals/challenge-list";
 import { CopyCoupon } from "@/components/deals/copy-coupon";
 import { FirmMark } from "@/components/ui/firm-mark";
 
@@ -32,7 +33,9 @@ export async function generateMetadata({ params }: PageProps<"/firm/[slug]">): P
   if (!firm) return { title: "Firm not found" };
   return {
     title: `${firm.name} - ${firm.cashback}% cashback`,
-    description: `Get ${firm.cashback}% cashback and ${firm.discount}% off ${firm.name} challenges with coupon ${firm.coupon}.`,
+    description: firm.coupon
+      ? `Get ${firm.cashback}% cashback and ${firm.discount}% off ${firm.name} challenges with coupon ${firm.coupon}.`
+      : `Get ${firm.cashback}% cashback on ${firm.name} challenges.`,
   };
 }
 
@@ -55,6 +58,8 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
   const { slug } = await params;
   const firm = await getFirmBySlug(slug);
   if (!firm) notFound();
+
+  const challenges = firm.challenges ?? [];
 
   const terms = [
     { label: "RATE", value: `${firm.cashback}% of challenge price` },
@@ -109,6 +114,33 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
             {firm.name} runs {firm.kind.toLowerCase()} evaluations with {firm.payout.toLowerCase()}{" "}
             payouts on {firm.platform}. Traders keep a {firm.split} profit split.
           </p>
+
+          {/* What you can actually buy.
+              This page used to describe a firm's terms without ever listing a
+              single product or price - the catalogue was fetched, reduced to
+              one headline percentage, and discarded. The headline is a maximum
+              across products; the rows below are what each one really pays. */}
+          <div className="mb-[38px]">
+            <div className="mb-[18px] flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted">
+                What you can buy
+              </p>
+              {challenges.length > 0 && (
+                <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+                  {challenges.length} {challenges.length === 1 ? "challenge" : "challenges"} ·
+                  cheapest first
+                </p>
+              )}
+            </div>
+            <div className="rounded-card border border-hair bg-surface px-4 py-1 md:px-5">
+              <ChallengeList
+                challenges={challenges}
+                coupon={firm.coupon}
+                discountPct={firm.discount}
+                emptyHint={`${firm.name} challenges are not listed yet`}
+              />
+            </div>
+          </div>
 
           <p className="mb-[18px] font-mono text-[10px] uppercase tracking-[0.24em] text-muted">
             How to get your cashback
@@ -177,7 +209,10 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
               </div>
             </div>
 
-            <CopyCoupon code={firm.coupon} />
+            {/* Only when the firm has published one. An empty stub inviting a
+                copy is worse than no stub: it teaches a member to look for a
+                code at checkout that was never issued. */}
+            {firm.coupon ? <CopyCoupon code={firm.coupon} /> : null}
 
             {/* Goes through our own tracked redirect, which records the click
                 against the signed-in member and attaches their sub-id before
@@ -185,7 +220,11 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
                 later claim, so linking straight to the firm would throw away
                 the evidence that makes a thin report reviewable. */}
             <a
-              href={`/go/${firm.slug}?coupon=${encodeURIComponent(firm.coupon)}`}
+              href={
+                firm.coupon
+                  ? `/go/${firm.slug}?coupon=${encodeURIComponent(firm.coupon)}`
+                  : `/go/${firm.slug}`
+              }
               target="_blank"
               rel="noopener noreferrer sponsored"
               className="block rounded-[11px] bg-primary p-[15px] text-center font-mono text-[11.5px] font-semibold uppercase tracking-[0.16em] text-on-primary transition hover:-translate-y-px hover:brightness-[1.08]"
@@ -200,8 +239,9 @@ export default async function FirmPage({ params }: PageProps<"/firm/[slug]">) {
             </Link>
 
             <p className="mt-4 text-xs leading-[1.6] text-muted">
-              You&rsquo;ll be redirected to {firm.name} with the coupon pre-applied. Cashback tracks
-              automatically once you submit the receipt.
+              You&rsquo;ll be redirected to {firm.name}
+              {firm.coupon ? " with the coupon pre-applied" : " through a tracked link"}. Cashback
+              tracks automatically once you submit the receipt.
             </p>
 
             <div className="my-[18px] h-px bg-hair-soft" />
