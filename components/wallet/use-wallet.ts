@@ -45,6 +45,8 @@ export interface WalletSummary {
   /** How much more is needed to reach the minimum. "0.00" once it is met. */
   shortfallUsd: string;
   canWithdraw: boolean;
+  /** The conversion rate, for the "N points = $1" line. */
+  pointsPerUsd: number;
 }
 
 interface WalletState {

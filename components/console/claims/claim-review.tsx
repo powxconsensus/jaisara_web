@@ -299,7 +299,7 @@ export function ClaimReview({
           <PanelHeader
             eyebrow="NO CSV FOR THIS FIRM"
             title="Record the order"
-            description="Copy the figures from the firm's affiliate dashboard. This writes a real order and approves the claim against it — the split, the hold and the wallet credit all run as usual."
+            description="Copy the figures from the firm's affiliate dashboard. This writes a real order and approves the claim against it - the split, the hold and the wallet credit all run as usual."
           />
 
           <form

@@ -22,6 +22,9 @@ export default function AccountPage() {
       <p className="mb-7 text-[14.5px] leading-[1.65] text-muted">
         Profile details and how Jaisara looks to you.
       </p>
+      {/* Username used to be its own card here. It is identity, like the email
+          and password it now sits between, and three sections of one thing read
+          as one thing rather than a card that happens to be nearby. */}
       <ProfileCard />
       <NewsletterCard />
       <AppearanceCard />

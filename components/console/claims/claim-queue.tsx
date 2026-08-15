@@ -97,7 +97,7 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
         title="Claims"
         description="Approving credits a wallet, so it is refused unless an order backs the claim - and never on your own claim."
         actions={
-          can(P.claimViewAll) && platformId ? (
+          can(P.claimApprove) && platformId ? (
             <button
               type="button"
               onClick={() => setRematching(true)}

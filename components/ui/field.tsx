@@ -27,7 +27,7 @@ export function TextInput({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "w-full rounded-[11px] border border-hair bg-surface-2 px-[15px] py-3.5 text-sm outline-none transition focus:border-primary focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--primary)_18%,transparent)]",
+        "w-full rounded-[11px] border border-hair bg-surface-2 px-[15px] py-3.5 text-sm outline-none transition focus:border-primary focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--primary)_18%,transparent)] disabled:cursor-not-allowed disabled:opacity-55",
         className,
       )}
       {...props}

@@ -65,11 +65,18 @@ export function percentRange(min: number, max: number): string {
 
 /**
  * The cashback maths for a single challenge, shared by the receipt, the
- * estimator and the split. Derived exactly as the prototype does (README §2).
+ * estimator and the split.
+ *
+ * Cashback comes off `youPay`, not off `list`. It is a share of the commission
+ * the firm pays us, and a firm pays commission on what it actually charged - so
+ * quoting it against the list price over-promises by exactly the discount. It
+ * was invisible while every coupon carried 0% off and becomes a real
+ * over-quote the day one is published, which is why it is stated here rather
+ * than left as the prototype had it.
  */
 export function challengeMath(list: number, discountPct: number, cashbackPct: number) {
   const discount = (list * discountPct) / 100;
   const youPay = list - discount;
-  const cashback = (list * cashbackPct) / 100;
+  const cashback = (youPay * cashbackPct) / 100;
   return { list, discount, youPay, cashback };
 }

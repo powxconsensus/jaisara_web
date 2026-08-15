@@ -23,6 +23,7 @@ import { useMutation, useResource, type Resource } from "@/lib/console-api";
 import { usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
+  type Coupon,
   type Platform,
   type Product,
   type ProductStatus,
@@ -51,6 +52,45 @@ const STATUS_TONE: Record<ProductStatus, Tone> = {
   ARCHIVED: "neutral",
 };
 
+/**
+ * What this challenge is quoted at, and which field decided it.
+ *
+ * Three states, and telling them apart is the whole point: a rate set on the
+ * challenge (which overrides the firm), a rate inherited from the firm, and
+ * nothing at all - which publishes no cashback rather than zero cashback.
+ */
+function Commission({ product, firmRate }: { product: Product; firmRate: string }) {
+  const own = product.estCommissionRate?.toString().trim();
+
+  if (own) {
+    // Flagged when it disagrees with the firm's default, because that is the
+    // case that looks like a bug from the storefront and like nothing at all
+    // from here.
+    const overrides = firmRate !== "" && Number(own) !== Number(firmRate);
+    return (
+      <span className={overrides ? "text-warning" : undefined}>
+        {Number(own)}%
+        {overrides && (
+          <span className="ml-1.5 text-[9.5px] tracking-[0.08em] text-muted">
+            firm says {firmRate}%
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  if (firmRate) {
+    return (
+      <span className="text-muted">
+        {firmRate}%
+        <span className="ml-1.5 text-[9.5px] tracking-[0.08em]">from firm</span>
+      </span>
+    );
+  }
+
+  return <span className="text-muted">-</span>;
+}
+
 export function ProductPanel({ platforms }: { platforms: Resource<Platform[]> }) {
   const { can } = useAccess();
   const { toast } = useToast();
@@ -71,14 +111,54 @@ export function ProductPanel({ platforms }: { platforms: Resource<Platform[]> })
     query: { status: status || undefined, platformId: platformId || undefined, take: 200 },
   });
   const { mutate, pending, error, setError } = useMutation();
+  // The firm being edited in the form, not the table filter - the picker has to
+  // offer that firm's codes, and a challenge may only carry one its own firm
+  // issued (the API refuses anything else).
+  const coupons = useResource<Coupon[]>(
+    formPlatformId ? `/api/admin/catalog/coupons?platformId=${formPlatformId}` : null,
+  );
 
   const rows = products.data ?? [];
+
+  /**
+   * The firm's own commission rate, as a percentage for the form.
+   *
+   * Stored as a fraction - `0.2` is 20% - because that is what it is multiplied
+   * by. The form talks in percent, so the conversion happens here rather than
+   * in two places that could disagree.
+   */
+  const defaultRate = (id: string): string => {
+    const rate = (platforms.data ?? []).find((entry) => entry.id === id)?.defaultCommissionRate;
+    if (rate === null || rate === undefined || rate === "") return "";
+
+    const pct = Number(rate) * 100;
+    return Number.isFinite(pct) && pct > 0 ? String(Number(pct.toFixed(4))) : "";
+  };
 
   const openCreate = () => {
     setError(null);
     setEditingId(null);
     setFormPlatformId(platformId);
-    setForm(emptyDraft());
+    setForm({ ...emptyDraft(), estCommissionRate: defaultRate(platformId) });
+  };
+
+  /**
+   * Changing the firm on a new challenge re-prefills the rate.
+   *
+   * Most firms pay one rate across their whole catalogue, so typing it on every
+   * plan was pure repetition - but a firm that pays differently on one plan is
+   * exactly why the box stays editable. So the prefill only ever replaces a
+   * blank or the *previous* firm's default: anything typed by hand survives
+   * picking a different firm, which is otherwise a silent way to lose an edit.
+   */
+  const changeFormPlatform = (id: string) => {
+    if (form && !editingId) {
+      const current = form.estCommissionRate.trim();
+      if (current === "" || current === defaultRate(formPlatformId)) {
+        setForm({ ...form, estCommissionRate: defaultRate(id) });
+      }
+    }
+    setFormPlatformId(id);
   };
 
   const openEdit = (product: Product) => {
@@ -101,7 +181,13 @@ export function ProductPanel({ platforms }: { platforms: Resource<Platform[]> })
       editingId
         ? `/api/admin/catalog/products/${editingId}`
         : `/api/admin/catalog/platforms/${formPlatformId}/products`,
-      { method: editingId ? "PATCH" : "POST", body: draftToBody(form) },
+      {
+        method: editingId ? "PATCH" : "POST",
+        // The firm's rate goes with the draft so a value left exactly as
+        // prefilled is saved as inheritance rather than as a copy that stops
+        // tracking the firm the moment somebody changes the default.
+        body: draftToBody(form, defaultRate(formPlatformId)),
+      },
     );
     if (!saved) return;
 
@@ -187,10 +273,16 @@ export function ProductPanel({ platforms }: { platforms: Resource<Platform[]> })
           draft={form}
           platforms={platforms.data ?? []}
           platformId={formPlatformId}
+          firmDefaultRate={defaultRate(formPlatformId)}
+          coupons={(coupons.data ?? []).filter((entry) => entry.platformId === formPlatformId)}
+          firmDefaultCoupon={
+            (platforms.data ?? []).find((entry) => entry.id === formPlatformId)
+              ?.defaultCouponCode ?? ""
+          }
           pending={pending}
           error={error}
           onDraftChange={setForm}
-          onPlatformChange={setFormPlatformId}
+          onPlatformChange={changeFormPlatform}
           onSubmit={() => void submitForm()}
           onCancel={closeForm}
         />
@@ -210,8 +302,17 @@ export function ProductPanel({ platforms }: { platforms: Resource<Platform[]> })
           />
         ) : (
           <TableShell
-            columns={["CHALLENGE", "FIRM", "KIND", "LIST PRICE", "ORDERS", "STATUS", ""]}
-            minWidth={940}
+            columns={[
+              "CHALLENGE",
+              "FIRM",
+              "KIND",
+              "LIST PRICE",
+              "COMMISSION",
+              "ORDERS",
+              "STATUS",
+              "",
+            ]}
+            minWidth={1040}
           >
             {rows.map((product) => (
               <Tr key={product.id}>
@@ -227,6 +328,14 @@ export function ProductPanel({ platforms }: { platforms: Resource<Platform[]> })
                 <Td className="font-mono text-[10.5px] text-muted">{product.kind}</Td>
                 <Td data-count className="font-mono">
                   {product.listPrice ? usd(product.listPrice, product.currency) : "-"}
+                </Td>
+                {/* The rate this challenge is actually quoted at, and where it
+                    came from. Without this column an admin who set the firm's
+                    default to 20% had no way to see that a challenge carried
+                    18% of its own and was overriding it - the storefront quoted
+                    a number that appeared in no field on this screen. */}
+                <Td data-count className="font-mono">
+                  <Commission product={product} firmRate={defaultRate(product.platformId)} />
                 </Td>
                 <Td data-count className="font-mono text-muted">
                   {product._count?.orders ?? 0}

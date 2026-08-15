@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { CopyInviteLink } from "@/components/dashboard/copy-invite-link";
+import { useAuth } from "@/components/auth/auth-context";
 import { pointsToUsd, shortDate } from "@/lib/console-format";
 import { apiFetch } from "@/lib/api-fetch";
+import { buildInviteLink, inviteRef } from "@/lib/invite";
 
 /**
  * Jaisara Club (handoff §4.7) - a `--club`-tinted surface.
@@ -32,8 +34,29 @@ const HOW_IT_PAYS = [
   "You receive a separate Club reward after their cashback is verified.",
 ];
 
-export function ClubView() {
+/**
+ * The page's own origin, empty while rendering on the server.
+ *
+ * `useSyncExternalStore` rather than an effect that calls `setState`: this is a
+ * read of an external value that never changes for the life of the document, so
+ * there is no state to synchronise and nothing to subscribe to. Written as an
+ * effect it would set state on every mount purely to learn something the
+ * browser already knew, and React's own lint rule says so.
+ */
+const NO_SUBSCRIPTION = () => () => {};
+
+function useOrigin(): string {
+  return useSyncExternalStore(
+    NO_SUBSCRIPTION,
+    () => window.location.origin,
+    () => "",
+  );
+}
+
+export function ClubView({ pointsPerUsd }: { pointsPerUsd: number }) {
+  const { user } = useAuth();
   const [club, setClub] = useState<ClubStanding | null>(null);
+  const origin = useOrigin();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -46,13 +69,18 @@ export function ClubView() {
     return () => controller.abort();
   }, []);
 
+  // Composed from the session, so it is on screen before `/club` answers. The
+  // API still returns `inviteUrl`; it is used only as a late fallback for a
+  // session that somehow arrived without a referral code.
+  const inviteUrl = buildInviteLink(user, origin) || (club?.inviteUrl ?? "");
+
   const stats = [
-    { label: "CODE", value: club?.referralCode ?? "-", tone: "" },
+    { label: "YOUR LINK", value: inviteRef(user) || club?.referralCode || "-", tone: "" },
     { label: "REFERRED", value: String(club?.totalReferrals ?? 0), tone: "" },
     { label: "ACTIVE BUYERS", value: String(club?.qualifiedReferrals ?? 0), tone: "" },
     {
       label: "CLUB EARNINGS",
-      value: pointsToUsd(club?.clubEarnedPoints ?? "0"),
+      value: pointsToUsd(club?.clubEarnedPoints ?? "0", pointsPerUsd),
       tone: "text-club",
     },
   ];
@@ -80,7 +108,7 @@ export function ClubView() {
         <h2 className="mb-3.5 font-mono text-[9.5px] tracking-[0.22em] text-muted">
           YOUR INVITE LINK
         </h2>
-        <CopyInviteLink link={club?.inviteUrl ?? ""} />
+        <CopyInviteLink link={inviteUrl} />
 
         <dl
           className="mt-6 flex flex-wrap gap-[26px] border-t pt-[22px]"

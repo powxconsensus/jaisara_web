@@ -7,6 +7,8 @@ import { useWallet, type WalletSummary } from "@/components/wallet/use-wallet";
 import { StatusPill } from "@/components/ui/status-pill";
 import type { LedgerStatus } from "@/lib/data/wallet";
 import { apiFetch } from "@/lib/api-fetch";
+import { conversionLabel, formatPoints } from "@/lib/points";
+import { greetingName } from "@/lib/identity";
 import { WithdrawalProgress } from "./withdrawal-progress";
 
 /**
@@ -40,7 +42,7 @@ function pillFor(state: string): LedgerStatus | "Approved" {
   return "Pending";
 }
 
-export function WalletView() {
+export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
   const { user } = useAuth();
   const { wallet, loading } = useWallet();
   const [ledger, setLedger] = useState<LedgerRow[] | null>(null);
@@ -61,7 +63,9 @@ export function WalletView() {
     return () => controller.abort();
   }, []);
 
-  const firstName = (user?.displayName ?? "").trim().split(/\s+/)[0];
+  // The handle when there is no name, so the greeting survives an account that
+  // only ever set a username.
+  const firstName = greetingName(user);
 
   return (
     <div>
@@ -97,7 +101,7 @@ export function WalletView() {
           "LIFETIME EARNED" broke across two lines and its note ran to three.
           They are secondary figures; they read better given the full width
           below than starved of it alongside. */}
-      <BalancePanel wallet={wallet} loading={loading} />
+      <BalancePanel wallet={wallet} loading={loading} pointsPerUsd={pointsPerUsd} />
 
       {wallet && Number(wallet.holdPoints) > 0 && (
         <div className="mt-2.5">
@@ -106,10 +110,16 @@ export function WalletView() {
       )}
 
       <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
-        <Tile label="LIFETIME EARNED" value={wallet?.lifetimeUsd} hint="Cashback and referrals, all time." />
+        <Tile
+          label="LIFETIME EARNED"
+          value={wallet?.lifetimeUsd}
+          points={wallet?.lifetimePoints}
+          hint="Cashback and referrals, all time."
+        />
         <Tile
           label="FROM THE CLUB"
           value={wallet?.clubUsd}
+          points={wallet?.clubPoints}
           hint="Referral share, already counted in lifetime."
         />
       </div>
@@ -167,7 +177,15 @@ export function WalletView() {
 }
 
 /** The headline balance, the threshold bar, and the way out. */
-function BalancePanel({ wallet, loading }: { wallet: WalletSummary | null; loading: boolean }) {
+function BalancePanel({
+  wallet,
+  loading,
+  pointsPerUsd,
+}: {
+  wallet: WalletSummary | null;
+  loading: boolean;
+  pointsPerUsd: number;
+}) {
   return (
     <div className="relative overflow-hidden rounded-card border border-hair bg-surface p-[clamp(20px,3vw,28px)]">
       <div
@@ -189,6 +207,16 @@ function BalancePanel({ wallet, loading }: { wallet: WalletSummary | null; loadi
             className="font-mono text-[clamp(34px,5.4vw,52px)] leading-none tracking-[-0.02em] text-primary"
           >
             {wallet ? `$${wallet.availableUsd}` : loading ? "-" : "$0.00"}
+          </p>
+
+          {/* The same balance in the unit the ledger actually keeps, with the
+              rate beside it. Under the dollars rather than instead of them:
+              dollars are what somebody is deciding about, points are what the
+              number is. */}
+          <p className="mt-2.5 font-mono text-[11px] tracking-[0.08em] text-muted">
+            {formatPoints(wallet?.availablePoints ?? "0")} PTS
+            <span className="mx-2 opacity-40">·</span>
+            {conversionLabel(pointsPerUsd)}
           </p>
 
           {wallet?.canWithdraw && (
@@ -252,14 +280,30 @@ function HoldNote({ wallet }: { wallet: WalletSummary }) {
   );
 }
 
-function Tile({ label, value, hint }: { label: string; value?: string; hint?: string }) {
+function Tile({
+  label,
+  value,
+  points,
+  hint,
+}: {
+  label: string;
+  value?: string;
+  points?: string;
+  hint?: string;
+}) {
   return (
     <div className="flex flex-col rounded-card border border-hair bg-surface p-[clamp(20px,3vw,26px)]">
       <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">{label}</p>
       <p data-count className="font-mono text-[clamp(22px,3vw,30px)] leading-none">
         {value ? `$${value}` : "$0.00"}
       </p>
+      {/* The rate is stated once, on the headline balance. Repeating it on
+          every tile would crowd four copies of one fact onto the page. */}
+      <p className="mt-2 font-mono text-[10px] tracking-[0.08em] text-muted">
+        {formatPoints(points ?? "0")} PTS
+      </p>
       {hint && <p className="mt-auto pt-3 text-[11px] leading-[1.5] text-muted">{hint}</p>}
     </div>
   );
 }
+

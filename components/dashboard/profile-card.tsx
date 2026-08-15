@@ -5,8 +5,10 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/auth/auth-context";
 import { useToast } from "@/components/shell/toast";
 import { SecuritySection } from "@/components/dashboard/security-card";
+import { UsernameSection } from "@/components/dashboard/username-card";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { apiFetch } from "@/lib/api-fetch";
+import { primaryName, secondaryHandle } from "@/lib/identity";
 
 /**
  * Matched to the API's own cap on a profile photo.
@@ -264,9 +266,21 @@ export function ProfileCard() {
         />
 
         <div className="min-w-0 flex-1">
+          {/* The heading falls back to the handle before it falls back to a
+              placeholder: an account that set `@alice` and no display name has
+              told us who it is, and "Your name" above that is the product
+              ignoring it. */}
           <p className="truncate text-base font-semibold tracking-[-0.01em]">
-            {displayName || "Your name"}
+            {primaryName({ displayName, username: user?.username }) || "Your name"}
           </p>
+          {/* Beneath rather than beside. Alongside a long name it is the piece
+              that gets truncated, and the handle is the half somebody is
+              actually looking for - it is their referral link. */}
+          {secondaryHandle({ displayName, username: user?.username }) && (
+            <p className="mt-[5px] truncate font-mono text-[10.5px] tracking-[0.08em] text-club">
+              {secondaryHandle({ displayName, username: user?.username })}
+            </p>
+          )}
           {/* No invented join date or tier: the account's own values or
               nothing. A fixed "MEMBER SINCE MAY 2026" was wrong for everyone
               who did not sign up that month. */}
@@ -345,8 +359,11 @@ export function ProfileCard() {
         </div>
 
         <div>
+          {/* Still here, and still the permanent one. The card below adds a
+              username that also works as a code; this stays because it is the
+              link that never breaks, whatever somebody renames themselves to. */}
           <p className="mb-[7px] font-mono text-[9px] tracking-[0.14em] text-muted">
-            YOUR REFERRAL CODE
+            PERMANENT REFERRAL CODE
           </p>
           <button
             type="button"
@@ -519,6 +536,11 @@ export function ProfileCard() {
 
       {/* Password sits in this card too: both are credential changes on the
           same account, and two cards made them read as unrelated features. */}
+      {/* Username sits between email and security: all three are identity, all
+          three follow the same summary-then-expand shape, and a username is
+          what somebody looks for right after their sign-in address. */}
+      <UsernameSection />
+
       <SecuritySection />
     </section>
   );

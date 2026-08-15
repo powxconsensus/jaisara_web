@@ -7,6 +7,16 @@ export interface AuthUser {
   emailVerified: boolean;
   hasPassword?: boolean;
   referralCode?: string;
+  /**
+   * Current club tier, carried on the session.
+   *
+   * Rides along on a query every authenticated request already makes, so the
+   * sidebar badge needs no request of its own - `/club` used to answer it, and
+   * that endpoint is the most expensive read on any member screen.
+   */
+  clubTierKey?: string | null;
+  /** The handle they chose. Also works as a referral code. */
+  username?: string | null;
   pendingEmailChange?: {
     email: string;
     expiresAt: string;

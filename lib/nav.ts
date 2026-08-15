@@ -54,6 +54,3 @@ export const FOOTER_COLUMNS: { heading: string; items: NavItem[] }[] = [
     ],
   },
 ];
-
-/** The public coupon shown in the header pill. */
-export const HEADER_COUPON = "JAISARA";

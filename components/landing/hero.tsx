@@ -9,7 +9,7 @@ import { HeroStage } from "./hero-stage";
 import { HeroAtmosphere } from "./hero-atmosphere";
 import { HeroWatermark } from "./hero-watermark";
 import { HeroGround } from "./hero-ground";
-import { HEADER_COUPON } from "@/lib/nav";
+import { BRAND_COUPON } from "@/lib/brand";
 
 /**
  * The three figures under the headline, from the ledger and the catalogue.
@@ -120,7 +120,7 @@ export function Hero({
               <p className="mb-[30px] max-w-[46ch] text-[clamp(16px,1.5vw,19px)] leading-[1.62] text-muted [animation:jsUp_.8s_.3s_both]">
                 Always use code{" "}
                 <span className="font-mono font-medium tracking-[0.04em] text-primary">
-                  {HEADER_COUPON}
+                  {BRAND_COUPON}
                 </span>{" "}
                 at checkout. You keep the firm&rsquo;s existing discount, and we pay you cashback on
                 top of it.

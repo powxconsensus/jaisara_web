@@ -372,7 +372,7 @@ export function AuthForm({
         {/*
           A full-width row rather than the 9.5px muted text link this was.
           Somebody arriving with a code from a friend could not find where to
-          put it — and a referral code that goes unentered is the one signup
+          put it - and a referral code that goes unentered is the one signup
           detail that cannot be fixed afterwards, because the first valid code
           is permanently attached and there is no second chance to attach one.
           Styled to match the expanded card below so the two read as one
@@ -422,17 +422,17 @@ export function AuthForm({
             </div>
             <input
               id={referralId}
-              aria-label="Referral code"
+              aria-label="Referral code or username"
               value={referral}
               onChange={(event) => setReferral(event.target.value)}
               name="referralCode"
-              placeholder="Optional referral code"
+              placeholder="Code or username"
               disabled={pending}
               className="w-full rounded-[9px] border border-hair bg-bg px-3.5 py-3 font-mono text-[13.5px] tracking-[0.1em] outline-none transition focus:border-club focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--club)_16%,transparent)]"
             />
             <p className="mt-2.5 text-[11.5px] leading-[1.5] text-muted">
-              The first valid invite code is permanently attached to your
-              account.
+              A code or a member&rsquo;s username both work. The first valid one is
+              permanently attached to your account.
             </p>
           </div>
         )}

@@ -294,6 +294,8 @@ export interface Product {
   listPrice?: string | null;
   currency: string;
   estCommissionRate?: string | null;
+  /** The challenge's own coupon. Null inherits the firm's default code. */
+  couponId?: string | null;
   isListed: boolean;
   aliases?: { rawKey: string }[];
   platform?: { id: string; slug: string; name: string };
@@ -571,6 +573,8 @@ export interface AdminUser {
   createdAt: string;
   lastLoginAt?: string | null;
   deletionScheduledFor?: string | null;
+  /** The handle the member chose. Doubles as a referral code, so it is searchable. */
+  username?: string | null;
   referralCode?: string | null;
   clubTierKey?: string | null;
   clubScore?: number | null;
@@ -589,22 +593,41 @@ export interface AdminUserDetail extends Omit<AdminUser, "roles" | "_count"> {
   suspendedNote?: string | null;
   deletionRequestedAt?: string | null;
   subIdToken?: string | null;
-  referredBy?: { id: string; displayName?: string | null; referralCode: string } | null;
+  referredBy?: {
+    id: string;
+    displayName?: string | null;
+    username?: string | null;
+    referralCode: string;
+  } | null;
   roles: { roleKey: string; grantedAt: string }[];
   externalIdentities: { platformId: string; kind: string; value: string; verifiedAt?: string | null }[];
   _count: { claims: number; conversions: number; referrals: number; withdrawals: number };
 }
 
-export interface RoleCatalogItem {
+export interface PermissionCatalogItem {
   key: string;
-  rank: number;
+  group: string;
   description: string;
-  permissions: { key: string; group: string; description: string }[];
 }
 
-/** Roles the console offers to grant. `owner` is never in this list. */
-export const ASSIGNABLE_ROLES = ["admin", "admin_edit", "admin_view", "author"] as const;
-export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
+/**
+ * A role as the console reads it, built-in or custom.
+ *
+ * Served from the `Role` table rather than from the API's constants - a custom
+ * role exists only as rows, so a catalogue derived from code would omit exactly
+ * the roles an owner had just created.
+ */
+export interface RoleCatalogItem {
+  key: string;
+  name: string;
+  rank: number;
+  description: string;
+  /** Built-ins cannot be edited or deleted; the code depends on their shape. */
+  isSystem: boolean;
+  /** How many people hold it - deleting one that is held is refused. */
+  memberCount: number;
+  permissions: PermissionCatalogItem[];
+}
 
 // ── AI providers ─────────────────────────────────────────────────────────────
 

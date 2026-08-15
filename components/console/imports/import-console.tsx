@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
@@ -73,13 +73,29 @@ export function ImportConsole() {
    * to make — with several accounts and none of them ours, it still asks.
    */
   const availableAccounts = accounts.data;
-  useEffect(() => {
-    if (accountId || !availableAccounts?.length) return;
-    const ours = availableAccounts.find((account) => /jaisara/i.test(account.name));
-    const only = availableAccounts.length === 1 ? availableAccounts[0] : undefined;
-    const preferred = ours ?? only;
-    if (preferred) setAccountId(preferred.id);
-  }, [accountId, availableAccounts]);
+
+  /**
+   * Adjusted during render rather than in an effect.
+   *
+   * As an effect this preselected the account on a second pass, so the first
+   * paint after the accounts loaded showed an empty picker that then filled
+   * itself in - and React's lint rule flags the synchronous setState that
+   * caused it. The guard is the list itself: once a given set of accounts has
+   * been auto-filled from, clearing the picker leaves it cleared, which is what
+   * somebody deliberately deselecting it expects.
+   */
+  const [autoFilledFrom, setAutoFilledFrom] = useState<string | null>(null);
+  const accountsKey = availableAccounts?.map((account) => account.id).join(",") ?? "";
+
+  if (availableAccounts?.length && autoFilledFrom !== accountsKey) {
+    setAutoFilledFrom(accountsKey);
+    if (!accountId) {
+      const ours = availableAccounts.find((account) => /jaisara/i.test(account.name));
+      const only = availableAccounts.length === 1 ? availableAccounts[0] : undefined;
+      const preferred = ours ?? only;
+      if (preferred) setAccountId(preferred.id);
+    }
+  }
 
   const commit = useMutation();
   const platform = platforms.data?.find((entry) => entry.id === platformId);

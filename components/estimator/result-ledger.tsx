@@ -99,11 +99,33 @@ export function ResultLedger({
 
       <div className="relative flex flex-col font-mono text-xs">
         <Row label="CHALLENGE PRICE" value={result ? money(result.price) : dash} />
+        {/* The code, named, on its own line.
+
+            These are two different things and one row called "COUPON DISCOUNT"
+            collapsed them, which is what made the ledger look broken:
+            `none published` sitting directly above a real cashback figure reads
+            as "no coupon, and yet somehow cashback". The code is what
+            attributes the sale and earns the commission; the discount is
+            whatever the firm chooses to take off its own price, and is very
+            often nothing. Cashback depends entirely on the first and not at all
+            on the second. */}
         <Row
-          label="COUPON DISCOUNT"
-          value={result ? `−${money(result.discount)}` : dash}
-          tone="text-success"
+          label="COUPON CODE"
+          value={firm ? firm.coupon || "none needed" : dash}
+          tone="text-primary"
         />
+        {result && firm && firm.discountPct <= 0 ? (
+          // Never `−$0.00`. A coupon that saves zero is not a thing anybody
+          // ships, so the figure reads as a failed calculation rather than as a
+          // firm that publishes a tracking code and no price cut.
+          <Row label="CHECKOUT DISCOUNT" value="none published" tone="text-muted" />
+        ) : (
+          <Row
+            label="CHECKOUT DISCOUNT"
+            value={result ? `−${money(result.discount)}` : dash}
+            tone="text-success"
+          />
+        )}
         <Row
           label="YOU PAY AT CHECKOUT"
           value={result ? money(result.youPay) : dash}
@@ -123,9 +145,25 @@ export function ResultLedger({
           <Row label="EFFECTIVE COST" value={result ? money(result.effectiveCost) : dash} emphasis />
         </div>
 
+        {/* Says where the money comes from, because the rows alone cannot.
+            A reader looking at a zero discount and a real cashback figure is
+            owed the sentence that reconciles them: the two numbers have
+            different sources, and only one of them is the firm's price.
+
+            It says Jaisara pays it, not that the firm pays us. Both are true,
+            but only one is ours to publish on a page a firm's affiliate team
+            may read - and the second reads as the firm funding a rebate on
+            their own product, which is the framing most likely to get a
+            partnership pulled. It is also the wording the Terms already use:
+            promotional rewards funded from Jaisara's own revenue, not payments
+            made by the prop firm to the member. */}
         <p className="mt-3 font-sans text-[11.5px] leading-[1.6] tracking-normal text-muted">
-          {result
-            ? `You pay ${money(result.youPay)} today. ${money(result.cashback)} becomes available after the firm’s applicable refund window closes.`
+          {result && firm
+            ? `You pay ${money(result.youPay)} today${
+                firm.coupon ? ` using the code ${firm.coupon}` : ""
+              }. Your reward is paid by Jaisara and is not a discount off ${firm.name}’s price - so it arrives whether or not the code changes what you pay. ${money(
+                result.cashback,
+              )} becomes available after the firm’s applicable refund window closes.`
             : "The ledger prints itself as you choose. Nothing here is charged by Jaisara - you buy from the firm directly."}
         </p>
       </div>

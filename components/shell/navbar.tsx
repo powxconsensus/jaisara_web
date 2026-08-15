@@ -9,6 +9,7 @@ import { cn } from "@/lib/cn";
 import { useAuth } from "@/components/auth/auth-context";
 import { useWallet } from "@/components/wallet/use-wallet";
 import { Logo } from "@/components/ui/logo";
+import { initialsFor } from "@/lib/identity";
 import { SignOutIcon } from "@/components/ui/icons";
 import { ModeToggle } from "@/components/theme/mode-toggle";
 import { PaletteMenu } from "@/components/theme/palette-menu";
@@ -31,12 +32,9 @@ export function Navbar() {
   const hasAdminAccess = Boolean(user?.permissions?.some((permission) =>
     ["marketing:view", "post:write", "user:view"].includes(permission),
   ));
-  const initials = (user?.displayName || user?.email || "?")
-    .split(/[\s@._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
+  // Falls through name, handle, then email, so somebody who set only a username
+  // gets their own initials rather than the ones derived from their address.
+  const initials = initialsFor(user);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
 
   const handleSignOut = async () => {

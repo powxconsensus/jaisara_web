@@ -58,7 +58,7 @@ export function ChallengeList({
       {coupon && discountPct > 0 && (
         <p className="mt-1 border-t border-hair-soft pt-3 text-[11.5px] leading-[1.6] text-muted">
           <span className="font-mono tracking-[0.04em] text-primary">{coupon}</span> takes{" "}
-          {discountPct}% off at checkout, and the cash back arrives after — both
+          {discountPct}% off at checkout, and the cash back arrives after - both
           on every challenge above.
         </p>
       )}
