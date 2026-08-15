@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FieldLabel, TextInput } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/console/confirm-dialog";
 import {
   Badge,
@@ -42,6 +43,15 @@ export function ClaimReview({
   );
   const { mutate, pending, error, setError } = useMutation();
   const [dialog, setDialog] = useState<"approve" | "reject" | null>(null);
+  // Defaults to today rather than the claimed purchase date: the hold runs
+  // from when the money was actually spent, and the admin is looking at the
+  // affiliate dashboard, which is the authority on that.
+  const [manual, setManual] = useState({
+    externalId: "",
+    commissionAmount: "",
+    grossAmount: "",
+    occurredAt: new Date().toISOString().slice(0, 10),
+  });
 
   if (claim.loading && !claim.data) {
     return (
@@ -67,12 +77,31 @@ export function ClaimReview({
   // claim would credit cashback against commission the firm never paid us.
   const canApprove = can(P.claimApprove) && !decided && Boolean(order);
   const canReject = can(P.claimReject) && !decided;
+  // Recording the order is only offered when there is none - it writes a real
+  // order carrying real commission, so it must never become a second way to
+  // approve one that already matched.
+  const canRecord =
+    can(P.claimApprove) && can(P.orderRecordManual) && !decided && !order;
 
   const decide = async (action: "approve" | "reject", note: string) => {
     const body = action === "approve" ? { note: note || undefined } : { reason: note };
     const result = await mutate(`/api/admin/claims/${claimId}/${action}`, { body });
     if (!result) return;
     setDialog(null);
+    await claim.reload();
+    onDecided();
+  };
+
+  const recordOrder = async () => {
+    const result = await mutate(`/api/admin/claims/${claimId}/record-order`, {
+      body: {
+        externalId: manual.externalId.trim() || record.claimedExternalId,
+        commissionAmount: manual.commissionAmount.trim(),
+        grossAmount: manual.grossAmount.trim() || undefined,
+        occurredAt: new Date(manual.occurredAt).toISOString(),
+      },
+    });
+    if (!result) return;
     await claim.reload();
     onDecided();
   };
@@ -235,6 +264,10 @@ export function ClaimReview({
             <Button size="lg" onClick={() => setDialog("approve")}>
               Approve &amp; credit
             </Button>
+          ) : canRecord ? (
+            <span className="font-mono text-[10px] tracking-[0.12em] text-muted">
+              NO REPORT FOR THIS ORDER YET — RECORD IT BELOW
+            </span>
           ) : (
             <span className="font-mono text-[10px] tracking-[0.12em] text-muted">
               {can(P.claimApprove)
@@ -252,6 +285,102 @@ export function ClaimReview({
               Reject
             </Button>
           )}
+        </Panel>
+      )}
+
+      {/* The path for a firm that sends no report.
+          `approve` refuses a claim with no matched order - correctly, since a
+          conversion cannot exist without one - so before this existed a claim
+          against a manual firm was unapprovable and the member could never be
+          paid. This supplies the report the firm never sent; the order is
+          written first and the ordinary approval runs on top of it. */}
+      {canRecord && (
+        <Panel className="p-[var(--ct-pad)]">
+          <PanelHeader
+            eyebrow="NO CSV FOR THIS FIRM"
+            title="Record the order"
+            description="Copy the figures from the firm's affiliate dashboard. This writes a real order and approves the claim against it — the split, the hold and the wallet credit all run as usual."
+          />
+
+          <form
+            className="mt-4 space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void recordOrder();
+            }}
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel htmlFor="mo-ref">ORDER REFERENCE</FieldLabel>
+                <TextInput
+                  id="mo-ref"
+                  required
+                  value={manual.externalId}
+                  placeholder={record.claimedExternalId}
+                  onChange={(event) => setManual({ ...manual, externalId: event.target.value })}
+                />
+                <p className="mt-2 text-[11px] text-muted">
+                  The member claimed{" "}
+                  <span className="font-mono text-fg">{record.claimedExternalId}</span>. A
+                  different value is allowed and is recorded on the claim.
+                </p>
+              </div>
+              <div>
+                <FieldLabel htmlFor="mo-date">PURCHASED ON</FieldLabel>
+                <TextInput
+                  id="mo-date"
+                  required
+                  type="date"
+                  value={manual.occurredAt}
+                  onChange={(event) => setManual({ ...manual, occurredAt: event.target.value })}
+                />
+                <p className="mt-2 text-[11px] text-muted">The hold is counted from this date.</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel htmlFor="mo-gross">ORDER AMOUNT (OPTIONAL)</FieldLabel>
+                <TextInput
+                  id="mo-gross"
+                  inputMode="decimal"
+                  placeholder="25.00"
+                  value={manual.grossAmount}
+                  onChange={(event) => setManual({ ...manual, grossAmount: event.target.value })}
+                />
+                <p className="mt-2 text-[11px] text-muted">
+                  What the member paid. Recorded for reference; it is not what gets split.
+                </p>
+              </div>
+              <div>
+                <FieldLabel htmlFor="mo-commission">COMMISSION WE EARNED</FieldLabel>
+                <TextInput
+                  id="mo-commission"
+                  required
+                  inputMode="decimal"
+                  placeholder="5.00"
+                  value={manual.commissionAmount}
+                  onChange={(event) =>
+                    setManual({ ...manual, commissionAmount: event.target.value })
+                  }
+                />
+                {/* Said out loud because it is the number that pays people. */}
+                <p className="mt-2 text-[11px] leading-5 text-muted">
+                  <span className="text-warning">This is the figure that gets split.</span> Type
+                  what the affiliate dashboard actually says — it is never computed from a rate.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <Button size="lg" type="submit" disabled={pending}>
+                {pending ? "Recording…" : "Record order & approve"}
+              </Button>
+              <span className="font-mono text-[10px] tracking-[0.12em] text-muted">
+                CREDITS THE MEMBER AND THEIR REFERRER
+              </span>
+            </div>
+          </form>
         </Panel>
       )}
 

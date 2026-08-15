@@ -32,6 +32,7 @@ import {
 } from "@/lib/platform-categories";
 import {
   ADMIN_PERMISSIONS as P,
+  MANUAL_ADAPTER_KEY,
   type ImportAdapter,
   type Platform,
   type PlatformStatus,
@@ -69,6 +70,7 @@ const EMPTY = {
   trackedLinkTemplate: "",
   exposesCustomerId: false,
   defaultCouponCode: "",
+  defaultCommissionRate: "",
   profitSplit: "",
   payoutCadence: "",
   categories: [] as PlatformCategory[],
@@ -126,6 +128,10 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
       categories: platform.categories ?? [],
       exposesCustomerId: platform.exposesCustomerId,
       defaultCouponCode: platform.defaultCouponCode ?? "",
+      defaultCommissionRate:
+        platform.defaultCommissionRate === null || platform.defaultCommissionRate === undefined
+          ? ""
+          : String(Number(platform.defaultCommissionRate) * 100),
       profitSplit: platform.profitSplit ?? "",
       payoutCadence: platform.payoutCadence ?? "",
     });
@@ -155,6 +161,13 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
       trackedLinkTemplate: optional(form.trackedLinkTemplate),
       exposesCustomerId: form.exposesCustomerId,
       defaultCouponCode: optional(form.defaultCouponCode),
+      // Typed as a percentage because that is how affiliate terms are written
+      // ("20%"), stored as a rate because that is what it multiplies. Blank
+      // stays blank: a 0 here would pre-fill every manual order with no
+      // commission, which is a claim rather than an absence.
+      defaultCommissionRate: form.defaultCommissionRate.trim()
+        ? (Number(form.defaultCommissionRate) / 100).toFixed(4)
+        : null,
       profitSplit: optional(form.profitSplit),
       payoutCadence: optional(form.payoutCadence),
       categories: form.categories,
@@ -279,9 +292,16 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
                       {adapter.displayName} (v{adapter.version})
                     </option>
                   ))}
+                  {/* A real value, not a blank. Blank cannot tell "this firm
+                      has no export" apart from "nobody filled this in", and
+                      only the first should make manual entry the expected
+                      path rather than a workaround. */}
+                  <option value={MANUAL_ADAPTER_KEY}>Manual entry — no CSV export</option>
                 </Select>
                 <p className="mt-2 text-[11px] leading-5 text-muted">
-                  Which parser reads this firm&rsquo;s CSV exports.
+                  {form.adapterKey === MANUAL_ADAPTER_KEY
+                    ? "Orders for this firm are typed in by hand, from the member's claim in Console → Claims. CSV uploads are refused."
+                    : "Which parser reads this firm’s CSV exports. A missing sale can still be recorded by hand from the claim."}
                 </p>
               </div>
               <div>
@@ -326,6 +346,29 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
                     setForm({ ...form, defaultCouponCode: event.target.value.toUpperCase() })
                   }
                 />
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel htmlFor="platform-commission">DEFAULT COMMISSION %</FieldLabel>
+                <TextInput
+                  id="platform-commission"
+                  disabled={!canManage}
+                  inputMode="decimal"
+                  placeholder="20"
+                  value={form.defaultCommissionRate}
+                  onChange={(event) =>
+                    setForm({ ...form, defaultCommissionRate: event.target.value })
+                  }
+                />
+                {/* Stated plainly because the distinction is the whole design:
+                    this pre-fills a box, it never decides a payment. */}
+                <p className="mt-2 text-[11px] leading-5 text-muted">
+                  What this firm pays us on a sale. Pre-fills manual order entry and nothing
+                  else — every payout splits the commission actually recorded on the order. A
+                  challenge can override it in the catalogue.
+                </p>
               </div>
             </div>
 

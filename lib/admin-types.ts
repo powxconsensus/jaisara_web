@@ -22,6 +22,8 @@ export const ADMIN_PERMISSIONS = {
 
   claimViewAll: "claim:view_all",
   claimApprove: "claim:approve",
+  /** Typing an order in by hand — required to approve a claim with no report. */
+  orderRecordManual: "order:record_manual",
   claimReject: "claim:reject",
   claimReassign: "claim:reassign",
 
@@ -260,6 +262,8 @@ export interface Platform {
   trackedLinkTemplate?: string | null;
   exposesCustomerId: boolean;
   defaultCouponCode?: string | null;
+  /** What the firm pays us, as a rate: `0.2` is 20%. Pre-fills manual orders. */
+  defaultCommissionRate?: string | number | null;
   profitSplit?: string | null;
   payoutCadence?: string | null;
   tradingPlatforms: string[];
@@ -661,3 +665,12 @@ export interface AiTestResult {
   chat: AiCheckStep;
   vision: AiCheckStep;
 }
+
+/**
+ * The `adapterKey` of a firm whose orders are typed in by hand.
+ *
+ * Mirrors `MANUAL_ADAPTER_KEY` in the API. A real value rather than a blank,
+ * so "this firm has no export" is distinguishable from "nobody filled this
+ * in" - only the first should make manual entry the expected path.
+ */
+export const MANUAL_ADAPTER_KEY = "manual";
