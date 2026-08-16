@@ -273,6 +273,15 @@ export async function forwardPublicJson(
 export interface AuthenticatedUpstream {
   upstream: Response;
   tokens?: TokenPair;
+  /**
+   * A refresh lost to this client's own concurrent one.
+   *
+   * The session is intact and the token family was never revoked — only this
+   * request failed. It exists so `applySessionResult` can tell that apart from
+   * a genuinely dead session, because the two need opposite treatment and the
+   * old code treated them the same.
+   */
+  raced?: boolean;
 }
 
 export async function authenticatedRequest(
@@ -284,11 +293,23 @@ export async function authenticatedRequest(
   let accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
   let refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)?.value;
   let tokens: TokenPair | undefined;
+  /**
+   * Whether a refresh lost to this client's own concurrent one.
+   *
+   * Carried separately from `tokens` because the two failures need opposite
+   * treatment: a dead session must clear the cookies, and a race must not.
+   */
+  let raced = false;
 
   if ((!accessToken || tokenExpired(accessToken)) && refreshToken) {
-    tokens = await rotate(refreshToken, request);
-    accessToken = tokens?.accessToken;
-    refreshToken = tokens?.refreshToken ?? refreshToken;
+    const rotated = await rotate(refreshToken, request);
+    if (rotated === "raced") {
+      raced = true;
+    } else {
+      tokens = rotated;
+      accessToken = tokens?.accessToken;
+      refreshToken = tokens?.refreshToken ?? refreshToken;
+    }
   }
 
   if (!accessToken) {
@@ -305,14 +326,17 @@ export async function authenticatedRequest(
   let upstream = await apiRequest(path, { ...init, headers });
 
   if (upstream.status === 401 && refreshToken && !tokens) {
-    tokens = await rotate(refreshToken, request);
-    if (tokens) {
+    const rotated = await rotate(refreshToken, request);
+    if (rotated === "raced") {
+      raced = true;
+    } else if (rotated) {
+      tokens = rotated;
       headers.set("authorization", `Bearer ${tokens.accessToken}`);
       upstream = await apiRequest(path, { ...init, headers });
     }
   }
 
-  return { upstream, tokens };
+  return { upstream, tokens, raced };
 }
 
 export function applySessionResult(
@@ -320,7 +344,21 @@ export function applySessionResult(
   result: AuthenticatedUpstream,
 ): NextResponse {
   if (result.tokens) setAuthCookies(response, result.tokens);
-  if (result.upstream.status === 401) clearAuthCookies(response);
+
+  /**
+   * Only clear when the session is actually over.
+   *
+   * This cleared on **any** upstream 401, which signed members out roughly
+   * every fifteen minutes. The sequence: the access token expires, the
+   * dashboard has several requests in flight, they all try to refresh, one
+   * wins - and the losers got a 401 that meant "somebody else rotated this a
+   * moment ago", not "your session ended". Clearing the cookies on that
+   * destroyed a session the API had deliberately kept alive.
+   *
+   * A race leaves the cookies exactly where they are: the winning request set
+   * the new pair on its own response, and the next request picks it up.
+   */
+  if (result.upstream.status === 401 && !result.raced) clearAuthCookies(response);
   return response;
 }
 
@@ -337,13 +375,13 @@ export async function currentRefreshToken(): Promise<string | undefined> {
  * single-flight map that is not actually single is just a slower race.
  */
 const rotationState = ((globalThis as GlobalWithRotations).__jaisaraRotations ??= {
-  inFlight: new Map<string, Promise<TokenPair | undefined>>(),
+  inFlight: new Map<string, Promise<TokenPair | "raced" | undefined>>(),
   settled: new Map<string, { tokens: TokenPair; at: number }>(),
 });
 
 interface GlobalWithRotations {
   __jaisaraRotations?: {
-    inFlight: Map<string, Promise<TokenPair | undefined>>;
+    inFlight: Map<string, Promise<TokenPair | "raced" | undefined>>;
     settled: Map<string, { tokens: TokenPair; at: number }>;
   };
 }
@@ -385,7 +423,10 @@ const ROTATION_GRACE_MS = 60_000;
  * can still each rotate once. The API's own grace window covers that case by
  * declining the second request without revoking the family.
  */
-export async function rotate(refreshToken: string, request: Request): Promise<TokenPair | undefined> {
+export async function rotate(
+  refreshToken: string,
+  request: Request,
+): Promise<TokenPair | "raced" | undefined> {
   const now = Date.now();
   for (const [key, entry] of rotationState.settled) {
     if (now - entry.at > ROTATION_GRACE_MS) rotationState.settled.delete(key);
@@ -403,6 +444,16 @@ export async function rotate(refreshToken: string, request: Request): Promise<To
       headers: upstreamHeaders(request),
       body: JSON.stringify({ refreshToken }),
     });
+    /**
+     * 409 means this client's own other request rotated first.
+     *
+     * The API distinguishes it from 401 deliberately: the token family is
+     * intact and the session is fine, so this must not reach
+     * `applySessionResult` as evidence that the session is over. Returning
+     * `"raced"` rather than `undefined` is what carries that difference far
+     * enough to matter.
+     */
+    if (upstream.status === 409) return "raced";
     if (!upstream.ok) return undefined;
     return (await upstream.json()) as TokenPair;
   })();
@@ -413,7 +464,10 @@ export async function rotate(refreshToken: string, request: Request): Promise<To
     // Only successes are remembered. A failure can be transient - the API
     // restarting mid-request - and caching that would keep the session locked
     // out for the whole window over something that would have worked on retry.
-    if (tokens) rotationState.settled.set(refreshToken, { tokens, at: Date.now() });
+    // `"raced"` is not a success and not a failure, so it is not cached either.
+    if (tokens && tokens !== "raced") {
+      rotationState.settled.set(refreshToken, { tokens, at: Date.now() });
+    }
     return tokens;
   } finally {
     rotationState.inFlight.delete(refreshToken);

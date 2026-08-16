@@ -6,6 +6,7 @@ import { ToastProvider } from "@/components/shell/toast";
 import { AssistantProvider } from "@/components/support/assistant-context";
 import { AuthProvider } from "@/components/auth/auth-context";
 import { ClarityAnalytics } from "@/components/analytics/clarity";
+import { AnalyticsConsentBanner } from "@/components/analytics/consent-banner";
 
 /**
  * Unset means Clarity is off — no script, and `next.config.ts` leaves the CSP
@@ -46,7 +47,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <AssistantProvider>{children}</AssistantProvider>
           </AuthProvider>
         </ToastProvider>
-        {clarityProjectId ? <ClarityAnalytics projectId={clarityProjectId} /> : null}
+        {/* Both gated on the same variable: with no project id there is nothing
+            to consent to, and a banner asking about analytics that do not exist
+            is an interruption bought with nothing. */}
+        {clarityProjectId ? (
+          <>
+            <ClarityAnalytics projectId={clarityProjectId} />
+            <AnalyticsConsentBanner />
+          </>
+        ) : null}
       </body>
     </html>
   );

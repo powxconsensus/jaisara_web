@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ProfileCard } from "@/components/dashboard/profile-card";
 import { AppearanceCard } from "@/components/theme/appearance-card";
+import { AnalyticsCard } from "@/components/analytics/analytics-card";
 import { DeleteAccountCard } from "@/components/dashboard/delete-account-card";
 import { NewsletterCard } from "@/components/dashboard/newsletter-card";
 
@@ -28,6 +29,7 @@ export default function AccountPage() {
       <ProfileCard />
       <NewsletterCard />
       <AppearanceCard />
+      <AnalyticsCard />
       <DeleteAccountCard />
     </div>
   );

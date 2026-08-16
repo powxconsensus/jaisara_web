@@ -42,6 +42,21 @@ export async function POST(request: NextRequest) {
      */
     const tokens = await rotate(refreshToken, request);
 
+    /**
+     * A race is not a dead session, and must not clear the cookies.
+     *
+     * The other request rotated first and set the new pair on its own response,
+     * so the cookies here are either already current or about to be. Answering
+     * 409 tells the client to retry rather than to sign in again - clearing
+     * them would end a session the API deliberately kept alive.
+     */
+    if (tokens === "raced") {
+      return NextResponse.json(
+        { message: "Session was refreshed by another request - please retry." },
+        { status: 409 },
+      );
+    }
+
     if (!tokens) {
       // The refresh token is spent or revoked; the cookies are dead weight and
       // leaving them would make every later request fail confusingly.
