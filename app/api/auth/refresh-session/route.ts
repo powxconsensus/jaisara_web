@@ -1,12 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  apiRequest,
   clearAuthCookies,
   currentRefreshToken,
+  rotate,
   setAuthCookies,
-  upstreamHeaders,
 } from "@/lib/auth-server";
-import type { TokenPair } from "@/lib/auth-types";
 
 /**
  * Forces a token rotation using the refresh cookie.
@@ -30,16 +28,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const upstream = await apiRequest("/auth/refresh", {
-      method: "POST",
-      headers: new Headers({
-        ...Object.fromEntries(upstreamHeaders(request, false)),
-        "content-type": "application/json",
-      }),
-      body: JSON.stringify({ refreshToken }),
-    });
+    /**
+     * Through the shared helper, not a second implementation.
+     *
+     * This called `/auth/refresh` directly and so sat outside the single-flight
+     * map every other route rotates through. Two rotations for one cookie could
+     * therefore run at once from the same process - the API declines the second
+     * without revoking the family, but the decline arrives here as a 401 and
+     * the handler below clears the cookies, signing out a member whose session
+     * had just been successfully renewed by the other request.
+     *
+     * `rotate` returns the winner's tokens to both callers instead.
+     */
+    const tokens = await rotate(refreshToken, request);
 
-    if (!upstream.ok) {
+    if (!tokens) {
       // The refresh token is spent or revoked; the cookies are dead weight and
       // leaving them would make every later request fail confusingly.
       const dead = NextResponse.json({ message: "Please sign in again" }, { status: 401 });
@@ -47,7 +50,6 @@ export async function POST(request: NextRequest) {
       return dead;
     }
 
-    const tokens = (await upstream.json()) as TokenPair;
     const response = NextResponse.json({ ok: true });
     setAuthCookies(response, tokens);
     return response;

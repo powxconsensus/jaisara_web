@@ -26,7 +26,8 @@ interface ClubStanding {
   totalReferrals: number;
   clubEarnedPoints: string;
   next: { tierKey: string; name: string; referralsNeeded: number } | null;
-  referrals: { name: string; joinedAt: string; hasQualified: boolean }[];
+  /** `id` is an opaque digest, stable per member and joinable to nothing. */
+  referrals: { id: string; name: string; joinedAt: string; hasQualified: boolean }[];
 }
 
 const HOW_IT_PAYS = [
@@ -70,13 +71,28 @@ export function ClubView({ pointsPerUsd }: { pointsPerUsd: number }) {
   // session that somehow arrived without a referral code.
   const inviteUrl = buildInviteLink(user, origin) || (club?.inviteUrl ?? "");
 
+  /**
+   * A dash until the real figure arrives, never a zero.
+   *
+   * These read as facts about how the member is doing: "REFERRED 0" says
+   * nobody signed up, and "CLUB EARNINGS $0.00" says the referrals earned
+   * nothing. Both were printed whenever `/club` failed or was still in flight,
+   * so an outage looked like a flat result - and the invite link beside them
+   * kept working, which made the zeros look all the more real.
+   *
+   * The link itself is composed from the session and does not wait on this
+   * request at all, so it stays populated either way.
+   */
+  const stat = (value: string | number | null | undefined) =>
+    club === null || value === null || value === undefined ? "-" : String(value);
+
   const stats = [
     { label: "YOUR LINK", value: inviteRef(user) || club?.referralCode || "-", tone: "" },
-    { label: "REFERRED", value: String(club?.totalReferrals ?? 0), tone: "" },
-    { label: "ACTIVE BUYERS", value: String(club?.qualifiedReferrals ?? 0), tone: "" },
+    { label: "REFERRED", value: stat(club?.totalReferrals), tone: "" },
+    { label: "ACTIVE BUYERS", value: stat(club?.qualifiedReferrals), tone: "" },
     {
       label: "CLUB EARNINGS",
-      value: pointsToUsd(club?.clubEarnedPoints ?? "0", pointsPerUsd),
+      value: club ? pointsToUsd(club.clubEarnedPoints, pointsPerUsd) : "-",
       tone: "text-club",
     },
   ];
@@ -140,9 +156,22 @@ export function ClubView({ pointsPerUsd }: { pointsPerUsd: number }) {
           <h2 className="mb-1.5 font-mono text-[9.5px] tracking-[0.22em] text-muted">
             PEOPLE YOU REFERRED
           </h2>
+          {!club ? (
+            // Silence here read as "nobody has joined", which is a discouraging
+            // thing to tell somebody incorrectly on the page whose whole job is
+            // to make referring feel worthwhile.
+            <p className="py-6 text-center text-[12.5px] leading-6 text-muted">
+              {resource.error ? "Could not load your referrals." : "Loading…"}
+            </p>
+          ) : club.referrals.length === 0 ? (
+            <p className="py-6 text-center text-[12.5px] leading-6 text-muted">
+              Nobody yet. Share your link above and they will appear here.
+            </p>
+          ) : null}
+
           {(club?.referrals ?? []).map((person) => (
             <div
-              key={person.name}
+              key={person.id}
               className="grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-x-[13px] border-b border-hair-soft py-3.5"
             >
               <span
@@ -195,15 +224,28 @@ export function ClubView({ pointsPerUsd }: { pointsPerUsd: number }) {
             className="rounded-card border border-dashed p-6 text-center"
             style={{ borderColor: "color-mix(in oklab, var(--club) 34%, var(--hair))" }}
           >
+            {/* "You are on the top tier" was reached by `club?.next` being
+                undefined, which is also what a failed or in-flight request
+                looks like - so an outage congratulated the member on a tier
+                they may not hold. Nothing is claimed here until the standing
+                actually arrives. */}
             <p className="mb-2 font-mono text-[10px] tracking-[0.14em] text-club">
-              {club?.next ? `NEXT: ${club.next.name.toUpperCase()}` : `TIER ${club?.tierName ?? "-"}`}
+              {!club
+                ? "TIER"
+                : club.next
+                  ? `NEXT: ${club.next.name.toUpperCase()}`
+                  : `TIER ${club.tierName}`}
             </p>
             <p className="text-[12.5px] leading-[1.6] text-muted">
-              {club?.next
-                ? `${club.next.referralsNeeded} more qualified ${
-                    club.next.referralsNeeded === 1 ? "referral" : "referrals"
-                  } to reach ${club.next.name}.`
-                : "You are on the top tier."}
+              {!club
+                ? resource.error
+                  ? "We could not load your Club standing. Your invite link above still works."
+                  : "Loading your standing…"
+                : club.next
+                  ? `${club.next.referralsNeeded} more qualified ${
+                      club.next.referralsNeeded === 1 ? "referral" : "referrals"
+                    } to reach ${club.next.name}.`
+                  : "You are on the top tier."}
             </p>
           </section>
         </div>

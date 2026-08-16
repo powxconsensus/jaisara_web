@@ -44,7 +44,7 @@ function pillFor(state: string): LedgerStatus | "Approved" {
 
 export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
   const { user } = useAuth();
-  const { wallet, loading } = useWallet();
+  const { wallet, error } = useWallet();
 
   // Served from cache on a repeat visit; the balance above it is seeded by the
   // layout, so the whole page can paint without waiting on anything.
@@ -109,7 +109,7 @@ export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
           "LIFETIME EARNED" broke across two lines and its note ran to three.
           They are secondary figures; they read better given the full width
           below than starved of it alongside. */}
-      <BalancePanel wallet={wallet} loading={loading} pointsPerUsd={pointsPerUsd} />
+      <BalancePanel wallet={wallet} error={error} pointsPerUsd={pointsPerUsd} />
 
       {wallet && Number(wallet.holdPoints) > 0 && (
         <div className="mt-2.5">
@@ -145,7 +145,10 @@ export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
               COULD NOT LOAD
             </p>
             <p className="mx-auto max-w-[44ch] text-[12.5px] leading-6 text-muted">
-              {history.error} Your balance above is unaffected.
+              {/* The balance is read separately, so it genuinely is unaffected
+                  by *this* failure - but only say so when it actually loaded. */}
+              {history.error}
+              {wallet ? " Your balance above loaded normally." : ""}
             </p>
           </div>
         ) : ledger === null ? (
@@ -198,11 +201,11 @@ export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
 /** The headline balance, the threshold bar, and the way out. */
 function BalancePanel({
   wallet,
-  loading,
+  error,
   pointsPerUsd,
 }: {
   wallet: WalletSummary | null;
-  loading: boolean;
+  error: boolean;
   pointsPerUsd: number;
 }) {
   return (
@@ -221,11 +224,19 @@ function BalancePanel({
           <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">
             AVAILABLE TO WITHDRAW
           </p>
+          {/* `$0.00` is a statement about somebody's money and must only ever
+              be made from a real balance. A failed read said it too, so an
+              outage was indistinguishable from an emptied wallet - the single
+              most alarming thing this panel can get wrong. */}
           <p
             data-count
-            className="font-mono text-[clamp(34px,5.4vw,52px)] leading-none tracking-[-0.02em] text-primary"
+            className={
+              error && !wallet
+                ? "font-mono text-[clamp(20px,3vw,26px)] leading-none tracking-[-0.01em] text-warning"
+                : "font-mono text-[clamp(34px,5.4vw,52px)] leading-none tracking-[-0.02em] text-primary"
+            }
           >
-            {wallet ? `$${wallet.availableUsd}` : loading ? "-" : "$0.00"}
+            {wallet ? `$${wallet.availableUsd}` : error ? "Unavailable" : "-"}
           </p>
 
           {/* The same balance in the unit the ledger actually keeps, with the
@@ -233,10 +244,29 @@ function BalancePanel({
               dollars are what somebody is deciding about, points are what the
               number is. */}
           <p className="mt-2.5 font-mono text-[11px] tracking-[0.08em] text-muted">
-            {formatPoints(wallet?.availablePoints ?? "0")} PTS
-            <span className="mx-2 opacity-40">·</span>
-            {conversionLabel(pointsPerUsd)}
+            {wallet ? (
+              <>
+                {formatPoints(wallet.availablePoints)} PTS
+                <span className="mx-2 opacity-40">·</span>
+                {conversionLabel(pointsPerUsd)}
+              </>
+            ) : error ? (
+              // Says only what is true from here. The earlier wording added
+              // "It has not changed", which is a claim about the ledger that a
+              // client which just failed to reach the ledger cannot make.
+              "We could not reach your balance. Try again in a moment."
+            ) : (
+              conversionLabel(pointsPerUsd)
+            )}
           </p>
+
+          {error && wallet && (
+            // Last known figure, openly labelled. Better than a blank panel and
+            // far better than a confident wrong number.
+            <p className="mt-2 font-mono text-[10px] tracking-[0.12em] text-warning">
+              LAST KNOWN · COULD NOT REFRESH
+            </p>
+          )}
 
           {wallet?.canWithdraw && (
             <Link
@@ -313,13 +343,15 @@ function Tile({
   return (
     <div className="flex flex-col rounded-card border border-hair bg-surface p-[clamp(20px,3vw,26px)]">
       <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">{label}</p>
+      {/* Same rule as the headline balance: absent is not zero. A dash reads as
+          "not known yet"; `$0.00` reads as "you have earned nothing". */}
       <p data-count className="font-mono text-[clamp(22px,3vw,30px)] leading-none">
-        {value ? `$${value}` : "$0.00"}
+        {value ? `$${value}` : "-"}
       </p>
       {/* The rate is stated once, on the headline balance. Repeating it on
           every tile would crowd four copies of one fact onto the page. */}
       <p className="mt-2 font-mono text-[10px] tracking-[0.08em] text-muted">
-        {formatPoints(points ?? "0")} PTS
+        {points ? `${formatPoints(points)} PTS` : " "}
       </p>
       {hint && <p className="mt-auto pt-3 text-[11px] leading-[1.5] text-muted">{hint}</p>}
     </div>

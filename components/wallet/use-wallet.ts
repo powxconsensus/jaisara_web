@@ -52,11 +52,22 @@ export interface WalletSummary {
 interface WalletState {
   wallet: WalletSummary | null;
   loading: boolean;
+  /**
+   * The last read failed.
+   *
+   * Separate from `wallet === null` because the two mean opposite things to
+   * somebody looking at a balance: null-with-no-error is "still loading", and
+   * null-with-an-error is "we could not find out". Collapsing them is how a
+   * service outage came to render as `$0.00` - a real financial statement about
+   * somebody's money, invented from a failed request.
+   */
+  error: boolean;
 }
 
 /** Frozen so `getServerSnapshot` is referentially stable across renders. */
-const EMPTY: WalletState = Object.freeze({ wallet: null, loading: false });
-const LOADING: WalletState = Object.freeze({ wallet: null, loading: true });
+const EMPTY: WalletState = Object.freeze({ wallet: null, loading: false, error: false });
+const LOADING: WalletState = Object.freeze({ wallet: null, loading: true, error: false });
+const FAILED: WalletState = Object.freeze({ wallet: null, loading: false, error: true });
 
 let state: WalletState = EMPTY;
 let loadedOnce = false;
@@ -98,11 +109,21 @@ export async function refreshWallet(): Promise<void> {
     });
     if (!response.ok) throw new Error("unavailable");
     const body = (await response.json()) as WalletSummary;
-    if (!own.signal.aborted) set({ wallet: body, loading: false });
+    if (!own.signal.aborted) set({ wallet: body, loading: false, error: false });
   } catch {
-    // Signed in but the balance did not load: show nothing rather than a
-    // stale or invented figure.
-    if (!own.signal.aborted) set(EMPTY);
+    if (own.signal.aborted) return;
+
+    /**
+     * A failed read is not a balance of zero.
+     *
+     * This used to reset to `EMPTY`, and every surface reading it then
+     * rendered `$0.00` and `0 PTS` - so a timeout looked exactly like a member
+     * whose money had gone. Keep the last known figure if there is one and
+     * mark it failed, so the screen can say the number is stale rather than
+     * restate it as fact; if there has never been one, report the failure and
+     * let the screen say so.
+     */
+    set(state.wallet ? { ...state, loading: false, error: true } : FAILED);
   }
 }
 
@@ -126,7 +147,7 @@ function reset() {
 export function seedWallet(wallet: WalletSummary | null): void {
   if (loadedOnce || !wallet) return;
   loadedOnce = true;
-  state = { wallet, loading: false };
+  state = { wallet, loading: false, error: false };
 }
 
 export function useWallet(): WalletState {

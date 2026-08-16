@@ -174,14 +174,24 @@ export function WithdrawForm() {
     ? new Date(selectedAddress.usableFrom).getTime() > now
     : false;
 
+  /**
+   * The minimum is measured on what lands, matching the API.
+   *
+   * Both sides checked the gross amount while the fee came off afterwards, so
+   * a $50 minimum with a $2 fee accepted a $51 request and sent $49. The
+   * message names the fee because "minimum is $50" next to a rejected $51 is
+   * the sort of thing that reads as a bug.
+   */
   const amountError =
-    amount && Number.isFinite(value) && value < minimum
-      ? `Minimum withdrawal is $${minimum.toFixed(2)}.`
-      : amount && Number.isFinite(value) && value > available
-        ? `That is more than your available balance of $${available.toFixed(2)}.`
-        : amount && Number.isFinite(value) && value <= selectedFee
-          ? `The amount must be greater than the $${selectedFee.toFixed(2)} network fee.`
-        : null;
+    amount && Number.isFinite(value) && value > available
+      ? `That is more than your available balance of $${available.toFixed(2)}.`
+      : amount && Number.isFinite(value) && value <= selectedFee
+        ? `The amount must be greater than the $${selectedFee.toFixed(2)} network fee.`
+        : amount && Number.isFinite(value) && netAmount < minimum
+          ? selectedFee > 0
+            ? `You would receive $${netAmount.toFixed(2)}. The minimum is $${minimum.toFixed(2)} after the $${selectedFee.toFixed(2)} network fee.`
+            : `Minimum withdrawal is $${minimum.toFixed(2)}.`
+          : null;
 
   const canSubmit =
     !busy &&

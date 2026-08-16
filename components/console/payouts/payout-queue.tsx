@@ -87,10 +87,27 @@ type Action = { kind: "paid" | "refund"; row: Withdrawal } | null;
  * be expressed as "failed" and cannot be shown in a toast that disappears. The
  * hash stays on screen until somebody records it.
  */
+/**
+ * Did the wallet tell us, definitively, that it refused to send?
+ *
+ * EIP-1193 gives 4001 for "user rejected" and 4100/4900/4901 for unauthorised
+ * or disconnected - none of those can have broadcast anything. Everything else,
+ * including a timeout or a dropped socket, may have broadcast successfully and
+ * lost the reply, so it is not safe to call unpaid.
+ */
+function isDefiniteRejection(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === "number") return [4001, 4100, 4900, 4901].includes(code);
+  // ethers normalises the user rejection into a string code.
+  return code === "ACTION_REJECTED";
+}
+
 type RunEntry =
   | { state: "sent"; row: Withdrawal; txId: string }
   | { state: "unrecorded"; row: Withdrawal; txId: string; message: string }
   | { state: "failed"; row: Withdrawal; message: string }
+  /** Sent or not - the wallet never said. Must be checked before any retry. */
+  | { state: "ambiguous"; row: Withdrawal; message: string }
   | { state: "skipped"; row: Withdrawal };
 
 /**
@@ -119,6 +136,9 @@ function RunReport({
   const failed = entries.filter(
     (entry): entry is Extract<RunEntry, { state: "failed" }> => entry.state === "failed",
   );
+  const ambiguous = entries.filter(
+    (entry): entry is Extract<RunEntry, { state: "ambiguous" }> => entry.state === "ambiguous",
+  );
   const skipped = entries.filter((entry) => entry.state === "skipped");
 
   return (
@@ -137,9 +157,27 @@ function RunReport({
           {failed.length > 0 && <Badge tone="warning">{failed.length} FAILED</Badge>}
           {skipped.length > 0 && <Badge tone="neutral">{skipped.length} NOT ATTEMPTED</Badge>}
         </div>
-        <Button size="sm" variant="outline" onClick={onDismiss}>
-          Dismiss
-        </Button>
+        {/* Not dismissible while anything on screen might have moved money.
+            The panel said "Do not send this again. Record it with the hash
+            below" and then offered a Dismiss button that threw that hash away -
+            the transaction id lived in React state and nowhere else, so a
+            dismiss, a reload or a closed tab lost the only evidence that money
+            had left the treasury, while the withdrawal stayed payable. The next
+            operator would send it again.
+
+            `ambiguous` counts for the same reason and was missed on the first
+            pass: an unresolved wallet result is precisely the case where
+            nobody knows whether funds left, so discarding the warning is worse
+            than discarding a known hash, not better. */}
+        {unrecorded.length === 0 && ambiguous.length === 0 ? (
+          <Button size="sm" variant="outline" onClick={onDismiss}>
+            Dismiss
+          </Button>
+        ) : (
+          <span className="font-mono text-[length:var(--ct-label)] tracking-[0.14em] text-danger">
+            {unrecorded.length > 0 ? "RECORD ALL PAYMENTS TO CLOSE" : "CHECK THE CHAIN TO CLOSE"}
+          </span>
+        )}
       </div>
 
       {unrecorded.map((entry) => (
@@ -168,6 +206,23 @@ function RunReport({
         </div>
       ))}
 
+      {ambiguous.map((entry) => (
+        <div
+          key={entry.row.id}
+          className="mb-2 rounded-[10px] p-3"
+          style={{ background: "color-mix(in oklab, var(--warning) 14%, transparent)" }}
+        >
+          <p className="text-[12px] leading-5">
+            <strong className="text-fg">{entry.row.user.email}</strong> - the wallet did not report
+            an outcome: {entry.message}
+          </p>
+          <p className="mt-1.5 text-[11px] leading-[1.6] text-muted">
+            This may or may not have been broadcast. Check the treasury address on the explorer
+            before retrying, or the payment can go out twice.
+          </p>
+        </div>
+      ))}
+
       {failed.map((entry) => (
         <p key={entry.row.id} className="mb-1.5 text-[12px] leading-5 text-muted">
           <strong className="text-fg">{entry.row.user.email}</strong> was not paid - {entry.message}
@@ -176,8 +231,9 @@ function RunReport({
 
       {(failed.length > 0 || skipped.length > 0) && (
         <p className="mt-1 text-[11px] leading-[1.6] text-muted">
-          Nothing left the wallet for the {failed.length + skipped.length} payout(s) above, so they
-          are still selected and can be retried once the cause is fixed.
+          The wallet refused {failed.length > 0 ? "these" : "nothing"} outright, and{" "}
+          {skipped.length} were never attempted, so they are still selected and can be retried once
+          the cause is fixed.
         </p>
       )}
     </Panel>
@@ -320,9 +376,28 @@ export function PayoutQueue() {
           network: config.networks[chain],
         });
       } catch (caught) {
-        // Nothing left the wallet, so this row is simply unpaid and can be
-        // retried once the cause is fixed.
-        entries.push({ state: "failed", row, message: errorMessage(caught, "The wallet payment failed.") });
+        /**
+         * A rejection does not prove nothing was sent.
+         *
+         * This said "nothing left the wallet" and marked the row retryable. It
+         * is true for the ordinary case - the operator declined the prompt, or
+         * the wallet refused to sign - and false for the one that matters: a
+         * provider timeout or a dropped connection *after* the transaction was
+         * broadcast throws exactly the same way, and retrying then sends the
+         * money twice.
+         *
+         * Only outcomes the wallet itself reports as a refusal are treated as
+         * safe to retry. Anything ambiguous is surfaced as needing a check
+         * against the chain before the row is touched again.
+         */
+        const message = errorMessage(caught, "The wallet payment failed.");
+
+        if (isDefiniteRejection(caught)) {
+          entries.push({ state: "failed", row, message });
+        } else {
+          entries.push({ state: "ambiguous", row, message });
+        }
+
         halted = true;
         continue;
       }
@@ -347,13 +422,24 @@ export function PayoutQueue() {
       }
     }
 
-    // Only what actually moved money comes out of the selection. A `failed`
-    // row never left the wallet and a `skipped` one was never attempted, so
-    // both stay ticked and the operator can retry the remainder in one click
-    // once the cause is fixed.
+    /**
+     * Anything that might have moved money comes out of the selection.
+     *
+     * A `failed` row was refused by the wallet and a `skipped` one was never
+     * attempted, so both stay ticked and the operator can retry the remainder
+     * in one click. `ambiguous` must not: the whole point of that state is that
+     * nobody knows whether it was broadcast, and leaving it ticked puts a
+     * possible double-send one click away from the person least likely to
+     * re-read the panel.
+     */
     const spent = new Set(
       entries
-        .filter((entry) => entry.state === "sent" || entry.state === "unrecorded")
+        .filter(
+          (entry) =>
+            entry.state === "sent" ||
+            entry.state === "unrecorded" ||
+            entry.state === "ambiguous",
+        )
         .map((entry) => entry.row.id),
     );
     setSelected((previous) => new Set([...previous].filter((id) => !spent.has(id))));

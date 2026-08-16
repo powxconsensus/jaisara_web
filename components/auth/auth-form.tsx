@@ -61,9 +61,17 @@ function safeNextPath(): string {
 export function AuthForm({
   mode,
   initialReferral = "",
+  notice,
 }: {
   mode: AuthMode;
   initialReferral?: string;
+  /**
+   * A message from somewhere the member has just been redirected from - today
+   * only the OAuth callback, which is a server route with nothing to render.
+   * Shown until they type, at which point their own attempt is the thing worth
+   * reporting on.
+   */
+  notice?: string;
 }) {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
@@ -437,7 +445,9 @@ export function AuthForm({
           </div>
         )}
 
-        {formError && (
+        {/* The form's own error wins: once they have tried, what happened to
+            their attempt matters more than how they arrived here. */}
+        {(formError ?? notice) && (
           <div
             role="alert"
             className="rounded-[11px] border px-3.5 py-3 text-[12.5px] leading-[1.5] text-danger"
@@ -446,7 +456,7 @@ export function AuthForm({
                 "color-mix(in oklab, var(--danger) 42%, var(--hair))",
             }}
           >
-            {formError}
+            {formError ?? notice}
           </div>
         )}
 

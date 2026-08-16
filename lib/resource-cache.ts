@@ -41,6 +41,24 @@ const listeners = new Map<string, Set<() => void>>();
 /** In-flight requests, so two components mounting together make one call. */
 const inflight = new Map<string, Promise<unknown>>();
 
+/** The abort handle for each in-flight request, owned by the cache. */
+const controllers = new Map<string, AbortController>();
+
+/**
+ * Which session the cache currently belongs to.
+ *
+ * Every entry here is somebody's account data, and cache keys are just paths -
+ * `/api/claims|null|true` is the same key for every member alive. Clearing the
+ * map on sign-out is not enough on its own: a request that was already in
+ * flight resolves *afterwards* and writes the previous account's data back
+ * under that shared key, where the next person to sign in on the same tab
+ * reads it.
+ *
+ * So each request records the epoch it started in and refuses to write if the
+ * session has moved on since. Bumping this is what makes a sign-out final.
+ */
+let epoch = 0;
+
 export function readCache<T>(
   key: string,
 ): { data: T; stale: boolean; fetchedAt: number } | null {
@@ -89,25 +107,80 @@ export function subscribeToKey(key: string, onChange: () => void): () => void {
  * Two panels asking for the same list on the same mount is one request, not
  * two - which is most of what "the console fires six requests" was.
  */
-export async function fetchOnce<T>(key: string, run: () => Promise<T>): Promise<T> {
+export async function fetchOnce<T>(
+  key: string,
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
   const existing = inflight.get(key);
   if (existing) return existing as Promise<T>;
 
-  const promise = run()
+  /**
+   * The shared request gets its **own** abort handle.
+   *
+   * It used to inherit the signal of whichever component happened to call
+   * first, which turned the deduplication into a liability: two panels showing
+   * one list made a single request carrying only the first panel's signal, so
+   * unmounting that panel aborted the request out from under the second one and
+   * left it showing an error for data it had asked for and was still waiting
+   * on. A shared request cannot belong to one subscriber.
+   *
+   * Nobody cancels it on unmount now. That is deliberate - the response still
+   * lands in the cache, which is where the next mount reads it from, and a
+   * subscriber that has gone away simply does not apply the result.
+   */
+  const controller = new AbortController();
+  const startedAt = epoch;
+  controllers.set(key, controller);
+
+  const promise = run(controller.signal)
     .then((data) => {
-      writeCache(key, data);
+      // A response from a session that has since ended must not repopulate the
+      // cache the sign-out just emptied.
+      if (startedAt === epoch) writeCache(key, data);
       return data;
     })
     .finally(() => {
-      inflight.delete(key);
+      /**
+       * Delete only what this call put there.
+       *
+       * An unconditional `delete(key)` is wrong whenever a *newer* request for
+       * the same key already exists: the old promise settles, removes the new
+       * entry, and the next subscriber makes a third request against a key that
+       * is supposed to be deduplicated - and the new controller is dropped, so
+       * the next sign-out has nothing left to abort.
+       *
+       * That is not hypothetical: it is the ordinary sequence when one account
+       * signs out with a request in flight and another signs in on the same
+       * tab, which is exactly the situation the epoch above exists for.
+       */
+      if (inflight.get(key) === promise) inflight.delete(key);
+      if (controllers.get(key) === controller) controllers.delete(key);
     });
 
   inflight.set(key, promise);
   return promise;
 }
 
-/** Called on sign-out. Account data must not survive the session. */
+/**
+ * Called on sign-out. Account data must not survive the session.
+ *
+ * Three things, in this order, and the order is the point:
+ *
+ *  1. **Bump the epoch first.** Anything already in flight is now from a
+ *     previous session and is refused at the write, whether or not the abort
+ *     below reaches it in time. A fetch that has already resolved and is
+ *     sitting in its `.then` cannot be aborted at all, which is exactly the
+ *     gap that let the previous account's data reappear under a shared key.
+ *  2. **Abort what can still be stopped**, so an outgoing request for one
+ *     account is not still running while the next signs in.
+ *  3. **Empty the maps.**
+ */
 export function clearResourceCache(): void {
+  epoch += 1;
+
+  for (const controller of controllers.values()) controller.abort();
+  controllers.clear();
+
   entries.clear();
   inflight.clear();
   for (const [key, set] of listeners) {

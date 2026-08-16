@@ -189,12 +189,21 @@ export function useResource<T>(
     async (controller: AbortController) => {
       if (!path) return;
       try {
-        // Deduplicated by key, so two panels mounting together make one call.
-        // The result is written to the cache for whoever asks next.
-        const data = await fetchOnce<T>(requestKey, () =>
+        /**
+         * Deduplicated by key, so two panels mounting together make one call.
+         * The result is written to the cache for whoever asks next.
+         *
+         * The signal handed to the request is the **cache's**, not this
+         * component's. Passing `controller.signal` here meant the shared
+         * request belonged to whichever subscriber called first: when that one
+         * unmounted, every other subscriber's request was cancelled with it.
+         * This component's controller still decides whether the result is
+         * *applied* below, which is all an unmounted component needs.
+         */
+        const data = await fetchOnce<T>(requestKey, (signal) =>
           requestJson<T>(path, {
             query: JSON.parse(queryKey) as JsonRequest["query"],
-            signal: controller.signal,
+            signal,
           }),
         );
         if (!controller.signal.aborted) setState({ data, error: null, loading: false });

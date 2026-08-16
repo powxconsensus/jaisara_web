@@ -276,7 +276,7 @@ const ROTATION_GRACE_MS = 60_000;
  * can still each rotate once. The API's own grace window covers that case by
  * declining the second request without revoking the family.
  */
-async function rotate(refreshToken: string, request: Request): Promise<TokenPair | undefined> {
+export async function rotate(refreshToken: string, request: Request): Promise<TokenPair | undefined> {
   const now = Date.now();
   for (const [key, entry] of rotationState.settled) {
     if (now - entry.at > ROTATION_GRACE_MS) rotationState.settled.delete(key);
