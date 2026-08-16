@@ -6,6 +6,8 @@ export interface AuthUser {
   avatarUrl?: string | null;
   emailVerified: boolean;
   hasPassword?: boolean;
+  /** Whether a Google account is connected. Undefined on an older session. */
+  googleLinked?: boolean;
   referralCode?: string;
   /**
    * Current club tier, carried on the session.

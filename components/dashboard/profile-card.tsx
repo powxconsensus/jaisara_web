@@ -52,6 +52,8 @@ export function ProfileCard() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [emailError, setEmailError] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
   const [nameBusy, setNameBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   /**
@@ -157,6 +159,41 @@ export function ProfileCard() {
       toast("Referral code copied");
     } catch {
       toast("Could not copy - select it manually", "warning");
+    }
+  };
+
+  /**
+   * Asks for the verification link again.
+   *
+   * The endpoint answers identically for unknown and already-verified
+   * addresses, so it cannot tell us whether anything was sent - which means the
+   * only honest confirmation is "we asked". The button latches rather than
+   * offering an immediate retry: a member who clicks four times gets four
+   * emails and no more information than one would have given, and the previous
+   * link is invalidated each time.
+   */
+  const resendVerification = async () => {
+    if (!accountEmail) return;
+    setResendBusy(true);
+
+    try {
+      const response = await apiFetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: accountEmail }),
+      });
+
+      if (!response.ok) {
+        toast("Could not send the link right now. Please try again shortly.", "danger");
+        return;
+      }
+
+      setResendSent(true);
+      toast("Verification link sent - check your inbox");
+    } catch {
+      toast("The authentication service is unavailable. Please try again.", "danger");
+    } finally {
+      setResendBusy(false);
     }
   };
 
@@ -356,6 +393,73 @@ export function ProfileCard() {
               </span>
             )}
           </div>
+
+          {/**
+           * The only place a member can ask for the link again.
+           *
+           * Signing in re-sends it, but that is invisible from here and useless
+           * to somebody already signed in - which, because an unverified
+           * account can still log in, is exactly who is reading this. Without
+           * it the only route back was to sign out and in again, and nothing
+           * said so.
+           */}
+          {user && !user.emailVerified && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="font-mono text-[9px] tracking-[0.12em] text-muted">
+                NOT VERIFIED
+              </span>
+              <button
+                type="button"
+                onClick={resendVerification}
+                disabled={resendBusy || resendSent}
+                className="font-mono text-[9px] tracking-[0.12em] text-primary underline underline-offset-4 disabled:no-underline disabled:opacity-60"
+              >
+                {resendBusy ? "SENDING…" : resendSent ? "LINK SENT" : "RESEND LINK"}
+              </button>
+              <span className="text-xs text-muted">
+                {resendSent
+                  ? "Check your inbox, and your spam folder."
+                  : "Claims and withdrawals stay locked until your address is confirmed."}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/**
+         * Connecting Google, which already worked and was never offered.
+         *
+         * There is no dedicated endpoint and there does not need to be: signing
+         * in with Google on this same address attaches the two accounts, and it
+         * is safe because Google asserts the address is verified - the check is
+         * in `signInWithGoogle`. All that was missing was somewhere to say so.
+         *
+         * No disconnect here on purpose. Removing the only way into an account
+         * is not a settings toggle, and for a member with no password it is a
+         * lockout with no undo. It belongs behind the same confirmation as
+         * deletion, not next to a checkbox.
+         */}
+        <div>
+          <p className="mb-[7px] font-mono text-[9px] tracking-[0.14em] text-muted">
+            GOOGLE ACCOUNT
+          </p>
+          {user?.googleLinked ? (
+            <p className="text-sm text-muted">
+              <span className="font-semibold text-success">Connected.</span> You can sign in with
+              Google or with your password.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <a
+                href="/api/auth/google"
+                className="rounded-[10px] border border-hair bg-surface-2 px-3.5 py-2 font-mono text-[9px] tracking-[0.12em] transition-colors hover:border-primary"
+              >
+                CONNECT GOOGLE
+              </a>
+              <span className="text-xs text-muted">
+                Sign in faster. Use the same address as above, or it will not attach.
+              </span>
+            </div>
+          )}
         </div>
 
         <div>
