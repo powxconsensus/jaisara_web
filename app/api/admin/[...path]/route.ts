@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   applySessionResult,
   authenticatedRequest,
-  readUpstreamBody,
+  responseFromUpstream,
 } from "@/lib/auth-server";
 
 async function forward(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
@@ -25,12 +25,16 @@ async function forward(request: NextRequest, context: { params: Promise<{ path: 
         body: hasBody ? await request.arrayBuffer() : undefined,
       },
     );
-    const body = await readUpstreamBody(result.upstream);
-    const response =
-      body === null
-        ? new NextResponse(null, { status: result.upstream.status })
-        : NextResponse.json(body, { status: result.upstream.status });
-    return applySessionResult(response, result);
+    /**
+     * Through the shared helper, which streams files and serialises payloads.
+     *
+     * This inlined the JSON path, so the one binary route behind this proxy -
+     * the uploaded receipt - came back as a JSON document full of PNG bytes
+     * decoded as UTF-8. The reviewer saw a broken image and "open full size"
+     * showed the JSON. Claims cannot be reviewed without the receipt, so it
+     * silently blocked the queue this proxy exists to serve.
+     */
+    return applySessionResult(await responseFromUpstream(result.upstream), result);
   } catch {
     return NextResponse.json(
       { message: "The admin service is unavailable. Please try again." },

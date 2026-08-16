@@ -99,11 +99,83 @@ export async function readUpstreamBody(response: Response): Promise<unknown> {
   }
 }
 
+/**
+ * Turns an upstream response into one for the browser.
+ *
+ * Files stream through untouched; everything else is re-serialised as JSON.
+ * The type check is here rather than at each call site because every BFF route
+ * shares this helper, and the failure it prevents is silent: a binary response
+ * that goes down the JSON path comes out as `{ message: "<mangled bytes>" }`
+ * with no error anywhere, which is exactly how the receipt viewer broke.
+ */
 export async function responseFromUpstream(upstream: Response): Promise<NextResponse> {
+  if (!isPayloadUpstream(upstream)) return fileFromUpstream(upstream);
+
   const body = await readUpstreamBody(upstream);
   return body === null
     ? new NextResponse(null, { status: upstream.status })
     : NextResponse.json(body, { status: upstream.status });
+}
+
+/**
+ * Should this response be re-serialised as a payload, or handed over as a file?
+ *
+ * Deliberately narrow. Anything JSON is a payload, and so is anything textual -
+ * plain text and HTML are what a gateway or a crashing proxy answers with, and
+ * `readUpstreamBody` turns those into `{ message }` so the client still shows
+ * something useful. Only content types that describe a *document* take the file
+ * path: images, PDFs, CSV exports, raw bytes.
+ *
+ * Getting this backwards in either direction is quiet rather than loud, which
+ * is why it is one function with tests rather than a check at each call site: a
+ * file treated as a payload is a corrupted download, and an error treated as a
+ * file is a blank screen where a message should be.
+ */
+export function isPayloadUpstream(upstream: Response): boolean {
+  const type = (upstream.headers.get("content-type") ?? "").toLowerCase();
+
+  if (type === "") return true;
+  if (/^application\/(json|problem\+json)/.test(type)) return true;
+  // `text/csv` is an export, not a message - everything else textual is one.
+  if (/^text\/(plain|html)/.test(type)) return true;
+
+  return false;
+}
+
+/**
+ * Hands a non-JSON upstream response straight to the browser.
+ *
+ * The admin proxy used to run **every** response through `readUpstreamBody`,
+ * which calls `.text()` and, when the result will not parse as JSON, returns
+ * `{ message: text }`. For the one binary route behind that proxy - the
+ * uploaded receipt - that produced a JSON document containing PNG bytes
+ * decoded as UTF-8: the `<img>` failed, and opening it directly showed
+ * `{"message":"PNG\r\n..."}`. The bytes were also corrupt by then, since
+ * arbitrary binary does not survive a UTF-8 decode, so nothing downstream could
+ * have recovered the image.
+ *
+ * The body is streamed rather than buffered, and only the headers that describe
+ * the bytes are forwarded. `Cache-Control` comes from the API deliberately - it
+ * sends `private, no-store` for receipts, which are one member's documents and
+ * must not sit in a shared cache.
+ *
+ * `nosniff` and the sandbox are set here rather than trusted from upstream: this
+ * renders in an authenticated origin, and the content type describes a file a
+ * member uploaded.
+ */
+export function fileFromUpstream(upstream: Response): NextResponse {
+  const headers = new Headers();
+
+  for (const name of ["content-type", "content-length", "content-disposition"]) {
+    const value = upstream.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+
+  headers.set("cache-control", upstream.headers.get("cache-control") ?? "private, no-store");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("content-security-policy", "default-src 'none'; sandbox");
+
+  return new NextResponse(upstream.body, { status: upstream.status, headers });
 }
 
 export function setAuthCookies(response: NextResponse, tokens: TokenPair): void {

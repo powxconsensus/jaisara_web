@@ -145,10 +145,13 @@ export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
               COULD NOT LOAD
             </p>
             <p className="mx-auto max-w-[44ch] text-[12.5px] leading-6 text-muted">
-              {/* The balance is read separately, so it genuinely is unaffected
-                  by *this* failure - but only say so when it actually loaded. */}
+              {/* The balance is read separately, so it genuinely can be fine
+                  when this fails - but a *stale* balance is not fine, and this
+                  said "loaded normally" beside a panel labelled "LAST KNOWN ·
+                  COULD NOT REFRESH". Two truths on one screen contradicting
+                  each other is worse than saying nothing about the balance. */}
               {history.error}
-              {wallet ? " Your balance above loaded normally." : ""}
+              {wallet && !error ? " Your balance above loaded normally." : ""}
             </p>
           </div>
         ) : ledger === null ? (

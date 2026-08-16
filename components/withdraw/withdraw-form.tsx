@@ -349,7 +349,13 @@ export function WithdrawForm() {
           {(
             [
               { key: "usdt", mark: "USDT", label: "USDT crypto" },
-              { key: "giftcard", mark: "GIFT", label: "Gift card" },
+              /* Offered only when the API says redemption exists. The rewards
+                 endpoint returns an empty list while it does not, and the
+                 endpoint refuses the method outright - so this is the tidy half
+                 of the gate, not the gate. */
+              ...(rewards.length > 0
+                ? ([{ key: "giftcard", mark: "GIFT", label: "Gift card" }] as const)
+                : []),
             ] as const
           ).map((option) => (
             <button
