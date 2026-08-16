@@ -62,11 +62,48 @@ export function upstreamHeaders(request: Request, json = true): Headers {
   const userAgent = request.headers.get("user-agent");
   if (userAgent) headers.set("user-agent", userAgent);
 
-  const forwardedFor =
-    request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip");
-  if (forwardedFor) headers.set("x-forwarded-for", forwardedFor);
+  const clientIp = trustedClientIp(request);
+  if (clientIp) headers.set("x-forwarded-for", clientIp);
 
   return headers;
+}
+
+/**
+ * The one address in `x-forwarded-for` that a caller could not have written.
+ *
+ * `X-Forwarded-For` grows left to right: each proxy **appends** the address it
+ * received the request from. So everything except the final entry is hearsay -
+ * it is whatever the previous hop was told, and the first entry is simply a
+ * string the browser sent. Only the last entry was written by our own edge,
+ * about a connection it actually terminated.
+ *
+ * This forwarded the header verbatim. A request with a handmade
+ * `X-Forwarded-For: 1.2.3.4` arrived at the platform edge, which appended the
+ * real address, and the whole thing - forgery in front - was passed to the API.
+ * Everything the API keys on an address then inherits the forgery: per-IP
+ * throttles are diluted by picking a fresh value per request, `signupIp` and
+ * the claim-attempt `ipHash` record an attacker-chosen string as evidence, and
+ * the lockout counters can be aimed. None of it fails loudly, because a spoofed
+ * address is a perfectly well-formed one.
+ *
+ * Taking the last entry is what "trust exactly one hop" means on this side of
+ * the wire; `app.set('trust proxy', 1)` is the same statement on the other.
+ */
+function trustedClientIp(request: Request): string | null {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+
+  if (forwardedFor) {
+    const hops = forwardedFor
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (hops.length > 0) return hops[hops.length - 1];
+  }
+
+  // Single-valued and set by the proxy rather than assembled from a list, so
+  // there is no untrusted prefix to strip.
+  return request.headers.get("x-real-ip");
 }
 
 /**

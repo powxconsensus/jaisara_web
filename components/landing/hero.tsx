@@ -17,16 +17,28 @@ import { BRAND_COUPON } from "@/lib/brand";
  * "Paid to traders" counts cleared cashback only - quoting pending amounts as
  * paid would be a marketing claim the ledger cannot back up.
  */
-function statsFor(stats?: PublicStats) {
+function statsFor(stats: PublicStats | null | undefined) {
+  // Null means the figures could not be read, which is not the same as their
+  // being zero. Rendering a dash says "not available right now"; rendering `$0`
+  // says "we have paid nobody", which is a claim about the business that
+  // nothing has established. See `fetchStats`.
+  if (!stats) {
+    return [
+      { value: null, prefix: "$", suffix: "", label: "PAID TO TRADERS" },
+      { value: null, prefix: "", suffix: "", label: "FIRMS" },
+      { value: null, prefix: "", suffix: "+", label: "MEMBERS" },
+    ];
+  }
+
   return [
     {
-      value: Math.round(Number(stats?.paidToTradersUsd ?? 0)),
+      value: Math.round(Number(stats.paidToTradersUsd)),
       prefix: "$",
       suffix: "",
       label: "PAID TO TRADERS",
     },
-    { value: stats?.firmCount ?? 0, prefix: "", suffix: "", label: "FIRMS" },
-    { value: stats?.memberCount ?? 0, prefix: "", suffix: "+", label: "MEMBERS" },
+    { value: stats.firmCount, prefix: "", suffix: "", label: "FIRMS" },
+    { value: stats.memberCount, prefix: "", suffix: "+", label: "MEMBERS" },
   ];
 }
 
@@ -47,7 +59,8 @@ export function Hero({
 }: {
   receipts?: Receipt[];
   marquee?: string[];
-  stats?: PublicStats;
+  /** `null` when the figures could not be read — rendered as a dash, not a zero. */
+  stats?: PublicStats | null;
 }) {
   return (
     <ImpactProvider>
@@ -147,7 +160,15 @@ export function Hero({
                 {statsFor(stats).map((stat) => (
                   <div key={stat.label}>
                     <dd className="font-mono text-[21px] tracking-[-0.03em]">
-                      <CountUp to={stat.value} prefix={stat.prefix} suffix={stat.suffix} />
+                      {stat.value === null ? (
+                        // Not a CountUp: animating to a number we do not have
+                        // would be the same lie with motion on it.
+                        <span className="text-muted" aria-label="Not available right now">
+                          &mdash;
+                        </span>
+                      ) : (
+                        <CountUp to={stat.value} prefix={stat.prefix} suffix={stat.suffix} />
+                      )}
                     </dd>
                     <dt className="mt-[7px] font-mono text-[9px] tracking-[0.16em] text-muted">
                       {stat.label}

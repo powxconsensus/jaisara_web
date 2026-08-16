@@ -49,14 +49,27 @@ export default async function AboutPage() {
       </p>
 
       <dl className="mb-14 flex flex-wrap gap-[clamp(24px,4vw,64px)] border-y border-hair py-8">
+        {/* `stats` is null when the figures could not be read. A dash says so;
+            `$0` would be a claim about the business instead. See `fetchStats`. */}
         {[
-          { value: Math.round(Number(stats.paidToTradersUsd)), prefix: "$", suffix: "", label: "PAID TO TRADERS" },
-          { value: stats.firmCount, prefix: "", suffix: "", label: "FIRMS INDEXED" },
-          { value: stats.memberCount, prefix: "", suffix: "+", label: "MEMBERS" },
+          {
+            value: stats ? Math.round(Number(stats.paidToTradersUsd)) : null,
+            prefix: "$",
+            suffix: "",
+            label: "PAID TO TRADERS",
+          },
+          { value: stats?.firmCount ?? null, prefix: "", suffix: "", label: "FIRMS INDEXED" },
+          { value: stats?.memberCount ?? null, prefix: "", suffix: "+", label: "MEMBERS" },
         ].map((stat) => (
           <div key={stat.label}>
             <dd className="font-mono text-[clamp(24px,3vw,34px)] tracking-[-0.03em]">
-              <CountUp to={stat.value} prefix={stat.prefix} suffix={stat.suffix} />
+              {stat.value === null ? (
+                <span className="text-muted" aria-label="Not available right now">
+                  &mdash;
+                </span>
+              ) : (
+                <CountUp to={stat.value} prefix={stat.prefix} suffix={stat.suffix} />
+              )}
             </dd>
             <dt className="mt-2 font-mono text-[9px] tracking-[0.16em] text-muted">{stat.label}</dt>
           </div>

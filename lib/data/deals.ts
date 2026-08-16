@@ -274,10 +274,26 @@ export interface PublicStats {
   paidToTradersUsd: string;
 }
 
-/** Headline figures. Failure is represented as zero, never invented activity. */
-export async function fetchStats(): Promise<PublicStats> {
-  const fallback: PublicStats = { firmCount: 0, memberCount: 0, paidToTradersUsd: "0.00" };
-
+/**
+ * Headline figures, or `null` when we could not ask.
+ *
+ * This used to fall back to `{ firmCount: 0, memberCount: 0, paidToTradersUsd:
+ * "0.00" }`, described as "failure represented as zero, never invented
+ * activity". The second half of that is the problem: **zero is invented
+ * activity** when the truth is "unknown". The web image builds without a
+ * reachable API, so static generation took the fallback every time and baked
+ * it into the cached HTML - a built image served `$0 PAID TO TRADERS` and `0
+ * FIRMS` as settled fact, with a revalidate window of minutes behind it.
+ *
+ * Those are the three numbers the landing page exists to make. A visitor who
+ * sees them cannot tell a young business from a broken one, and neither can we
+ * from a log, because nothing failed: the page rendered a clean 200.
+ *
+ * `null` is not a number, so nothing downstream can accidentally arithmetic it
+ * into a claim. The hero renders a placeholder for it instead of counting up
+ * to zero.
+ */
+export async function fetchStats(): Promise<PublicStats | null> {
   try {
     const response = await apiRequest("/activity/stats", {
       cache: "force-cache",
@@ -285,10 +301,10 @@ export async function fetchStats(): Promise<PublicStats> {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     } as RequestInit);
 
-    if (!response.ok) return fallback;
+    if (!response.ok) return null;
     return (await response.json()) as PublicStats;
   } catch {
-    return fallback;
+    return null;
   }
 }
 
