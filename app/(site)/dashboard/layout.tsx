@@ -1,5 +1,6 @@
 import { DashboardSidebar, DashboardTabBar } from "@/components/dashboard/dashboard-nav";
 import { SessionSeed } from "@/components/auth/session-seed";
+import { PrivacyConsentGate, type ConsentState } from "@/components/legal/privacy-consent-gate";
 import type { WalletSummary } from "@/components/wallet/use-wallet";
 import { fetchAuthed, fetchSessionUser } from "@/lib/data/session";
 import { fetchPublicSettings } from "@/lib/data/settings";
@@ -29,15 +30,27 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
    * `fetchAuthed` returns null, which puts the client back on exactly the path
    * it used before.
    */
-  const [{ clubEnabled }, user, wallet] = await Promise.all([
+  /**
+   * Consent joins the same parallel read.
+   *
+   * Resolved here rather than fetched by the dialog after hydration, for the
+   * reason the rest of this already is: a client fetch would put a request
+   * between the page appearing and the prompt appearing, so a member who has
+   * never accepted would see the dashboard first and be interrupted a moment
+   * later. It also means somebody who accepted long ago never sees a flash of
+   * the dialog, because it is never rendered open for them.
+   */
+  const [{ clubEnabled }, user, wallet, consent] = await Promise.all([
     fetchPublicSettings(),
     fetchSessionUser(),
     fetchAuthed<WalletSummary>("/wallet"),
+    fetchAuthed<ConsentState>("/legal/consent"),
   ]);
 
   return (
     <div className="px-[var(--pad)]">
       <SessionSeed user={user} wallet={wallet} />
+      <PrivacyConsentGate consent={consent} />
       <div className="mx-auto flex max-w-[var(--maxw)] items-start gap-[clamp(24px,3vw,44px)]">
         <DashboardSidebar clubEnabled={clubEnabled} />
         {/* Bottom padding clears the tab bar and the support launcher. */}

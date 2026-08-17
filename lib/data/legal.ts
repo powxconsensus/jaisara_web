@@ -48,13 +48,16 @@ export const PRIVACY: LegalDocument = {
 };
 
 /** The four points the entry gate summarises before asking for acceptance. */
-export const GATE_POINTS = [
-  "Cashback is credited only when the purchase is tracked to a Jaisara coupon or link.",
-  "Pending amounts clear after the applicable firm's refund window and are void on refunds.",
-  "Referral rewards are calculated separately and never reduce the reward of the person you invited.",
-  "Trading a prop firm challenge carries risk. Nothing here is financial advice.",
-];
 
-/** Bump when the terms change materially - re-prompts everyone. */
-export const TERMS_VERSION = "2026-08-01";
-export const TERMS_STORAGE_KEY = "jaisara-terms";
+/**
+ * The policy version lives in the API, not here.
+ *
+ * `TERMS_VERSION` and `TERMS_STORAGE_KEY` were removed with the localStorage
+ * gate that used them. Consent is now recorded against the member's account and
+ * the server decides which version is current (`LEGAL_POLICY_VERSION`), because
+ * a version the client can name is a version the client can invent - and the
+ * whole value of the record is that it says what was actually agreed to.
+ *
+ * Keep the wording above and that value in step when the policy changes
+ * materially: raising it re-prompts everybody.
+ */

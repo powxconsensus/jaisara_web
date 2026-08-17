@@ -589,6 +589,16 @@ export interface AdminUser {
 
 export interface AdminUserDetail extends Omit<AdminUser, "roles" | "_count"> {
   kycStatus: string;
+  /**
+   * Privacy consent, as three fields rather than a flag.
+   *
+   * Support gets asked "why can this member not submit a claim", and a declined
+   * or outdated consent is the answer often enough to be worth showing without
+   * anyone having to check the database.
+   */
+  privacyPolicyVersion?: string | null;
+  privacyPolicyAcceptedAt?: string | null;
+  privacyPolicyDeclinedAt?: string | null;
   suspendedAt?: string | null;
   suspendedNote?: string | null;
   deletionRequestedAt?: string | null;

@@ -199,6 +199,20 @@ export function MemberPanel({
               },
               { label: "Club tier", value: orNone(record.clubTierKey) },
               { label: "KYC", value: record.kycStatus },
+              {
+                // Claims and withdrawals are refused without it, so this is
+                // frequently the answer to "why is this member stuck".
+                label: "Privacy policy",
+                value: record.privacyPolicyDeclinedAt ? (
+                  <span className="text-warning">
+                    Declined {shortDate(record.privacyPolicyDeclinedAt)}
+                  </span>
+                ) : record.privacyPolicyAcceptedAt ? (
+                  `v${record.privacyPolicyVersion ?? "?"} · ${shortDate(record.privacyPolicyAcceptedAt)}`
+                ) : (
+                  <span className="text-warning">Not accepted</span>
+                ),
+              },
             ]}
           />
         </div>
