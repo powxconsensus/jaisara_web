@@ -454,3 +454,14 @@ export function RecordButton({
 }
 
 export { TONE_VAR };
+
+/**
+ * Manual refresh, with the age of what is on screen.
+ *
+ * Lives in `components/ui` now, because the member dashboard needs exactly the
+ * same control for exactly the same reason - and it sizes its caption off
+ * `--ct-label` with a fallback, so it reads correctly on both surfaces. It is
+ * re-exported here so console screens keep importing their chrome from one
+ * place.
+ */
+export { RefreshButton } from "@/components/ui/refresh-button";

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-context";
-import { useWallet, type WalletSummary } from "@/components/wallet/use-wallet";
+import { useWallet, refreshWallet, type WalletSummary } from "@/components/wallet/use-wallet";
 import { StatusPill } from "@/components/ui/status-pill";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import type { LedgerStatus } from "@/lib/data/wallet";
-import { apiFetch } from "@/lib/api-fetch";
+import { useResource } from "@/lib/resource";
+import { conversionLabel, formatPoints } from "@/lib/points";
+import { greetingName } from "@/lib/identity";
 import { WithdrawalProgress } from "./withdrawal-progress";
 
 /**
@@ -40,28 +42,31 @@ function pillFor(state: string): LedgerStatus | "Approved" {
   return "Pending";
 }
 
-export function WalletView() {
+export function WalletView({ pointsPerUsd }: { pointsPerUsd: number }) {
   const { user } = useAuth();
-  const { wallet, loading } = useWallet();
-  const [ledger, setLedger] = useState<LedgerRow[] | null>(null);
+  const { wallet, error } = useWallet();
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void apiFetch("/api/wallet/history?take=25", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => (response.ok ? ((await response.json()) as LedgerRow[]) : []))
-      .then((rows) => {
-        if (!controller.signal.aborted) setLedger(rows);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setLedger([]);
-      });
-    return () => controller.abort();
-  }, []);
+  // Served from cache on a repeat visit; the balance above it is seeded by the
+  // layout, so the whole page can paint without waiting on anything.
+  const history = useResource<LedgerRow[]>("/api/wallet/history", { query: { take: 25 } });
+  const ledger = history.data;
 
-  const firstName = (user?.displayName ?? "").trim().split(/\s+/)[0];
+  /**
+   * Both halves, because they are one question.
+   *
+   * The balance lives in its own store (the navbar shows it too, and a
+   * withdrawal has to move every copy at once) while the ledger goes through
+   * the resource cache. A member pressing refresh on the wallet means "tell me
+   * what I have", not "tell me half of it", so the button drives both.
+   */
+  const refreshAll = () => {
+    void refreshWallet();
+    void history.reload();
+  };
+
+  // The handle when there is no name, so the greeting survives an account that
+  // only ever set a username.
+  const firstName = greetingName(user);
 
   return (
     <div>
@@ -83,12 +88,19 @@ export function WalletView() {
             )}
           </h1>
         </div>
-        <Link
-          href="/dashboard/claim"
-          className="rounded-[10px] bg-primary px-5 py-3 font-mono text-[11px] uppercase tracking-[0.14em] text-on-primary transition hover:brightness-[1.06]"
-        >
-          Submit a claim
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <RefreshButton
+            onRefresh={refreshAll}
+            refreshing={history.refreshing}
+            fetchedAt={history.fetchedAt}
+          />
+          <Link
+            href="/dashboard/claim"
+            className="rounded-[10px] bg-primary px-5 py-3 font-mono text-[11px] uppercase tracking-[0.14em] text-on-primary transition hover:brightness-[1.06]"
+          >
+            Submit a claim
+          </Link>
+        </div>
       </div>
 
       {/* Stacked rather than the balance and the two tiles sharing a row.
@@ -97,7 +109,7 @@ export function WalletView() {
           "LIFETIME EARNED" broke across two lines and its note ran to three.
           They are secondary figures; they read better given the full width
           below than starved of it alongside. */}
-      <BalancePanel wallet={wallet} loading={loading} />
+      <BalancePanel wallet={wallet} error={error} pointsPerUsd={pointsPerUsd} />
 
       {wallet && Number(wallet.holdPoints) > 0 && (
         <div className="mt-2.5">
@@ -106,10 +118,16 @@ export function WalletView() {
       )}
 
       <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
-        <Tile label="LIFETIME EARNED" value={wallet?.lifetimeUsd} hint="Cashback and referrals, all time." />
+        <Tile
+          label="LIFETIME EARNED"
+          value={wallet?.lifetimeUsd}
+          points={wallet?.lifetimePoints}
+          hint="Cashback and referrals, all time."
+        />
         <Tile
           label="FROM THE CLUB"
           value={wallet?.clubUsd}
+          points={wallet?.clubPoints}
           hint="Referral share, already counted in lifetime."
         />
       </div>
@@ -119,7 +137,24 @@ export function WalletView() {
           RECENT CASHBACK
         </p>
 
-        {ledger === null ? (
+        {ledger === null && history.error ? (
+          // Not an empty state. A failed read used to fall through to "No
+          // cashback yet", which tells a member their earnings are gone.
+          <div className="px-2.5 py-12 text-center">
+            <p className="mb-2.5 font-mono text-[10px] tracking-[0.16em] text-warning">
+              COULD NOT LOAD
+            </p>
+            <p className="mx-auto max-w-[44ch] text-[12.5px] leading-6 text-muted">
+              {/* The balance is read separately, so it genuinely can be fine
+                  when this fails - but a *stale* balance is not fine, and this
+                  said "loaded normally" beside a panel labelled "LAST KNOWN ·
+                  COULD NOT REFRESH". Two truths on one screen contradicting
+                  each other is worse than saying nothing about the balance. */}
+              {history.error}
+              {wallet && !error ? " Your balance above loaded normally." : ""}
+            </p>
+          </div>
+        ) : ledger === null ? (
           <div aria-busy className="space-y-2 py-3">
             {[0, 1, 2].map((row) => (
               <div key={row} className="h-[52px] animate-pulse rounded-[11px] bg-surface-2" />
@@ -167,7 +202,15 @@ export function WalletView() {
 }
 
 /** The headline balance, the threshold bar, and the way out. */
-function BalancePanel({ wallet, loading }: { wallet: WalletSummary | null; loading: boolean }) {
+function BalancePanel({
+  wallet,
+  error,
+  pointsPerUsd,
+}: {
+  wallet: WalletSummary | null;
+  error: boolean;
+  pointsPerUsd: number;
+}) {
   return (
     <div className="relative overflow-hidden rounded-card border border-hair bg-surface p-[clamp(20px,3vw,28px)]">
       <div
@@ -184,12 +227,49 @@ function BalancePanel({ wallet, loading }: { wallet: WalletSummary | null; loadi
           <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">
             AVAILABLE TO WITHDRAW
           </p>
+          {/* `$0.00` is a statement about somebody's money and must only ever
+              be made from a real balance. A failed read said it too, so an
+              outage was indistinguishable from an emptied wallet - the single
+              most alarming thing this panel can get wrong. */}
           <p
             data-count
-            className="font-mono text-[clamp(34px,5.4vw,52px)] leading-none tracking-[-0.02em] text-primary"
+            className={
+              error && !wallet
+                ? "font-mono text-[clamp(20px,3vw,26px)] leading-none tracking-[-0.01em] text-warning"
+                : "font-mono text-[clamp(34px,5.4vw,52px)] leading-none tracking-[-0.02em] text-primary"
+            }
           >
-            {wallet ? `$${wallet.availableUsd}` : loading ? "-" : "$0.00"}
+            {wallet ? `$${wallet.availableUsd}` : error ? "Unavailable" : "-"}
           </p>
+
+          {/* The same balance in the unit the ledger actually keeps, with the
+              rate beside it. Under the dollars rather than instead of them:
+              dollars are what somebody is deciding about, points are what the
+              number is. */}
+          <p className="mt-2.5 font-mono text-[11px] tracking-[0.08em] text-muted">
+            {wallet ? (
+              <>
+                {formatPoints(wallet.availablePoints)} PTS
+                <span className="mx-2 opacity-40">·</span>
+                {conversionLabel(pointsPerUsd)}
+              </>
+            ) : error ? (
+              // Says only what is true from here. The earlier wording added
+              // "It has not changed", which is a claim about the ledger that a
+              // client which just failed to reach the ledger cannot make.
+              "We could not reach your balance. Try again in a moment."
+            ) : (
+              conversionLabel(pointsPerUsd)
+            )}
+          </p>
+
+          {error && wallet && (
+            // Last known figure, openly labelled. Better than a blank panel and
+            // far better than a confident wrong number.
+            <p className="mt-2 font-mono text-[10px] tracking-[0.12em] text-warning">
+              LAST KNOWN · COULD NOT REFRESH
+            </p>
+          )}
 
           {wallet?.canWithdraw && (
             <Link
@@ -252,14 +332,32 @@ function HoldNote({ wallet }: { wallet: WalletSummary }) {
   );
 }
 
-function Tile({ label, value, hint }: { label: string; value?: string; hint?: string }) {
+function Tile({
+  label,
+  value,
+  points,
+  hint,
+}: {
+  label: string;
+  value?: string;
+  points?: string;
+  hint?: string;
+}) {
   return (
     <div className="flex flex-col rounded-card border border-hair bg-surface p-[clamp(20px,3vw,26px)]">
       <p className="mb-3 font-mono text-[9.5px] tracking-[0.18em] text-muted">{label}</p>
+      {/* Same rule as the headline balance: absent is not zero. A dash reads as
+          "not known yet"; `$0.00` reads as "you have earned nothing". */}
       <p data-count className="font-mono text-[clamp(22px,3vw,30px)] leading-none">
-        {value ? `$${value}` : "$0.00"}
+        {value ? `$${value}` : "-"}
+      </p>
+      {/* The rate is stated once, on the headline balance. Repeating it on
+          every tile would crowd four copies of one fact onto the page. */}
+      <p className="mt-2 font-mono text-[10px] tracking-[0.08em] text-muted">
+        {points ? `${formatPoints(points)} PTS` : " "}
       </p>
       {hint && <p className="mt-auto pt-3 text-[11px] leading-[1.5] text-muted">{hint}</p>}
     </div>
   );
 }
+

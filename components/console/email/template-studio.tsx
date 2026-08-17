@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FieldLabel, TextInput } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { ADMIN_PERMISSIONS as P } from "@/lib/admin-types";
 import type { EmailDesign } from "@/lib/email-blocks";
 
@@ -129,7 +129,7 @@ export function EmailTemplateStudio() {
   };
 
   /** Loads the shipped wording into the editor. Nothing is saved until you save. */
-  const useStarter = (entry: TemplateRow) => {
+  const applyStarter = (entry: TemplateRow) => {
     if (!entry.starter) return;
     setForm({
       ...form,
@@ -374,7 +374,7 @@ export function EmailTemplateStudio() {
               <button
                 type="button"
                 disabled={!canManage}
-                onClick={() => useStarter(row)}
+                onClick={() => applyStarter(row)}
                 className="cursor-pointer rounded-[11px] border border-dashed px-4 py-3 text-left transition hover:brightness-110 disabled:opacity-50"
                 style={{
                   background: "color-mix(in oklab, var(--club) 5%, var(--surface-2))",
@@ -439,7 +439,7 @@ export function EmailTemplateStudio() {
                   title={
                     row.template?.testedAt
                       ? undefined
-                      : "Send yourself a test first — that is what proves this renders and the provider accepts it."
+                      : "Send yourself a test first - that is what proves this renders and the provider accepts it."
                   }
                 >
                   Turn on

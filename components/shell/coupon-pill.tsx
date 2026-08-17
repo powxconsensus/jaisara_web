@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { HEADER_COUPON } from "@/lib/nav";
+import { BRAND_COUPON } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 import { CheckIcon, CopyIcon } from "@/components/ui/icons";
 import { useToast } from "./toast";
@@ -17,7 +17,7 @@ export function CouponPill({ className }: { className?: string }) {
 
   const copy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(HEADER_COUPON);
+      await navigator.clipboard.writeText(BRAND_COUPON);
       if (timer.current) clearTimeout(timer.current);
       setCopied(true);
       timer.current = setTimeout(() => setCopied(false), 1600);
@@ -45,7 +45,7 @@ export function CouponPill({ className }: { className?: string }) {
       <span className="hidden font-mono text-[9.5px] tracking-[0.16em] text-muted lg:inline">
         CODE
       </span>
-      <span className="font-mono text-xs tracking-[0.12em] text-primary">{HEADER_COUPON}</span>
+      <span className="font-mono text-xs tracking-[0.12em] text-primary">{BRAND_COUPON}</span>
       <span
         className="grid size-6 place-items-center rounded-[7px] text-primary"
         style={{ background: "color-mix(in oklab, var(--primary) 16%, transparent)" }}

@@ -5,8 +5,10 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/auth/auth-context";
 import { useToast } from "@/components/shell/toast";
 import { SecuritySection } from "@/components/dashboard/security-card";
+import { UsernameSection } from "@/components/dashboard/username-card";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { apiFetch } from "@/lib/api-fetch";
+import { primaryName, secondaryHandle } from "@/lib/identity";
 
 /**
  * Matched to the API's own cap on a profile photo.
@@ -50,6 +52,8 @@ export function ProfileCard() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [emailError, setEmailError] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
   const [nameBusy, setNameBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   /**
@@ -155,6 +159,41 @@ export function ProfileCard() {
       toast("Referral code copied");
     } catch {
       toast("Could not copy - select it manually", "warning");
+    }
+  };
+
+  /**
+   * Asks for the verification link again.
+   *
+   * The endpoint answers identically for unknown and already-verified
+   * addresses, so it cannot tell us whether anything was sent - which means the
+   * only honest confirmation is "we asked". The button latches rather than
+   * offering an immediate retry: a member who clicks four times gets four
+   * emails and no more information than one would have given, and the previous
+   * link is invalidated each time.
+   */
+  const resendVerification = async () => {
+    if (!accountEmail) return;
+    setResendBusy(true);
+
+    try {
+      const response = await apiFetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: accountEmail }),
+      });
+
+      if (!response.ok) {
+        toast("Could not send the link right now. Please try again shortly.", "danger");
+        return;
+      }
+
+      setResendSent(true);
+      toast("Verification link sent - check your inbox");
+    } catch {
+      toast("The authentication service is unavailable. Please try again.", "danger");
+    } finally {
+      setResendBusy(false);
     }
   };
 
@@ -264,9 +303,21 @@ export function ProfileCard() {
         />
 
         <div className="min-w-0 flex-1">
+          {/* The heading falls back to the handle before it falls back to a
+              placeholder: an account that set `@alice` and no display name has
+              told us who it is, and "Your name" above that is the product
+              ignoring it. */}
           <p className="truncate text-base font-semibold tracking-[-0.01em]">
-            {displayName || "Your name"}
+            {primaryName({ displayName, username: user?.username }) || "Your name"}
           </p>
+          {/* Beneath rather than beside. Alongside a long name it is the piece
+              that gets truncated, and the handle is the half somebody is
+              actually looking for - it is their referral link. */}
+          {secondaryHandle({ displayName, username: user?.username }) && (
+            <p className="mt-[5px] truncate font-mono text-[10.5px] tracking-[0.08em] text-club">
+              {secondaryHandle({ displayName, username: user?.username })}
+            </p>
+          )}
           {/* No invented join date or tier: the account's own values or
               nothing. A fixed "MEMBER SINCE MAY 2026" was wrong for everyone
               who did not sign up that month. */}
@@ -342,11 +393,81 @@ export function ProfileCard() {
               </span>
             )}
           </div>
+
+          {/**
+           * The only place a member can ask for the link again.
+           *
+           * Signing in re-sends it, but that is invisible from here and useless
+           * to somebody already signed in - which, because an unverified
+           * account can still log in, is exactly who is reading this. Without
+           * it the only route back was to sign out and in again, and nothing
+           * said so.
+           */}
+          {user && !user.emailVerified && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="font-mono text-[9px] tracking-[0.12em] text-muted">
+                NOT VERIFIED
+              </span>
+              <button
+                type="button"
+                onClick={resendVerification}
+                disabled={resendBusy || resendSent}
+                className="font-mono text-[9px] tracking-[0.12em] text-primary underline underline-offset-4 disabled:no-underline disabled:opacity-60"
+              >
+                {resendBusy ? "SENDING…" : resendSent ? "LINK SENT" : "RESEND LINK"}
+              </button>
+              <span className="text-xs text-muted">
+                {resendSent
+                  ? "Check your inbox, and your spam folder."
+                  : "Claims and withdrawals stay locked until your address is confirmed."}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/**
+         * Connecting Google, which already worked and was never offered.
+         *
+         * There is no dedicated endpoint and there does not need to be: signing
+         * in with Google on this same address attaches the two accounts, and it
+         * is safe because Google asserts the address is verified - the check is
+         * in `signInWithGoogle`. All that was missing was somewhere to say so.
+         *
+         * No disconnect here on purpose. Removing the only way into an account
+         * is not a settings toggle, and for a member with no password it is a
+         * lockout with no undo. It belongs behind the same confirmation as
+         * deletion, not next to a checkbox.
+         */}
+        <div>
+          <p className="mb-[7px] font-mono text-[9px] tracking-[0.14em] text-muted">
+            GOOGLE ACCOUNT
+          </p>
+          {user?.googleLinked ? (
+            <p className="text-sm text-muted">
+              <span className="font-semibold text-success">Connected.</span> You can sign in with
+              Google or with your password.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <a
+                href="/api/auth/google"
+                className="rounded-[10px] border border-hair bg-surface-2 px-3.5 py-2 font-mono text-[9px] tracking-[0.12em] transition-colors hover:border-primary"
+              >
+                CONNECT GOOGLE
+              </a>
+              <span className="text-xs text-muted">
+                Sign in faster. Use the same address as above, or it will not attach.
+              </span>
+            </div>
+          )}
         </div>
 
         <div>
+          {/* Still here, and still the permanent one. The card below adds a
+              username that also works as a code; this stays because it is the
+              link that never breaks, whatever somebody renames themselves to. */}
           <p className="mb-[7px] font-mono text-[9px] tracking-[0.14em] text-muted">
-            YOUR REFERRAL CODE
+            PERMANENT REFERRAL CODE
           </p>
           <button
             type="button"
@@ -519,6 +640,11 @@ export function ProfileCard() {
 
       {/* Password sits in this card too: both are credential changes on the
           same account, and two cards made them read as unrelated features. */}
+      {/* Username sits between email and security: all three are identity, all
+          three follow the same summary-then-expand shape, and a username is
+          what somebody looks for right after their sign-in address. */}
+      <UsernameSection />
+
       <SecuritySection />
     </section>
   );

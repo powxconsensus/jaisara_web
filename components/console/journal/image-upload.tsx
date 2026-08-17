@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { consoleApi, errorMessage } from "@/lib/console-api";
+import { requestJson, errorMessage } from "@/lib/resource";
 
 export interface UploadedImage {
   url: string;
@@ -41,7 +41,7 @@ export function useImageUpload(endpoint: string = "/api/journal/images") {
     try {
       const body = new FormData();
       body.set("file", file);
-      return await consoleApi<UploadedImage>(endpoint, { method: "POST", body });
+      return await requestJson<UploadedImage>(endpoint, { method: "POST", body });
     } catch (caught) {
       setError(errorMessage(caught));
       return null;

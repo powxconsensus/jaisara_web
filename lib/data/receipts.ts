@@ -1,3 +1,4 @@
+import { BRAND_COUPON } from "@/lib/brand";
 import { challengeMath } from "@/lib/format";
 
 /**
@@ -57,9 +58,9 @@ export interface Receipt {
  * order - those are the two things that would turn worked figures into a lie.
  */
 export const SAMPLE_RECEIPTS: Receipt[] = [
-  { firm: "FundingPips", plan: "$10K Two-Step", coupon: "JAISARA20", list: 129, discountPct: 20, cashbackPct: 14, who: "", ago: "", id: "", status: "paid" },
-  { firm: "FTMO", plan: "$25K Swing", coupon: "JAISARA15", list: 289, discountPct: 15, cashbackPct: 10, who: "", ago: "", id: "", status: "pending" },
-  { firm: "The5ers", plan: "$20K Hyper Growth", coupon: "JAISARA10", list: 165, discountPct: 10, cashbackPct: 12, who: "", ago: "", id: "", status: "paid" },
+  { firm: "FundingPips", plan: "$10K Two-Step", coupon: BRAND_COUPON, list: 129, discountPct: 20, cashbackPct: 14, who: "", ago: "", id: "", status: "paid" },
+  { firm: "FTMO", plan: "$25K Swing", coupon: BRAND_COUPON, list: 289, discountPct: 15, cashbackPct: 10, who: "", ago: "", id: "", status: "pending" },
+  { firm: "The5ers", plan: "$20K Hyper Growth", coupon: BRAND_COUPON, list: 165, discountPct: 10, cashbackPct: 12, who: "", ago: "", id: "", status: "paid" },
 ];
 
 /** Each status drives the stamp, accent, who-line, footer and dot together. */

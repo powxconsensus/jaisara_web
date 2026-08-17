@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/shell/toast";
 import { ConfirmDialog } from "@/components/console/confirm-dialog";
+import { FieldLabel, TextInput } from "@/components/ui/field";
 import {
   Badge,
   DefinitionList,
@@ -13,13 +14,14 @@ import {
   StatTile,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { usePointsPerUsd } from "@/components/console/points-rate";
+import { useMutation, useResource } from "@/lib/resource";
 import { dateTime, humanRole, orNone, pointsToUsd, shortDate } from "@/lib/console-format";
+import { primaryName, secondaryHandle } from "@/lib/identity";
 import {
   ADMIN_PERMISSIONS as P,
-  ASSIGNABLE_ROLES,
   type AdminUserDetail,
-  type AssignableRole,
+  type RoleCatalogItem,
 } from "@/lib/admin-types";
 
 /**
@@ -32,7 +34,7 @@ import {
  */
 
 type PendingAction =
-  | { kind: "role"; role: AssignableRole; granting: boolean }
+  | { kind: "role"; role: string; granting: boolean }
   | { kind: "suspend" }
   | { kind: "restore" }
   | { kind: "anonymise" }
@@ -40,12 +42,22 @@ type PendingAction =
 
 export function MemberPanel({
   userId,
+  roles,
   onChanged,
 }: {
   userId: string;
+  /**
+   * Every role that exists, from the API rather than a constant.
+   *
+   * A hardcoded list could not show a role an owner had just created, so a
+   * custom role was grantable by the API and invisible on the only screen that
+   * grants one.
+   */
+  roles: RoleCatalogItem[];
   onChanged: () => void;
 }) {
   const { can, userId: selfId } = useAccess();
+  const pointsPerUsd = usePointsPerUsd();
   const { toast } = useToast();
   const member = useResource<AdminUserDetail>(`/api/admin/users/${userId}`);
   const { mutate, pending, error, setError } = useMutation();
@@ -72,6 +84,14 @@ export function MemberPanel({
   const isOwner = held.has("owner");
   const isSelf = record.id === selfId;
   const canManageRoles = can(P.roleManage);
+  /**
+   * `owner` and `user` are never offered. The API refuses a grant at or above
+   * the actor's own rank, so an owner button could only ever fail; `user` is
+   * the base role every account already holds. Highest authority first.
+   */
+  const grantable = [...roles]
+    .filter((entry) => entry.key !== "owner" && entry.key !== "user")
+    .sort((a, b) => b.rank - a.rank);
   const canManageUser = can(P.userManage);
 
   const run = async (reason: string) => {
@@ -106,8 +126,13 @@ export function MemberPanel({
       <Panel className="p-[var(--ct-pad)]">
         <PanelHeader
           eyebrow="MEMBER"
-          title={record.displayName ?? "Unnamed member"}
-          description={record.email}
+          // Falls back to the handle before "Unnamed": an account with a
+          // username has told us who it is, and support searching for `@alice`
+          // should not land on a row headed "Unnamed member".
+          title={primaryName(record) || "Unnamed member"}
+          description={
+            secondaryHandle(record) ? `${secondaryHandle(record)} · ${record.email}` : record.email
+          }
           actions={
             <div className="flex flex-wrap gap-1.5">
               <Badge tone={record.status === "ACTIVE" ? "success" : "danger"}>
@@ -130,11 +155,21 @@ export function MemberPanel({
         )}
 
         <div className="mt-6 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <StatTile label="AVAILABLE" value={pointsToUsd(record.wallet?.availablePoints)} />
-          <StatTile label="PENDING" value={pointsToUsd(record.wallet?.pendingPoints)} />
+          <StatTile label="AVAILABLE" value={pointsToUsd(record.wallet?.availablePoints, pointsPerUsd)} />
+          <StatTile label="PENDING" value={pointsToUsd(record.wallet?.pendingPoints, pointsPerUsd)} />
           <StatTile label="CLAIMS" value={record._count.claims} />
           <StatTile label="REFERRALS" value={record._count.referrals} />
         </div>
+
+        {can(P.ledgerAdjust) && (
+          <AdjustBalance
+            userId={record.id}
+            onDone={() => {
+              void member.reload();
+              onChanged();
+            }}
+          />
+        )}
 
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
           <DefinitionList
@@ -154,15 +189,30 @@ export function MemberPanel({
           />
           <DefinitionList
             rows={[
+              { label: "Username", value: orNone(record.username), mono: true },
               { label: "Referral code", value: orNone(record.referralCode), mono: true },
               {
                 label: "Referred by",
                 value: record.referredBy
-                  ? (record.referredBy.displayName ?? record.referredBy.referralCode)
+                  ? (primaryName(record.referredBy) || record.referredBy.referralCode)
                   : "-",
               },
               { label: "Club tier", value: orNone(record.clubTierKey) },
               { label: "KYC", value: record.kycStatus },
+              {
+                // Claims and withdrawals are refused without it, so this is
+                // frequently the answer to "why is this member stuck".
+                label: "Privacy policy",
+                value: record.privacyPolicyDeclinedAt ? (
+                  <span className="text-warning">
+                    Declined {shortDate(record.privacyPolicyDeclinedAt)}
+                  </span>
+                ) : record.privacyPolicyAcceptedAt ? (
+                  `v${record.privacyPolicyVersion ?? "?"} · ${shortDate(record.privacyPolicyAcceptedAt)}`
+                ) : (
+                  <span className="text-warning">Not accepted</span>
+                ),
+              },
             ]}
           />
         </div>
@@ -184,8 +234,14 @@ export function MemberPanel({
           }
         />
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          {ASSIGNABLE_ROLES.map((role) => {
+        {/* Buttons rather than a select. Each one has to show whether the role
+            is already held - a dropdown collapses five independent grants into
+            one value and loses exactly that. What was missing was never the
+            control, it was knowing what each role hands over, so every row now
+            says so. */}
+        <div className="mt-5 grid gap-1.5">
+          {grantable.map((entry) => {
+            const role = entry.key;
             const granting = !held.has(role);
             // An owner's roles are managed by another owner through the API,
             // never by toggling here - the button would imply a demotion path
@@ -198,14 +254,26 @@ export function MemberPanel({
                 type="button"
                 disabled={disabled}
                 onClick={() => setAction({ kind: "role", role, granting })}
-                className={`cursor-pointer rounded-[10px] border px-3.5 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.12em] transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`flex cursor-pointer flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[10px] border px-3.5 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
                   granting
-                    ? "border-hair text-muted hover:border-primary hover:text-fg"
-                    : "border-primary bg-[color-mix(in_oklab,var(--primary)_12%,transparent)] text-primary"
+                    ? "border-hair hover:border-primary"
+                    : "border-primary bg-[color-mix(in_oklab,var(--primary)_12%,transparent)]"
                 }`}
               >
-                {granting ? "+ " : "✓ "}
-                {humanRole(role)}
+                <span
+                  className={`flex-none font-mono text-[9.5px] uppercase tracking-[0.12em] ${
+                    granting ? "text-muted" : "text-primary"
+                  }`}
+                >
+                  {granting ? "+ " : "✓ "}
+                  {humanRole(role)}
+                </span>
+                <span className="min-w-0 flex-1 text-[11.5px] leading-5 text-muted">
+                  {entry.description || `${entry.permissions.length} permissions`}
+                </span>
+                <span className="flex-none font-mono text-[9px] tracking-[0.1em] text-muted">
+                  RANK {entry.rank}
+                </span>
               </button>
             );
           })}
@@ -362,5 +430,121 @@ function summary(action: NonNullable<PendingAction>, member: AdminUserDetail) {
       <br />
       <strong className="text-danger">This cannot be undone.</strong>
     </>
+  );
+}
+
+/**
+ * A manual correction to a member's balance.
+ *
+ * This is the reason it exists: without it, the only way to fix a wrong balance
+ * is a direct database write, which leaves no entry, no actor and no reason,
+ * and desynchronises the cached balance from the ledger. That is precisely the
+ * drift the nightly reconciliation alerts on - self-inflicted, at the worst
+ * possible time, by somebody trying to help.
+ *
+ * Taken in dollars because every other figure in this console is in dollars.
+ * Asking for points here, in the one field that moves money without a
+ * conversion behind it, is how a $5 goodwill credit becomes a $500 one.
+ */
+function AdjustBalance({ userId, onDone }: { userId: string; onDone: () => void }) {
+  const { toast } = useToast();
+  const { mutate, pending, error, setError } = useMutation();
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+
+  const trimmed = amount.trim();
+  const parsed = Number(trimmed);
+  const wellFormed = /^-?\d{1,7}(\.\d{1,2})?$/.test(trimmed) && parsed !== 0;
+  const canSubmit = wellFormed && reason.trim().length >= 4;
+
+  const submit = async () => {
+    const saved = await mutate<{ amountUsd: string; availableUsd: string }>(
+      `/api/admin/ledger/adjust/${userId}`,
+      { body: { amountUsd: trimmed, reason: reason.trim() } },
+    );
+    if (!saved) return;
+
+    toast(`Balance adjusted by $${saved.amountUsd}. Now $${saved.availableUsd} available.`, "success");
+    setOpen(false);
+    setAmount("");
+    setReason("");
+    onDone();
+  };
+
+  if (!open) {
+    return (
+      <div className="mt-4">
+        <Button size="sm" variant="outline" onClick={() => { setError(null); setOpen(true); }}>
+          Adjust balance
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 rounded-[14px] border border-hair bg-surface-2 p-[clamp(16px,2.5vw,20px)]">
+      <PanelHeader
+        eyebrow="LEDGER"
+        title="Adjust balance"
+        description="Posts a signed, audited ADJUSTMENT entry and moves the balance in the same transaction. Use a negative amount to take money back."
+      />
+
+      <div className="mt-4 grid gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
+        <div>
+          <FieldLabel htmlFor="adjust-amount">AMOUNT (USD)</FieldLabel>
+          <TextInput
+            id="adjust-amount"
+            autoFocus
+            inputMode="decimal"
+            placeholder="12.50"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+          {trimmed !== "" && !wellFormed && (
+            <p className="mt-2 text-[11.5px] text-warning">
+              An amount like 12.50, or -12.50 to debit. Zero records nothing.
+            </p>
+          )}
+        </div>
+        <div>
+          <FieldLabel htmlFor="adjust-reason">REASON</FieldLabel>
+          <TextInput
+            id="adjust-reason"
+            maxLength={300}
+            placeholder="Goodwill for a payout delayed by the FundedNext import"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+          {/* The memo is what the member's own wallet history will show, and
+              what anybody auditing this later has to work from. */}
+          <p className="mt-2 text-[11px] text-muted">
+            Written onto the entry itself - it is the only record of why.
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mt-4">
+          <ErrorNote>{error}</ErrorNote>
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button size="sm" disabled={pending || !canSubmit} onClick={() => void submit()}>
+          {pending ? "Posting…" : "Post adjustment"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }

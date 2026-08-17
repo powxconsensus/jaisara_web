@@ -47,6 +47,8 @@ interface DealProduct {
   currency: string;
   estCashbackPct: number | null;
   tradingPlatform: string | null;
+  /** Set only when this challenge uses a code other than the firm's. */
+  coupon?: { code: string; discountPct: string | null; status: string } | null;
 }
 
 export interface Deal {
@@ -116,6 +118,17 @@ function toChallenges(deal: Deal): Challenge[] {
     .filter((product) => Number(product.listPrice) > 0)
     .map((product) => {
       const price = Number(product.listPrice);
+      // This challenge's own code wins over the firm's. Most challenges carry
+      // none and inherit, which is the common case; a firm running one code on
+      // evaluations and another on instant funding is the reason the override
+      // exists at all.
+      //
+      // Commission is paid on what the firm actually charged, so the discount
+      // here decides the cashback too - see `challengeMath`, which this has to
+      // agree with or the deals table and the estimator quote different figures
+      // for the same challenge.
+      const discountPct = couponFor(deal, product).discountPct;
+      const paid = discountPct > 0 ? price * (1 - discountPct / 100) : price;
       const cashbackPct = product.estCashbackPct ?? 0;
 
       return {
@@ -132,7 +145,7 @@ function toChallenges(deal: Deal): Challenge[] {
         currency: product.currency,
         cashbackPct: Number(cashbackPct.toFixed(1)),
         // Rounded to the cent once, here, so no two screens can disagree.
-        cashbackUsd: Number(((price * cashbackPct) / 100).toFixed(2)),
+        cashbackUsd: Number(((paid * cashbackPct) / 100).toFixed(2)),
       } satisfies Challenge;
     })
     .sort((a, b) => a.price - b.price);
@@ -146,7 +159,8 @@ export function toFirm(deal: Deal): Firm {
     (best, product) => Math.max(best, product.estCashbackPct ?? 0),
     0,
   );
-  const coupon = deal.coupons[0];
+  // The firm's configured default, not whichever coupon sorted first.
+  const coupon = firmCoupon(deal);
 
   return {
     slug: deal.slug,
@@ -156,20 +170,72 @@ export function toFirm(deal: Deal): Firm {
     kind: describeKind(deal),
     markets: (deal.categories ?? []).map((category) => CATEGORY_LABELS[category]),
     cashback: Number(cashback.toFixed(1)),
-    discount: Number(coupon?.discountPct ?? 0),
+    discount: coupon.discountPct,
     // Empty when the firm has no published code, and never a house default.
     // A code the firm does not recognise is worse than none: it is applied at
     // checkout, silently ignored, and the purchase arrives unattributed - so
     // no commission is paid and there is no cashback to share. The rest of the
     // storefront treats "" as "no code to show", the same as it already does
     // for an unpublished cashback rate.
-    coupon: coupon?.code ?? deal.defaultCouponCode ?? "",
+    coupon: coupon.code,
     challenges: toChallenges(deal),
     split: deal.profitSplit ?? "-",
     payout: normalisePayout(deal.payoutCadence),
     platform: deal.tradingPlatforms.join("/") || "-",
     ...(deal.fulfillment === "RESELL" ? { tag: "Reseller" as const } : {}),
   };
+}
+
+/**
+ * The firm's fallback coupon.
+ *
+ * `defaultCouponCode` is the admin's explicit choice, so it wins over whatever
+ * happens to sort first. It used to lose: the code came from `coupons[0]` and
+ * `defaultCouponCode` was consulted only when the firm had no active coupon at
+ * all - so a firm with two codes advertised whichever the database returned
+ * first, and the setting the console offers for exactly this decision did
+ * nothing.
+ *
+ * Worse than arbitrary: the code and the discount came from the same
+ * `coupons[0]`, so if the configured default *was* used for the code (no
+ * active coupons) the discount silently fell to zero.
+ *
+ * A `defaultCouponCode` naming a coupon that is no longer ACTIVE deliberately
+ * falls through to the ordered list rather than being quoted - a code the
+ * checkout will refuse is worse than a different working one.
+ */
+function firmCoupon(deal: Deal): { code: string; discountPct: number } {
+  const configured = deal.defaultCouponCode?.trim().toUpperCase();
+
+  const chosen =
+    (configured ? deal.coupons.find((entry) => entry.code.toUpperCase() === configured) : null) ??
+    deal.coupons[0];
+
+  if (chosen) return { code: chosen.code, discountPct: Number(chosen.discountPct ?? 0) };
+
+  // No coupon row at all. The bare string still opens the `/go/` redirect, but
+  // it carries no discount - quoting one would be inventing it.
+  return { code: deal.defaultCouponCode ?? "", discountPct: 0 };
+}
+
+/**
+ * The code and discount that apply to one challenge.
+ *
+ * A paused or expired coupon is ignored rather than quoted: the storefront must
+ * never print a price cut a checkout will refuse. It falls back the same way
+ * the rest of the catalogue does - the challenge's own coupon, then the firm's
+ * configured default, then nothing.
+ */
+export function couponFor(
+  deal: Deal,
+  product: { coupon?: { code: string; discountPct: string | null; status: string } | null },
+): { code: string; discountPct: number } {
+  const own = product.coupon;
+  if (own && own.status === "ACTIVE") {
+    return { code: own.code, discountPct: Number(own.discountPct ?? 0) };
+  }
+
+  return firmCoupon(deal);
 }
 
 /** "Funded Trading Plus" → "F+"… two letters, as the design specifies. */
@@ -208,10 +274,26 @@ export interface PublicStats {
   paidToTradersUsd: string;
 }
 
-/** Headline figures. Failure is represented as zero, never invented activity. */
-export async function fetchStats(): Promise<PublicStats> {
-  const fallback: PublicStats = { firmCount: 0, memberCount: 0, paidToTradersUsd: "0.00" };
-
+/**
+ * Headline figures, or `null` when we could not ask.
+ *
+ * This used to fall back to `{ firmCount: 0, memberCount: 0, paidToTradersUsd:
+ * "0.00" }`, described as "failure represented as zero, never invented
+ * activity". The second half of that is the problem: **zero is invented
+ * activity** when the truth is "unknown". The web image builds without a
+ * reachable API, so static generation took the fallback every time and baked
+ * it into the cached HTML - a built image served `$0 PAID TO TRADERS` and `0
+ * FIRMS` as settled fact, with a revalidate window of minutes behind it.
+ *
+ * Those are the three numbers the landing page exists to make. A visitor who
+ * sees them cannot tell a young business from a broken one, and neither can we
+ * from a log, because nothing failed: the page rendered a clean 200.
+ *
+ * `null` is not a number, so nothing downstream can accidentally arithmetic it
+ * into a claim. The hero renders a placeholder for it instead of counting up
+ * to zero.
+ */
+export async function fetchStats(): Promise<PublicStats | null> {
   try {
     const response = await apiRequest("/activity/stats", {
       cache: "force-cache",
@@ -219,10 +301,10 @@ export async function fetchStats(): Promise<PublicStats> {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     } as RequestInit);
 
-    if (!response.ok) return fallback;
+    if (!response.ok) return null;
     return (await response.json()) as PublicStats;
   } catch {
-    return fallback;
+    return null;
   }
 }
 
@@ -240,7 +322,7 @@ export function toEstimatorFirms(deals: Deal[]): EstimatorFirm[] {
       const priced = deal.products.filter((product) => Number(product.listPrice) > 0);
       if (priced.length === 0) return null;
 
-      const coupon = deal.coupons[0];
+      const coupon = firmCoupon(deal);
       const best = priced.reduce(
         (top, product) => Math.max(top, product.estCashbackPct ?? 0),
         0,
@@ -252,7 +334,12 @@ export function toEstimatorFirms(deals: Deal[]): EstimatorFirm[] {
         mark: monogram(deal.name),
         logoUrl: deal.logoUrl,
         cashbackPct: Number(best.toFixed(1)),
-        discountPct: Number(coupon?.discountPct ?? 0),
+        discountPct: coupon.discountPct,
+        // The same fallback the deals page uses. It was missing here, so the
+        // estimator could not name the code even for a firm that publishes one
+        // - and a ledger that shows a cashback figure without saying which code
+        // earns it is telling somebody half of how to get paid.
+        coupon: coupon.code,
         plans: [
           ...new Set(
             priced.map((product) => product.family?.trim() || planLabel(product.kind)),
@@ -265,7 +352,12 @@ export function toEstimatorFirms(deals: Deal[]): EstimatorFirm[] {
             label: product.accountSize
               ? `$${Math.round(product.accountSize / 1000)}K`
               : product.name,
-            price: Math.round(Number(product.listPrice)),
+            // Not rounded. The ledger prints this as CHALLENGE PRICE, so a
+            // $199.99 plan was being quoted at $200.00 - a misquoted price on
+            // the one screen whose entire job is telling somebody what they
+            // will pay. `moneyCompact` already refuses to round for exactly
+            // this reason; this was the one place that did.
+            price: Number(product.listPrice),
             cashbackPct: Number((product.estCashbackPct ?? 0).toFixed(2)),
           }))
           .sort((a, b) => a.price - b.price),

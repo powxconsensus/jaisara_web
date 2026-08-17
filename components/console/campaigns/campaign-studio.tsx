@@ -28,7 +28,7 @@ import {
   starterDesign,
   type EmailDesign,
 } from "@/lib/email-blocks";
-import { consoleApi, errorMessage, useMutation, useResource } from "@/lib/console-api";
+import { requestJson, errorMessage, useMutation, useResource } from "@/lib/resource";
 import { dateTime, relativeTime } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
@@ -103,7 +103,7 @@ export function CampaignStudio() {
     setLoadError(null);
     setPreview(null);
     try {
-      const campaign = await consoleApi<CampaignDetail>(
+      const campaign = await requestJson<CampaignDetail>(
         `/api/admin/marketing/campaigns/${id}`,
       );
       setSelectedId(campaign.id);

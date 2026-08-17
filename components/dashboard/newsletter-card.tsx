@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useToast } from "@/components/shell/toast";
 import { apiFetch } from "@/lib/api-fetch";
 import { apiErrorMessage } from "@/lib/auth-types";
+import { useResource } from "@/lib/resource";
 
 interface NewsletterPreference {
   subscribed: boolean;
@@ -13,27 +14,17 @@ interface NewsletterPreference {
 
 export function NewsletterCard() {
   const { toast } = useToast();
-  const [preference, setPreference] = useState<NewsletterPreference | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void apiFetch("/api/account/newsletter", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => null)) as NewsletterPreference | null;
-        if (!response.ok || !body) throw new Error("load");
-        setPreference(body);
-      })
-      .catch((reason: unknown) => {
-        if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError("Could not load your email preference.");
-      });
-    return () => controller.abort();
-  }, []);
+  // Through the shared cache like every other read, so re-opening the account
+  // page does not re-ask a question whose answer the browser already has.
+  const resource = useResource<NewsletterPreference>("/api/account/newsletter");
+  const preference = resource.data;
+
+  // `set` writes through to the cache, so the toggle stays where the member
+  // put it without a second round trip and without reverting on the next visit.
+  const setPreference = resource.set;
 
   const hardSuppression =
     preference?.suppressed && preference.suppressionReason !== "UNSUBSCRIBED";

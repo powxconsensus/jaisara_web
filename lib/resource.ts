@@ -3,23 +3,38 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { apiFetch } from "@/lib/api-fetch";
+import {
+  fetchOnce,
+  invalidateAll,
+  readCache,
+  subscribeToKey,
+  writeCache,
+} from "@/lib/resource-cache";
 
 /**
- * One way to talk to the admin API.
+ * One way to read from the API, for the console and the member dashboard both.
  *
- * Every console module needs the same four things - send JSON, read JSON,
- * turn a non-2xx into a message a human can act on, and drop the result if the
+ * Every screen needs the same four things - send JSON, read JSON, turn a
+ * non-2xx into a message a human can act on, and drop the result if the
  * component unmounted first. Writing that per component is how three copies of
  * the same `.catch(() => setError("unavailable"))` drift apart.
+ *
+ * This began as the console's own module and was moved here unchanged. The
+ * member dashboard had been hand-rolling `useEffect` + `apiFetch` + `no-store`
+ * per screen, which meant it fetched again on every single mount: opening the
+ * claims page twice cost two round trips for an answer that had not changed,
+ * and there was no way to ask for a fresh one short of reloading the page.
+ * Nothing about that caching is admin-specific, so the name no longer is
+ * either.
  */
 
-export class ConsoleApiError extends Error {
+export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
   ) {
     super(message);
-    this.name = "ConsoleApiError";
+    this.name = "ApiError";
   }
 
   /** The caller lacks the permission - worth saying so rather than "failed". */
@@ -31,13 +46,13 @@ export class ConsoleApiError extends Error {
 /** Thrown when the request never reached the API at all. */
 const OFFLINE = "The service is unavailable. Please try again.";
 
-export interface ConsoleRequest extends Omit<RequestInit, "body"> {
+export interface JsonRequest extends Omit<RequestInit, "body"> {
   /** Serialised as JSON unless it is already a FormData. */
   body?: unknown;
   query?: Record<string, string | number | boolean | null | undefined>;
 }
 
-export async function consoleApi<T>(path: string, init: ConsoleRequest = {}): Promise<T> {
+export async function requestJson<T>(path: string, init: JsonRequest = {}): Promise<T> {
   const { body, query, headers, ...rest } = init;
   const isForm = body instanceof FormData;
 
@@ -51,13 +66,13 @@ export async function consoleApi<T>(path: string, init: ConsoleRequest = {}): Pr
       body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
-    throw new ConsoleApiError(0, OFFLINE);
+    throw new ApiError(0, OFFLINE);
   }
 
   const payload = response.status === 204 ? null : await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ConsoleApiError(
+    throw new ApiError(
       response.status,
       apiErrorMessage(payload, defaultMessage(response.status)),
     );
@@ -66,7 +81,7 @@ export async function consoleApi<T>(path: string, init: ConsoleRequest = {}): Pr
   return payload as T;
 }
 
-function buildQuery(query: ConsoleRequest["query"]): string {
+function buildQuery(query: JsonRequest["query"]): string {
   if (!query) return "";
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
@@ -99,7 +114,28 @@ interface ResourceState<T> {
 export interface Resource<T> extends ResourceState<T> {
   /** Re-fetches and replaces the data; safe to call from an event handler. */
   reload: () => Promise<void>;
-  /** Applies a local change without a round trip (optimistic updates). */
+  /**
+   * True while a refresh runs *behind* data that is already on screen.
+   *
+   * Distinct from `loading`, which means there is nothing to show yet. A
+   * refresh button uses this to say it is working without the panel collapsing
+   * into skeletons around it.
+   */
+  refreshing: boolean;
+  /** When the data on screen was fetched, or null if it never was. */
+  fetchedAt: number | null;
+  /**
+   * Applies a change without a round trip, for the response a mutation just
+   * returned or a genuine optimistic update.
+   *
+   * Writes **through to the cache**, not just to local state. It used to do
+   * only the latter, which was harmless until the cache existed and quietly
+   * wrong afterwards: `useMutation` marks every entry stale on success, so a
+   * caller that saved and then called `set` had the correct value on screen and
+   * the superseded one in the cache - and the next mount painted the old value
+   * before correcting itself. Passing `null` clears local state only, since
+   * "I have nothing to show" is not a fact about the server.
+   */
   set: (next: T | null) => void;
 }
 
@@ -111,7 +147,7 @@ export interface Resource<T> extends ResourceState<T> {
  */
 export function useResource<T>(
   path: string | null,
-  options: { query?: ConsoleRequest["query"]; enabled?: boolean } = {},
+  options: { query?: JsonRequest["query"]; enabled?: boolean } = {},
 ): Resource<T> {
   const { query, enabled = true } = options;
 
@@ -120,20 +156,30 @@ export function useResource<T>(
   const active = Boolean(path) && enabled;
   const requestKey = `${path ?? ""}|${queryKey}|${active}`;
 
+  /**
+   * Seeded from the cache, so a screen that has been open before renders its
+   * numbers immediately rather than a skeleton it has already shown once.
+   */
+  const cached = active ? readCache<T>(requestKey) : null;
+
   const [state, setState] = useState<ResourceState<T>>({
-    data: null,
+    data: cached?.data ?? null,
     error: null,
-    loading: active,
+    loading: active && !cached,
   });
 
-  // When the inputs change, clear the previous result *during render* rather
-  // than in the effect. React's recommended alternative to a state-resetting
-  // effect: it avoids the extra commit that would flash stale data first.
+  // When the inputs change, swap to whatever the cache holds for the *new* key
+  // during render rather than in the effect. React's recommended alternative to
+  // a state-resetting effect, and it is what stops a filter change blanking a
+  // table that has the answer already.
   const [lastKey, setLastKey] = useState(requestKey);
   if (lastKey !== requestKey) {
+    const next = active ? readCache<T>(requestKey) : null;
     setLastKey(requestKey);
-    setState({ data: null, error: null, loading: active });
+    setState({ data: next?.data ?? null, error: null, loading: active && !next });
   }
+
+  const [refreshing, setRefreshing] = useState(false);
 
   // The in-flight request, so a fast retype cancels the previous search rather
   // than racing it - an older, slower response must never overwrite a newer one.
@@ -143,18 +189,41 @@ export function useResource<T>(
     async (controller: AbortController) => {
       if (!path) return;
       try {
-        const data = await consoleApi<T>(path, {
-          query: JSON.parse(queryKey) as ConsoleRequest["query"],
-          signal: controller.signal,
-        });
+        /**
+         * Deduplicated by key, so two panels mounting together make one call.
+         * The result is written to the cache for whoever asks next.
+         *
+         * The signal handed to the request is the **cache's**, not this
+         * component's. Passing `controller.signal` here meant the shared
+         * request belonged to whichever subscriber called first: when that one
+         * unmounted, every other subscriber's request was cancelled with it.
+         * This component's controller still decides whether the result is
+         * *applied* below, which is all an unmounted component needs.
+         */
+        const data = await fetchOnce<T>(requestKey, (signal) =>
+          requestJson<T>(path, {
+            query: JSON.parse(queryKey) as JsonRequest["query"],
+            signal,
+          }),
+        );
         if (!controller.signal.aborted) setState({ data, error: null, loading: false });
       } catch (error) {
         if (!controller.signal.aborted) {
-          setState({ data: null, error: errorMessage(error), loading: false });
+          // Keeps whatever is already on screen. A failed *refresh* must not
+          // replace good data with an error - the numbers are stale, not wrong,
+          // and blanking a working screen because a background poll timed out
+          // is worse than showing it a minute late.
+          setState((previous) =>
+            previous.data === null
+              ? { data: null, error: errorMessage(error), loading: false }
+              : { ...previous, loading: false },
+          );
         }
+      } finally {
+        if (!controller.signal.aborted) setRefreshing(false);
       }
     },
-    [path, queryKey],
+    [path, queryKey, requestKey],
   );
 
   const start = useCallback(() => {
@@ -166,27 +235,60 @@ export function useResource<T>(
 
   useEffect(() => {
     if (!active) return;
+
+    /**
+     * Fresh enough to leave alone.
+     *
+     * This is what makes clicking between two console screens cost nothing:
+     * within the window the answer on screen is the answer, and asking again
+     * would only redraw the same number.
+     */
+    const entry = readCache<T>(requestKey);
+    if (entry && !entry.stale) return;
+
     // `start` kicks off a fetch. The rule follows the call graph into
     // `fetchInto` and sees a setState, but every one of those sits behind an
     // `await` - they run when the response lands, which is exactly the
     // "subscribe to an external system" case the rule is meant to allow. The
     // synchronous state reset it is guarding against is done during render
     // above instead.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     const { controller } = start();
     return () => controller.abort();
-  }, [active, start]);
+  }, [active, requestKey, start]);
+
+  // Another component refreshing the same key updates this one too, so two
+  // panels showing one list cannot drift apart.
+  useEffect(() => {
+    if (!active) return;
+    return subscribeToKey(requestKey, () => {
+      const entry = readCache<T>(requestKey);
+      if (entry) setState({ data: entry.data, error: null, loading: false });
+    });
+  }, [active, requestKey]);
 
   const reload = useCallback(async () => {
     if (!active) return;
-    setState((previous) => ({ ...previous, loading: true, error: null }));
+    // Deliberately not `loading: true`. A manual refresh keeps the current
+    // numbers on screen and reports itself through `refreshing`, so pressing it
+    // never replaces a working panel with skeletons.
+    setRefreshing(true);
+    setState((previous) => ({ ...previous, error: null }));
     await start().done;
   }, [active, start]);
 
   return {
     ...state,
     reload,
-    set: (next) => setState((previous) => ({ ...previous, data: next })),
+    refreshing,
+    fetchedAt: readCache<T>(requestKey)?.fetchedAt ?? null,
+    set: (next) => {
+      // Cache first, so every other component showing this key sees it too -
+      // `writeCache` notifies them - and so the next mount does not paint the
+      // value this one just replaced.
+      if (next !== null && active) writeCache(requestKey, next);
+      setState((previous) => ({ ...previous, data: next }));
+    },
   };
 }
 
@@ -212,7 +314,7 @@ export interface PagedResource<T> {
  */
 export function usePagedResource<T>(
   path: string,
-  options: { query?: ConsoleRequest["query"]; pageSize?: number; enabled?: boolean } = {},
+  options: { query?: JsonRequest["query"]; pageSize?: number; enabled?: boolean } = {},
 ): PagedResource<T> {
   const { query, pageSize = 50, enabled = true } = options;
   const queryKey = JSON.stringify(query ?? null);
@@ -244,7 +346,7 @@ export function usePagedResource<T>(
       if (fetching.current) return;
       fetching.current = true;
       try {
-        const page = await consoleApi<T[]>(path, {
+        const page = await requestJson<T[]>(path, {
           query: {
             ...(JSON.parse(queryKey) as Record<string, string | number | boolean | undefined>),
             take: pageSize,
@@ -308,11 +410,26 @@ export function useMutation() {
   const [error, setError] = useState<string | null>(null);
 
   const mutate = useCallback(
-    async <T,>(path: string, init: ConsoleRequest = {}): Promise<T | null> => {
+    async <T,>(path: string, init: JsonRequest = {}): Promise<T | null> => {
       setPending(true);
       setError(null);
       try {
-        return await consoleApi<T>(path, { method: "POST", ...init });
+        const result = await requestJson<T>(path, { method: "POST", ...init });
+
+        /**
+         * Everything cached is now suspect.
+         *
+         * Approving a claim moves a payout queue, a wallet, a member row and a
+         * dashboard tile at once, and mapping those relationships here would be
+         * a second copy of the API's own graph that goes wrong quietly. Marking
+         * the lot stale is cheap because stale does not mean discarded: every
+         * screen still renders instantly from what it has and refreshes behind
+         * it. The cost of over-invalidating is one background request; the cost
+         * of under-invalidating is somebody acting on a number that already
+         * changed.
+         */
+        invalidateAll();
+        return result;
       } catch (caught) {
         setError(errorMessage(caught));
         return null;

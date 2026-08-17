@@ -18,7 +18,7 @@ import {
   Tr,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { dateTime, humanRole, usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
@@ -61,10 +61,166 @@ export function SettingsConsole() {
       />
 
       {tab === "splits" && <SplitEditor />}
-      {tab === "tiers" && <TierTable />}
+      {tab === "tiers" && (
+        <>
+          <ClubControls />
+          <TierTable />
+        </>
+      )}
       {tab === "settings" && <SettingsTable />}
       {tab === "audit" && <AuditLog />}
     </div>
+  );
+}
+
+/**
+ * How the Club is actually run, in one place.
+ *
+ * These three values were reachable only as raw rows in the Settings tab -
+ * `club_score_per_referral` next to `email_tracking_enabled`, with no
+ * indication that they were the formula deciding everybody's tier. And one of
+ * them was not reachable at all: the per-dollar rate was hard-coded inside the
+ * calculation.
+ *
+ * Shown above the tier table because the order is the causal one. A tier's
+ * threshold is meaningless without knowing how the score that meets it is
+ * earned, and the score is the thing nobody could see.
+ */
+function ClubControls() {
+  const { can } = useAccess();
+  const { toast } = useToast();
+  const settings = useResource<Setting[]>("/api/admin/config/settings");
+  const { mutate, pending, error, setError } = useMutation();
+
+  const canManage = can(P.configManage);
+  const byKey = new Map((settings.data ?? []).map((row) => [row.key, row]));
+
+  const enabled = Number(byKey.get("club_enabled")?.value ?? 1) !== 0;
+  const perReferral = String(byKey.get("club_score_per_referral")?.value ?? 100);
+  const perUsd = String(byKey.get("club_score_per_usd")?.value ?? 1);
+
+  const [draftReferral, setDraftReferral] = useState<string | null>(null);
+  const [draftUsd, setDraftUsd] = useState<string | null>(null);
+
+  const referralValue = draftReferral ?? perReferral;
+  const usdValue = draftUsd ?? perUsd;
+  const scoringChanged = referralValue !== perReferral || usdValue !== perUsd;
+
+  const write = async (key: string, value: number | boolean, note: string) => {
+    const saved = await mutate(`/api/admin/config/settings/${encodeURIComponent(key)}`, {
+      method: "PATCH",
+      body: { value },
+    });
+    if (!saved) return false;
+    toast(note, "success");
+    await settings.reload();
+    return true;
+  };
+
+  const saveScoring = async () => {
+    const referral = Number(referralValue);
+    const usd = Number(usdValue);
+    if (!Number.isFinite(referral) || !Number.isFinite(usd)) {
+      setError("Both rates have to be numbers.");
+      return;
+    }
+
+    if (!(await write("club_score_per_referral", referral, "Referral rate saved."))) return;
+    if (!(await write("club_score_per_usd", usd, "Volume rate saved."))) return;
+    setDraftReferral(null);
+    setDraftUsd(null);
+  };
+
+  return (
+    <Panel className="p-[var(--ct-pad)]">
+      <PanelHeader
+        eyebrow="JAISARA CLUB"
+        title="How the club runs"
+        description="Whether members can see it, and how the score that decides their tier is earned."
+      />
+
+      <div className="mt-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3 rounded-[12px] border border-hair bg-surface-2 px-4 py-3.5">
+        <div className="max-w-[60ch]">
+          <p className="text-[13px] font-semibold">
+            {enabled ? "The club is open" : "The club shows as coming soon"}
+          </p>
+          {/* The single most important thing to say here. Somebody switching
+              this off needs to know it is not a way to stop paying referrers -
+              that lives in the split, which is versioned and audited. */}
+          <p className="mt-1.5 text-[11.5px] leading-[1.6] text-muted">
+            Display only. Referrers keep earning their share of every commission either way, and
+            balances already earned are untouched - what a referrer is paid is set by the split, not
+            by this switch.
+          </p>
+        </div>
+        {canManage && (
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() =>
+              void write(
+                "club_enabled",
+                enabled ? 0 : 1,
+                enabled ? "The club now shows as coming soon." : "The club is open.",
+              )
+            }
+          >
+            {enabled ? "Switch off" : "Switch on"}
+          </Button>
+        )}
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div>
+          <FieldLabel htmlFor="club-per-referral">SCORE PER QUALIFIED REFERRAL</FieldLabel>
+          <TextInput
+            id="club-per-referral"
+            inputMode="numeric"
+            disabled={!canManage}
+            value={referralValue}
+            onChange={(event) => setDraftReferral(event.target.value)}
+          />
+          <p className="mt-2 text-[11px] leading-[1.5] text-muted">
+            A referral only counts once that member has actually bought something.
+          </p>
+        </div>
+        <div>
+          <FieldLabel htmlFor="club-per-usd">SCORE PER $1 OF COMMISSION</FieldLabel>
+          <TextInput
+            id="club-per-usd"
+            inputMode="decimal"
+            disabled={!canManage}
+            value={usdValue}
+            onChange={(event) => setDraftUsd(event.target.value)}
+          />
+          <p className="mt-2 text-[11px] leading-[1.5] text-muted">
+            Commission the member has generated, across their own purchases and their referrals&rsquo;.
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-4 rounded-[10px] border border-hair px-3.5 py-3 font-mono text-[11px] leading-[1.7] text-muted">
+        score = qualified referrals × {referralValue || 0} + commission $ × {usdValue || 0}
+        <span className="mt-1.5 block font-sans text-[11px]">
+          Club score is status only. It decides which tier somebody reaches and is never
+          redeemable - wallet points are the money, and they come from the split.
+        </span>
+      </p>
+
+      {error && (
+        <div className="mt-4">
+          <ErrorNote>{error}</ErrorNote>
+        </div>
+      )}
+
+      {canManage && (
+        <div className="mt-4">
+          <Button disabled={pending || !scoringChanged} onClick={() => void saveScoring()}>
+            {pending ? "Saving…" : "Save scoring"}
+          </Button>
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -375,15 +531,54 @@ function TierTable() {
 }
 
 function SettingsTable() {
-  const { can } = useAccess();
+  const { can, roles } = useAccess();
+  // The API is the gate; this only stops somebody being offered a form that
+  // can only end in a 403 they cannot act on.
+  const isOwner = roles.includes("owner");
   const { toast } = useToast();
   const settings = useResource<Setting[]>("/api/admin/config/settings");
   const { mutate, pending, error, setError } = useMutation();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  /**
+   * The emailed confirmation, for the one setting that needs it.
+   *
+   * `points_per_usd` is the meaning of every stored balance - points are what
+   * the ledger holds and dollars are derived - so changing it restates
+   * everybody's money at once. The API refuses it outright once points exist,
+   * and while it is still changeable it demands a code sent to the owner's
+   * mailbox. This is the console half of that: request, then enter.
+   */
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
 
   const canManage = can(P.configManage);
   const rows = settings.data ?? [];
+
+  /** Kept in step with `SettingsService.isConversionRate` on the API. */
+  const needsCode = (key: string) => key === "points_per_usd";
+
+  const parseValue = (raw: string): string | number | boolean => {
+    const trimmed = raw.trim();
+    const numeric = trimmed !== "" && Number.isFinite(Number(trimmed));
+    return trimmed === "true" ? true : trimmed === "false" ? false : numeric ? Number(trimmed) : raw;
+  };
+
+  const requestCode = async (key: string) => {
+    const sent = await mutate(
+      `/api/admin/config/settings/${encodeURIComponent(key)}/confirmation-code`,
+      { body: { value: parseValue(draft) } },
+    );
+    if (!sent) return;
+    setCodeSent(true);
+    toast("Confirmation code sent to your email.", "success");
+  };
+
+  const stopEditing = () => {
+    setEditing(null);
+    setCode("");
+    setCodeSent(false);
+  };
 
   const save = async (key: string) => {
     // Numbers and booleans are stored as such; only fall back to a string when
@@ -392,18 +587,15 @@ function SettingsTable() {
     // The test is on shape, not truthiness. Truthiness sent zero through as the
     // string "0" - so setting a hold period or a minimum to 0 stored a type the
     // API then had to guess at. Blank stays blank rather than becoming 0.
-    const trimmed = draft.trim();
-    const numeric = trimmed !== "" && Number.isFinite(Number(trimmed));
-    const parsed =
-      trimmed === "true" ? true : trimmed === "false" ? false : numeric ? Number(trimmed) : draft;
+    const parsed = parseValue(draft);
 
     const saved = await mutate(`/api/admin/config/settings/${encodeURIComponent(key)}`, {
       method: "PATCH",
-      body: { value: parsed },
+      body: needsCode(key) ? { value: parsed, confirmationCode: code.trim() } : { value: parsed },
     });
     if (!saved) return;
     toast(`${key} updated.`, "success");
-    setEditing(null);
+    stopEditing();
     await settings.reload();
   };
 
@@ -440,12 +632,46 @@ function SettingsTable() {
                 </Td>
                 <Td>
                   {editing === setting.key ? (
-                    <TextInput
-                      autoFocus
-                      value={draft}
-                      onChange={(event) => setDraft(event.target.value)}
-                      className="max-w-[220px] py-2 font-mono text-[12px]"
-                    />
+                    <div className="space-y-2">
+                      <TextInput
+                        autoFocus
+                        value={draft}
+                        onChange={(event) => setDraft(event.target.value)}
+                        className="max-w-[220px] py-2 font-mono text-[12px]"
+                      />
+                      {/* The warning is here, next to the field, rather than in
+                          the panel description. By the time somebody is typing
+                          a new rate they have stopped reading headers. */}
+                      {needsCode(setting.key) && !isOwner && (
+                        <p className="max-w-[320px] text-[11px] leading-[1.5] text-warning">
+                          Only an owner can change this. It is the meaning of every stored balance -
+                          changing it restates everyone&rsquo;s money at once.
+                        </p>
+                      )}
+                      {needsCode(setting.key) && isOwner && (
+                        <div className="max-w-[320px] space-y-2">
+                          <p className="text-[11px] leading-[1.5] text-warning">
+                            This is the meaning of every stored balance, not a display setting.
+                            Changing it restates everyone&rsquo;s money at once, so it needs a code
+                            from your email.
+                          </p>
+                          <TextInput
+                            value={code}
+                            placeholder="CONFIRMATION CODE"
+                            onChange={(event) => setCode(event.target.value)}
+                            className="max-w-[220px] py-2 font-mono text-[12px] tracking-[0.14em]"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pending || !draft.trim()}
+                            onClick={() => void requestCode(setting.key)}
+                          >
+                            {codeSent ? "Resend code" : "Email me a code"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <span className="font-mono text-[11.5px]">{JSON.stringify(setting.value)}</span>
                   )}
@@ -455,10 +681,20 @@ function SettingsTable() {
                   {canManage &&
                     (editing === setting.key ? (
                       <div className="flex gap-1.5">
-                        <Button size="sm" disabled={pending} onClick={() => void save(setting.key)}>
+                        <Button
+                          size="sm"
+                          // Disabled without a code rather than letting the save
+                          // 400: the requirement is knowable here, and finding
+                          // out by failing is worse than being told.
+                          disabled={
+                            pending ||
+                            (needsCode(setting.key) && (!isOwner || !code.trim()))
+                          }
+                          onClick={() => void save(setting.key)}
+                        >
                           Save
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditing(null)}>
+                        <Button size="sm" variant="outline" onClick={stopEditing}>
                           Cancel
                         </Button>
                       </div>
@@ -468,6 +704,8 @@ function SettingsTable() {
                         variant="outline"
                         onClick={() => {
                           setError(null);
+                          setCode("");
+                          setCodeSent(false);
                           setEditing(setting.key);
                           setDraft(
                             typeof setting.value === "string"

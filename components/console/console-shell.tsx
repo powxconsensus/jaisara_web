@@ -8,7 +8,7 @@ import { NotFoundPage } from "@/components/shell/not-found-page";
 import { useAccess } from "@/components/console/use-permissions";
 import { CONSOLE_GROUPS, SECTION_CODE, visibleSections } from "@/lib/console-nav";
 import { humanRole } from "@/lib/console-format";
-import { useResource } from "@/lib/console-api";
+import { useResource } from "@/lib/resource";
 import { ADMIN_PERMISSIONS as P } from "@/lib/admin-types";
 import { cn } from "@/lib/cn";
 

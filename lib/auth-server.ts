@@ -62,11 +62,48 @@ export function upstreamHeaders(request: Request, json = true): Headers {
   const userAgent = request.headers.get("user-agent");
   if (userAgent) headers.set("user-agent", userAgent);
 
-  const forwardedFor =
-    request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip");
-  if (forwardedFor) headers.set("x-forwarded-for", forwardedFor);
+  const clientIp = trustedClientIp(request);
+  if (clientIp) headers.set("x-forwarded-for", clientIp);
 
   return headers;
+}
+
+/**
+ * The one address in `x-forwarded-for` that a caller could not have written.
+ *
+ * `X-Forwarded-For` grows left to right: each proxy **appends** the address it
+ * received the request from. So everything except the final entry is hearsay -
+ * it is whatever the previous hop was told, and the first entry is simply a
+ * string the browser sent. Only the last entry was written by our own edge,
+ * about a connection it actually terminated.
+ *
+ * This forwarded the header verbatim. A request with a handmade
+ * `X-Forwarded-For: 1.2.3.4` arrived at the platform edge, which appended the
+ * real address, and the whole thing - forgery in front - was passed to the API.
+ * Everything the API keys on an address then inherits the forgery: per-IP
+ * throttles are diluted by picking a fresh value per request, `signupIp` and
+ * the claim-attempt `ipHash` record an attacker-chosen string as evidence, and
+ * the lockout counters can be aimed. None of it fails loudly, because a spoofed
+ * address is a perfectly well-formed one.
+ *
+ * Taking the last entry is what "trust exactly one hop" means on this side of
+ * the wire; `app.set('trust proxy', 1)` is the same statement on the other.
+ */
+function trustedClientIp(request: Request): string | null {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+
+  if (forwardedFor) {
+    const hops = forwardedFor
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (hops.length > 0) return hops[hops.length - 1];
+  }
+
+  // Single-valued and set by the proxy rather than assembled from a list, so
+  // there is no untrusted prefix to strip.
+  return request.headers.get("x-real-ip");
 }
 
 /**
@@ -99,11 +136,83 @@ export async function readUpstreamBody(response: Response): Promise<unknown> {
   }
 }
 
+/**
+ * Turns an upstream response into one for the browser.
+ *
+ * Files stream through untouched; everything else is re-serialised as JSON.
+ * The type check is here rather than at each call site because every BFF route
+ * shares this helper, and the failure it prevents is silent: a binary response
+ * that goes down the JSON path comes out as `{ message: "<mangled bytes>" }`
+ * with no error anywhere, which is exactly how the receipt viewer broke.
+ */
 export async function responseFromUpstream(upstream: Response): Promise<NextResponse> {
+  if (!isPayloadUpstream(upstream)) return fileFromUpstream(upstream);
+
   const body = await readUpstreamBody(upstream);
   return body === null
     ? new NextResponse(null, { status: upstream.status })
     : NextResponse.json(body, { status: upstream.status });
+}
+
+/**
+ * Should this response be re-serialised as a payload, or handed over as a file?
+ *
+ * Deliberately narrow. Anything JSON is a payload, and so is anything textual -
+ * plain text and HTML are what a gateway or a crashing proxy answers with, and
+ * `readUpstreamBody` turns those into `{ message }` so the client still shows
+ * something useful. Only content types that describe a *document* take the file
+ * path: images, PDFs, CSV exports, raw bytes.
+ *
+ * Getting this backwards in either direction is quiet rather than loud, which
+ * is why it is one function with tests rather than a check at each call site: a
+ * file treated as a payload is a corrupted download, and an error treated as a
+ * file is a blank screen where a message should be.
+ */
+export function isPayloadUpstream(upstream: Response): boolean {
+  const type = (upstream.headers.get("content-type") ?? "").toLowerCase();
+
+  if (type === "") return true;
+  if (/^application\/(json|problem\+json)/.test(type)) return true;
+  // `text/csv` is an export, not a message - everything else textual is one.
+  if (/^text\/(plain|html)/.test(type)) return true;
+
+  return false;
+}
+
+/**
+ * Hands a non-JSON upstream response straight to the browser.
+ *
+ * The admin proxy used to run **every** response through `readUpstreamBody`,
+ * which calls `.text()` and, when the result will not parse as JSON, returns
+ * `{ message: text }`. For the one binary route behind that proxy - the
+ * uploaded receipt - that produced a JSON document containing PNG bytes
+ * decoded as UTF-8: the `<img>` failed, and opening it directly showed
+ * `{"message":"PNG\r\n..."}`. The bytes were also corrupt by then, since
+ * arbitrary binary does not survive a UTF-8 decode, so nothing downstream could
+ * have recovered the image.
+ *
+ * The body is streamed rather than buffered, and only the headers that describe
+ * the bytes are forwarded. `Cache-Control` comes from the API deliberately - it
+ * sends `private, no-store` for receipts, which are one member's documents and
+ * must not sit in a shared cache.
+ *
+ * `nosniff` and the sandbox are set here rather than trusted from upstream: this
+ * renders in an authenticated origin, and the content type describes a file a
+ * member uploaded.
+ */
+export function fileFromUpstream(upstream: Response): NextResponse {
+  const headers = new Headers();
+
+  for (const name of ["content-type", "content-length", "content-disposition"]) {
+    const value = upstream.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+
+  headers.set("cache-control", upstream.headers.get("cache-control") ?? "private, no-store");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("content-security-policy", "default-src 'none'; sandbox");
+
+  return new NextResponse(upstream.body, { status: upstream.status, headers });
 }
 
 export function setAuthCookies(response: NextResponse, tokens: TokenPair): void {
@@ -164,6 +273,15 @@ export async function forwardPublicJson(
 export interface AuthenticatedUpstream {
   upstream: Response;
   tokens?: TokenPair;
+  /**
+   * A refresh lost to this client's own concurrent one.
+   *
+   * The session is intact and the token family was never revoked — only this
+   * request failed. It exists so `applySessionResult` can tell that apart from
+   * a genuinely dead session, because the two need opposite treatment and the
+   * old code treated them the same.
+   */
+  raced?: boolean;
 }
 
 export async function authenticatedRequest(
@@ -175,11 +293,23 @@ export async function authenticatedRequest(
   let accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
   let refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)?.value;
   let tokens: TokenPair | undefined;
+  /**
+   * Whether a refresh lost to this client's own concurrent one.
+   *
+   * Carried separately from `tokens` because the two failures need opposite
+   * treatment: a dead session must clear the cookies, and a race must not.
+   */
+  let raced = false;
 
   if ((!accessToken || tokenExpired(accessToken)) && refreshToken) {
-    tokens = await rotate(refreshToken, request);
-    accessToken = tokens?.accessToken;
-    refreshToken = tokens?.refreshToken ?? refreshToken;
+    const rotated = await rotate(refreshToken, request);
+    if (rotated === "raced") {
+      raced = true;
+    } else {
+      tokens = rotated;
+      accessToken = tokens?.accessToken;
+      refreshToken = tokens?.refreshToken ?? refreshToken;
+    }
   }
 
   if (!accessToken) {
@@ -196,14 +326,17 @@ export async function authenticatedRequest(
   let upstream = await apiRequest(path, { ...init, headers });
 
   if (upstream.status === 401 && refreshToken && !tokens) {
-    tokens = await rotate(refreshToken, request);
-    if (tokens) {
+    const rotated = await rotate(refreshToken, request);
+    if (rotated === "raced") {
+      raced = true;
+    } else if (rotated) {
+      tokens = rotated;
       headers.set("authorization", `Bearer ${tokens.accessToken}`);
       upstream = await apiRequest(path, { ...init, headers });
     }
   }
 
-  return { upstream, tokens };
+  return { upstream, tokens, raced };
 }
 
 export function applySessionResult(
@@ -211,7 +344,21 @@ export function applySessionResult(
   result: AuthenticatedUpstream,
 ): NextResponse {
   if (result.tokens) setAuthCookies(response, result.tokens);
-  if (result.upstream.status === 401) clearAuthCookies(response);
+
+  /**
+   * Only clear when the session is actually over.
+   *
+   * This cleared on **any** upstream 401, which signed members out roughly
+   * every fifteen minutes. The sequence: the access token expires, the
+   * dashboard has several requests in flight, they all try to refresh, one
+   * wins - and the losers got a 401 that meant "somebody else rotated this a
+   * moment ago", not "your session ended". Clearing the cookies on that
+   * destroyed a session the API had deliberately kept alive.
+   *
+   * A race leaves the cookies exactly where they are: the winning request set
+   * the new pair on its own response, and the next request picks it up.
+   */
+  if (result.upstream.status === 401 && !result.raced) clearAuthCookies(response);
   return response;
 }
 
@@ -228,13 +375,13 @@ export async function currentRefreshToken(): Promise<string | undefined> {
  * single-flight map that is not actually single is just a slower race.
  */
 const rotationState = ((globalThis as GlobalWithRotations).__jaisaraRotations ??= {
-  inFlight: new Map<string, Promise<TokenPair | undefined>>(),
+  inFlight: new Map<string, Promise<TokenPair | "raced" | undefined>>(),
   settled: new Map<string, { tokens: TokenPair; at: number }>(),
 });
 
 interface GlobalWithRotations {
   __jaisaraRotations?: {
-    inFlight: Map<string, Promise<TokenPair | undefined>>;
+    inFlight: Map<string, Promise<TokenPair | "raced" | undefined>>;
     settled: Map<string, { tokens: TokenPair; at: number }>;
   };
 }
@@ -276,7 +423,10 @@ const ROTATION_GRACE_MS = 60_000;
  * can still each rotate once. The API's own grace window covers that case by
  * declining the second request without revoking the family.
  */
-async function rotate(refreshToken: string, request: Request): Promise<TokenPair | undefined> {
+export async function rotate(
+  refreshToken: string,
+  request: Request,
+): Promise<TokenPair | "raced" | undefined> {
   const now = Date.now();
   for (const [key, entry] of rotationState.settled) {
     if (now - entry.at > ROTATION_GRACE_MS) rotationState.settled.delete(key);
@@ -294,6 +444,16 @@ async function rotate(refreshToken: string, request: Request): Promise<TokenPair
       headers: upstreamHeaders(request),
       body: JSON.stringify({ refreshToken }),
     });
+    /**
+     * 409 means this client's own other request rotated first.
+     *
+     * The API distinguishes it from 401 deliberately: the token family is
+     * intact and the session is fine, so this must not reach
+     * `applySessionResult` as evidence that the session is over. Returning
+     * `"raced"` rather than `undefined` is what carries that difference far
+     * enough to matter.
+     */
+    if (upstream.status === 409) return "raced";
     if (!upstream.ok) return undefined;
     return (await upstream.json()) as TokenPair;
   })();
@@ -304,7 +464,10 @@ async function rotate(refreshToken: string, request: Request): Promise<TokenPair
     // Only successes are remembered. A failure can be transient - the API
     // restarting mid-request - and caching that would keep the session locked
     // out for the whole window over something that would have worked on retry.
-    if (tokens) rotationState.settled.set(refreshToken, { tokens, at: Date.now() });
+    // `"raced"` is not a success and not a failure, so it is not cached either.
+    if (tokens && tokens !== "raced") {
+      rotationState.settled.set(refreshToken, { tokens, at: Date.now() });
+    }
     return tokens;
   } finally {
     rotationState.inFlight.delete(refreshToken);

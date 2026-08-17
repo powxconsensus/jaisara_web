@@ -16,7 +16,7 @@ import {
   Select,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { relativeTime, usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
@@ -97,7 +97,7 @@ export function ClaimQueue({ initialStatus }: { initialStatus?: string }) {
         title="Claims"
         description="Approving credits a wallet, so it is refused unless an order backs the claim - and never on your own claim."
         actions={
-          can(P.claimViewAll) && platformId ? (
+          can(P.claimApprove) && platformId ? (
             <button
               type="button"
               onClick={() => setRematching(true)}

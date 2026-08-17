@@ -7,6 +7,7 @@ import { refreshWallet, useWallet } from "@/components/wallet/use-wallet";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { apiFetch } from "@/lib/api-fetch";
+import { invalidateAll } from "@/lib/resource-cache";
 
 type Method = "usdt" | "giftcard";
 
@@ -173,14 +174,24 @@ export function WithdrawForm() {
     ? new Date(selectedAddress.usableFrom).getTime() > now
     : false;
 
+  /**
+   * The minimum is measured on what lands, matching the API.
+   *
+   * Both sides checked the gross amount while the fee came off afterwards, so
+   * a $50 minimum with a $2 fee accepted a $51 request and sent $49. The
+   * message names the fee because "minimum is $50" next to a rejected $51 is
+   * the sort of thing that reads as a bug.
+   */
   const amountError =
-    amount && Number.isFinite(value) && value < minimum
-      ? `Minimum withdrawal is $${minimum.toFixed(2)}.`
-      : amount && Number.isFinite(value) && value > available
-        ? `That is more than your available balance of $${available.toFixed(2)}.`
-        : amount && Number.isFinite(value) && value <= selectedFee
-          ? `The amount must be greater than the $${selectedFee.toFixed(2)} network fee.`
-        : null;
+    amount && Number.isFinite(value) && value > available
+      ? `That is more than your available balance of $${available.toFixed(2)}.`
+      : amount && Number.isFinite(value) && value <= selectedFee
+        ? `The amount must be greater than the $${selectedFee.toFixed(2)} network fee.`
+        : amount && Number.isFinite(value) && netAmount < minimum
+          ? selectedFee > 0
+            ? `You would receive $${netAmount.toFixed(2)}. The minimum is $${minimum.toFixed(2)} after the $${selectedFee.toFixed(2)} network fee.`
+            : `Minimum withdrawal is $${minimum.toFixed(2)}.`
+          : null;
 
   const canSubmit =
     !busy &&
@@ -248,7 +259,9 @@ export function WithdrawForm() {
       toast("Payout requested.", "success");
       // The balance was debited server-side the moment this succeeded, so
       // every surface showing it is now wrong until it re-reads - including
-      // the figure in the navbar.
+      // the figure in the navbar and the cached wallet history, which now has
+      // a debit missing from it.
+      invalidateAll();
       await Promise.all([load(), refreshWallet()]);
     } catch {
       setError("The payout service is unavailable. Please try again.");
@@ -336,7 +349,13 @@ export function WithdrawForm() {
           {(
             [
               { key: "usdt", mark: "USDT", label: "USDT crypto" },
-              { key: "giftcard", mark: "GIFT", label: "Gift card" },
+              /* Offered only when the API says redemption exists. The rewards
+                 endpoint returns an empty list while it does not, and the
+                 endpoint refuses the method outright - so this is the tidy half
+                 of the gate, not the gate. */
+              ...(rewards.length > 0
+                ? ([{ key: "giftcard", mark: "GIFT", label: "Gift card" }] as const)
+                : []),
             ] as const
           ).map((option) => (
             <button

@@ -6,7 +6,7 @@ import { FieldLabel, TextInput } from "@/components/ui/field";
 import { Badge, ErrorNote, LoadingRows, Panel, PanelHeader } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
 import { useToast } from "@/components/shell/toast";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { ADMIN_PERMISSIONS as P } from "@/lib/admin-types";
 
 type PayoutChain = "POLYGON" | "TRC20" | "ARBITRUM";

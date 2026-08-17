@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
@@ -20,7 +20,7 @@ import {
   Tr,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { consoleApi, errorMessage, useMutation, useResource } from "@/lib/console-api";
+import { requestJson, errorMessage, useMutation, useResource } from "@/lib/resource";
 import { dateTime, fileSize, shortDate, usd } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,
@@ -73,13 +73,29 @@ export function ImportConsole() {
    * to make — with several accounts and none of them ours, it still asks.
    */
   const availableAccounts = accounts.data;
-  useEffect(() => {
-    if (accountId || !availableAccounts?.length) return;
-    const ours = availableAccounts.find((account) => /jaisara/i.test(account.name));
-    const only = availableAccounts.length === 1 ? availableAccounts[0] : undefined;
-    const preferred = ours ?? only;
-    if (preferred) setAccountId(preferred.id);
-  }, [accountId, availableAccounts]);
+
+  /**
+   * Adjusted during render rather than in an effect.
+   *
+   * As an effect this preselected the account on a second pass, so the first
+   * paint after the accounts loaded showed an empty picker that then filled
+   * itself in - and React's lint rule flags the synchronous setState that
+   * caused it. The guard is the list itself: once a given set of accounts has
+   * been auto-filled from, clearing the picker leaves it cleared, which is what
+   * somebody deliberately deselecting it expects.
+   */
+  const [autoFilledFrom, setAutoFilledFrom] = useState<string | null>(null);
+  const accountsKey = availableAccounts?.map((account) => account.id).join(",") ?? "";
+
+  if (availableAccounts?.length && autoFilledFrom !== accountsKey) {
+    setAutoFilledFrom(accountsKey);
+    if (!accountId) {
+      const ours = availableAccounts.find((account) => /jaisara/i.test(account.name));
+      const only = availableAccounts.length === 1 ? availableAccounts[0] : undefined;
+      const preferred = ours ?? only;
+      if (preferred) setAccountId(preferred.id);
+    }
+  }
 
   const commit = useMutation();
   const platform = platforms.data?.find((entry) => entry.id === platformId);
@@ -116,7 +132,7 @@ export function ImportConsole() {
     if (force) body.set("force", "true");
 
     try {
-      const result = await consoleApi<ImportPreview>("/api/admin/imports", {
+      const result = await requestJson<ImportPreview>("/api/admin/imports", {
         method: "POST",
         body,
       });

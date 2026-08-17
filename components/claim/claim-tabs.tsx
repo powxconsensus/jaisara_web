@@ -7,6 +7,7 @@ import { useToast } from "@/components/shell/toast";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { apiFetch } from "@/lib/api-fetch";
+import { invalidateAll } from "@/lib/resource-cache";
 import {
   ClaimDate,
   ClaimField,
@@ -156,7 +157,15 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState("");
   const [fields, setFields] = useState<ClaimFieldValues>(EMPTY_CLAIM);
-  const [storageKey, setStorageKey] = useState<string | null>(null);
+  /**
+   * The upload's id, not its storage key.
+   *
+   * The API used to return the object key and this handed it straight back on
+   * the claim, which made the key a client-held credential for a stored
+   * document. It now returns an id that is meaningless without ownership - the
+   * server looks it up, checks it belongs to the caller, and consumes it.
+   */
+  const [uploadId, setUploadId] = useState<string | null>(null);
   /** The manual tab's attachment: null, mid-upload, or done. */
   const [attached, setAttached] = useState<AttachedReceipt | null>(null);
   /** Measured, not guessed - see the parsed-file header below. */
@@ -203,7 +212,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
         return;
       }
 
-      setStorageKey(result.storageKey ?? null);
+      setUploadId(result.uploadId ?? null);
       const parsed = result.parsed;
 
       if (parsed) {
@@ -251,7 +260,7 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
         return;
       }
 
-      setStorageKey(result.storageKey ?? null);
+      setUploadId(result.uploadId ?? null);
       setAttached({ state: "done", name: file.name, size: file.size });
     } catch {
       setAttached(null);
@@ -321,14 +330,14 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
     // either way, and pretending otherwise would need a delete endpoint that
     // exists only to make a number look better.
     setAttached(null);
-    setStorageKey(null);
+    setUploadId(null);
   };
 
   const reset = () => {
     setStage("idle");
     setFields(EMPTY_CLAIM);
     setFileName("");
-    setStorageKey(null);
+    setUploadId(null);
     setAttached(null);
     setConcerns([]);
     setError(null);
@@ -360,8 +369,8 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
           amount: fields.amount.trim() || undefined,
           purchasedAt: fields.date ? new Date(fields.date).toISOString() : undefined,
           productText: fields.plan.trim() || undefined,
-          proofStorageKey: storageKey ?? undefined,
-          source: storageKey ? "RECEIPT" : "MANUAL",
+          proofUploadId: uploadId ?? undefined,
+          source: uploadId ? "RECEIPT" : "MANUAL",
         }),
       });
       const result = await response.json().catch(() => null);
@@ -371,8 +380,14 @@ export function ClaimTabs({ platforms = [] }: { platforms?: ClaimPlatform[] }) {
         return;
       }
 
+      // The claims list is cached, so without this the member lands back on a
+      // list that does not contain the claim they just submitted - which is the
+      // single thing that page exists to reassure them about. Stale, not
+      // discarded: the list still paints instantly and corrects itself behind.
+      invalidateAll();
+
       toast("Claim submitted - we'll review it once the firm reports the order.", "success");
-      router.push("/dashboard");
+      router.push("/dashboard/claims");
       router.refresh();
     } catch {
       setError("The claims service is unavailable. Please try again.");

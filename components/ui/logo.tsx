@@ -31,10 +31,17 @@ export function Logo({
         </span>
         {/* The rules either side of CLUB are the logo's own device. They are
             hairlines rather than borders so they stay level with the cap
-            height of the word between them. */}
+            height of the word between them.
+
+            Both rules grow. Fixing the left one at 8px and letting only the
+            right one stretch pinned CLUB to the start of the lockup, so it read
+            as left-aligned under a word it is meant to be centred beneath. */}
         <span className="mt-[3px] flex items-center gap-1.5 text-primary">
-          <span className="h-px w-2 bg-current opacity-70" />
-          <span className="font-mono text-[7.5px] uppercase leading-none tracking-[0.34em]">
+          <span className="h-px flex-1 bg-current opacity-70" />
+          {/* The letter-spacing adds a trailing gap after the final letter that
+              the rules cannot see, which lands the word a hair left of true
+              centre. Half of it back as padding cancels that. */}
+          <span className="pl-[0.34em] font-mono text-[7.5px] uppercase leading-none tracking-[0.34em]">
             Club
           </span>
           <span className="h-px flex-1 bg-current opacity-70" />

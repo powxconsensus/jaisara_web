@@ -15,8 +15,9 @@ import {
   Select,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useResource } from "@/lib/console-api";
+import { useResource } from "@/lib/resource";
 import { humanRole, shortDate } from "@/lib/console-format";
+import { primaryName, secondaryHandle } from "@/lib/identity";
 import {
   ADMIN_PERMISSIONS as P,
   type AdminUser,
@@ -24,6 +25,7 @@ import {
   type UserStatus,
 } from "@/lib/admin-types";
 import { MemberPanel } from "./member-panel";
+import { RoleBuilder } from "./role-builder";
 
 /**
  * The member directory.
@@ -146,9 +148,13 @@ export function PeopleDirectory() {
                 onClick={() => setSelectedId(member.id)}
               >
                 <strong className="block truncate text-[12.5px]">
-                  {member.displayName ?? "Unnamed member"}
+                  {primaryName(member) || "Unnamed member"}
                 </strong>
                 <span className="mt-1 block truncate font-mono text-[10.5px] text-muted">
+                  {/* The handle earns its place in a list this narrow: it is
+                      what somebody searched for when a referral link credited
+                      the wrong account. */}
+                  {secondaryHandle(member) ? `${secondaryHandle(member)} · ` : ""}
                   {member.email}
                 </span>
                 <span className="mt-2 flex flex-wrap gap-1">
@@ -176,6 +182,7 @@ export function PeopleDirectory() {
           <MemberPanel
             key={selected}
             userId={selected}
+            roles={catalog.data ?? []}
             onChanged={() => void results.reload()}
           />
         ) : (
@@ -186,6 +193,11 @@ export function PeopleDirectory() {
                 message="Search above and pick a result to see their account, wallet and role assignments."
               />
             </Panel>
+            {/* Sits with the reference list rather than behind its own route:
+                composing a role and reading what the existing ones grant are
+                the same task, and splitting them means building a role without
+                the built-in six in front of you. */}
+            <RoleBuilder roles={catalog} />
             {can(P.userView) && catalog.data && (
               <Panel className="p-[var(--ct-pad)]">
                 <PanelHeader

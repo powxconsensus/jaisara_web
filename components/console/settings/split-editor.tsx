@@ -19,7 +19,7 @@ import {
   Tr,
 } from "@/components/console/ui";
 import { useAccess } from "@/components/console/use-permissions";
-import { useMutation, useResource } from "@/lib/console-api";
+import { useMutation, useResource } from "@/lib/resource";
 import { shortDate } from "@/lib/console-format";
 import {
   ADMIN_PERMISSIONS as P,

@@ -6,18 +6,46 @@
  * undo that: the conversion below is done on the digits, not by dividing.
  */
 
-/** `"981"` → `"$9.81"`. Never parses the value as a number. */
-export function pointsToUsd(points: string | number | null | undefined): string {
+/**
+ * `"981"` → `"$9.81"`. Never parses the value as a number.
+ *
+ * The rate is a parameter rather than the constant 100 it used to be. Splitting
+ * the digits two from the right *is* a division by 100, written as string
+ * surgery - so a console that let somebody set `points_per_usd` to 1000 would
+ * have gone on reporting every balance ten times too large, everywhere, with
+ * nothing in the arithmetic to notice.
+ *
+ * The rate is **required**. It was optional with a default of 100, which read
+ * as harmless and was not: twelve console call sites quietly took the default
+ * while the member dashboard passed the real rate, so the two halves of the
+ * product would have disagreed about what a balance was worth the moment
+ * anybody changed the setting - and the half that was wrong was the one where
+ * an operator approves a payout. A required argument turns that from a silent
+ * mis-statement of somebody's money into a compile error.
+ */
+export function pointsToUsd(
+  points: string | number | null | undefined,
+  pointsPerUsd: number,
+): string {
   if (points === null || points === undefined || points === "") return "$0.00";
+
+  // How many digits sit to the right of the decimal point. A power of ten is
+  // guaranteed by the API, which refuses any other rate.
+  const scale = Math.max(0, Math.round(Math.log10(pointsPerUsd)));
 
   const raw = String(points).trim();
   const negative = raw.startsWith("-");
   const digits = (negative ? raw.slice(1) : raw).replace(/\D/g, "") || "0";
-  const padded = digits.padStart(3, "0");
-  const whole = padded.slice(0, -2).replace(/^0+(?=\d)/, "");
-  const cents = padded.slice(-2);
 
-  return `${negative ? "−" : ""}$${Number(whole).toLocaleString("en-US")}.${cents}`;
+  if (scale === 0) {
+    return `${negative ? "−" : ""}$${Number(digits).toLocaleString("en-US")}`;
+  }
+
+  const padded = digits.padStart(scale + 1, "0");
+  const whole = padded.slice(0, -scale).replace(/^0+(?=\d)/, "");
+  const fraction = padded.slice(-scale);
+
+  return `${negative ? "−" : ""}$${Number(whole).toLocaleString("en-US")}.${fraction}`;
 }
 
 /** A decimal string that is already in dollars, e.g. `"4281.39"`. */

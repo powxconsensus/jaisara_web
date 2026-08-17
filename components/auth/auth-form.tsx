@@ -1,11 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import { FieldLabel, TextInput } from "@/components/ui/field";
 import { useToast } from "@/components/shell/toast";
 import { apiErrorMessage } from "@/lib/auth-types";
 import { VerificationSent } from "@/components/auth/verification-sent";
+import {
+  forgetVerification,
+  rememberVerification,
+  subscribeVerification,
+  verificationServerSnapshot,
+  verificationSnapshot,
+} from "@/lib/verification-session";
 import { ForgotPassword } from "@/components/auth/forgot-password";
 import { isStrongPassword, passwordPolicyMessage } from "@/lib/password-policy";
 import { PasswordRequirements } from "@/components/auth/password-requirements";
@@ -61,9 +68,17 @@ function safeNextPath(): string {
 export function AuthForm({
   mode,
   initialReferral = "",
+  notice,
 }: {
   mode: AuthMode;
   initialReferral?: string;
+  /**
+   * A message from somewhere the member has just been redirected from - today
+   * only the OAuth callback, which is a server route with nothing to render.
+   * Shown until they type, at which point their own attempt is the thing worth
+   * reporting on.
+   */
+  notice?: string;
 }) {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
@@ -76,10 +91,38 @@ export function AuthForm({
   const [newsletter, setNewsletter] = useState(true);
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  /**
+   * Restored from the tab rather than held only in React.
+   *
+   * This screen replaced the signup form from state alone, so a refresh threw
+   * it away and put the form back - and signing up again answers "an account
+   * with that email already exists", which is the worst possible reply to
+   * somebody reloading to check whether their first attempt worked.
+   */
+  const stored = useSyncExternalStore(
+    subscribeVerification,
+    verificationSnapshot,
+    verificationServerSnapshot,
+  );
   const [verification, setVerification] = useState<VerificationNotice | null>(
     null,
   );
   const [recovering, setRecovering] = useState(false);
+
+  /**
+   * Every entry and exit, so a refresh does not undo the signup.
+   *
+   * The screen lived in React state alone, so reloading put the form back - and
+   * signing up again answers "an account with that email already exists",
+   * which is the worst possible reply to somebody checking whether their first
+   * attempt worked.
+   */
+  const showVerification = (next: VerificationNotice | null) => {
+    setVerification(next);
+    if (next) rememberVerification(next);
+    else forgetVerification();
+  };
+
   const emailId = useId();
   const passwordId = useId();
   const passwordRequirementsId = useId();
@@ -87,10 +130,19 @@ export function AuthForm({
 
   const isSignup = mode === "signup";
 
+  /**
+   * The live transition wins; the stored one only covers a reload.
+   *
+   * Signup only. Reaching `/login` deliberately - including from the "already
+   * confirmed it?" link on the screen itself - should show the login form, not
+   * bounce back to a notice about an email somebody has already read.
+   */
+  const active = verification ?? (isSignup ? stored : null);
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setFormError(null);
-    setVerification(null);
+    showVerification(null);
 
     if (isSignup && !isStrongPassword(password)) {
       setFormError(
@@ -138,7 +190,7 @@ export function AuthForm({
       }
 
       if (isSignup) {
-        setVerification({
+        showVerification({
           email: body?.email ?? email,
           emailSent: body?.verificationEmailSent !== false,
         });
@@ -151,7 +203,7 @@ export function AuthForm({
       }
 
       if (body?.user?.emailVerified === false) {
-        setVerification({
+        showVerification({
           email,
           emailSent: body.verificationEmailSent === true,
         });
@@ -184,14 +236,17 @@ export function AuthForm({
   };
 
   const resendVerification = async () => {
-    if (!verification) return;
+    // `active`, not `verification`: after a reload the React state is empty and
+    // the address comes from the tab, which is precisely when somebody presses
+    // this. Guarding on the wrong one made the button do nothing, silently.
+    if (!active) return;
     setPending(true);
     setFormError(null);
     try {
       const response = await fetch("/api/auth/resend-verification", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: verification.email }),
+        body: JSON.stringify({ email: active.email }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
@@ -200,7 +255,7 @@ export function AuthForm({
         );
         return;
       }
-      setVerification({ ...verification, emailSent: true });
+      showVerification({ ...(active ?? { email, emailSent: false }), emailSent: true });
       toast("A fresh verification link was sent", "info");
     } catch {
       setFormError(
@@ -229,16 +284,16 @@ export function AuthForm({
    * button under a "check your inbox" notice invites the one action that
    * cannot help.
    */
-  if (verification) {
+  if (active) {
     return (
       <VerificationSent
-        email={verification.email}
-        emailSent={verification.emailSent}
+        email={active.email}
+        emailSent={active.emailSent}
         pending={pending}
         error={formError}
         onResend={() => void resendVerification()}
         onBack={() => {
-          setVerification(null);
+          showVerification(null);
           setFormError(null);
           setPassword("");
         }}
@@ -372,7 +427,7 @@ export function AuthForm({
         {/*
           A full-width row rather than the 9.5px muted text link this was.
           Somebody arriving with a code from a friend could not find where to
-          put it — and a referral code that goes unentered is the one signup
+          put it - and a referral code that goes unentered is the one signup
           detail that cannot be fixed afterwards, because the first valid code
           is permanently attached and there is no second chance to attach one.
           Styled to match the expanded card below so the two read as one
@@ -422,22 +477,24 @@ export function AuthForm({
             </div>
             <input
               id={referralId}
-              aria-label="Referral code"
+              aria-label="Referral code or username"
               value={referral}
               onChange={(event) => setReferral(event.target.value)}
               name="referralCode"
-              placeholder="Optional referral code"
+              placeholder="Code or username"
               disabled={pending}
               className="w-full rounded-[9px] border border-hair bg-bg px-3.5 py-3 font-mono text-[13.5px] tracking-[0.1em] outline-none transition focus:border-club focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--club)_16%,transparent)]"
             />
             <p className="mt-2.5 text-[11.5px] leading-[1.5] text-muted">
-              The first valid invite code is permanently attached to your
-              account.
+              A code or a member&rsquo;s username both work. The first valid one is
+              permanently attached to your account.
             </p>
           </div>
         )}
 
-        {formError && (
+        {/* The form's own error wins: once they have tried, what happened to
+            their attempt matters more than how they arrived here. */}
+        {(formError ?? notice) && (
           <div
             role="alert"
             className="rounded-[11px] border px-3.5 py-3 text-[12.5px] leading-[1.5] text-danger"
@@ -446,7 +503,7 @@ export function AuthForm({
                 "color-mix(in oklab, var(--danger) 42%, var(--hair))",
             }}
           >
-            {formError}
+            {formError ?? notice}
           </div>
         )}
 

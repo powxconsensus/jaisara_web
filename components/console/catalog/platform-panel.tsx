@@ -23,7 +23,7 @@ import {
 import { useAccess } from "@/components/console/use-permissions";
 import { ImagePickerButton, useImageUpload } from "@/components/console/journal/image-upload";
 import { FirmMark } from "@/components/ui/firm-mark";
-import { useMutation, useResource, type Resource } from "@/lib/console-api";
+import { useMutation, useResource, type Resource } from "@/lib/resource";
 import { orNone, slugify } from "@/lib/console-format";
 import {
   PLATFORM_CATEGORIES,
@@ -32,6 +32,8 @@ import {
 } from "@/lib/platform-categories";
 import {
   ADMIN_PERMISSIONS as P,
+  MANUAL_ADAPTER_KEY,
+  type Coupon,
   type ImportAdapter,
   type Platform,
   type PlatformStatus,
@@ -69,6 +71,7 @@ const EMPTY = {
   trackedLinkTemplate: "",
   exposesCustomerId: false,
   defaultCouponCode: "",
+  defaultCommissionRate: "",
   profitSplit: "",
   payoutCadence: "",
   categories: [] as PlatformCategory[],
@@ -87,6 +90,17 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
   const canManage = can(P.platformManage);
   const rows = platforms.data ?? [];
   const selected = rows.find((row) => row.id === selectedId) ?? null;
+  /**
+   * This firm's own coupons, so the default can be picked rather than typed.
+   *
+   * Only fetched once a firm is selected - coupons belong to a firm, so on the
+   * create form there is nothing to fetch and nothing to choose. That is the
+   * whole reason the field is disabled there rather than merely empty.
+   */
+  const coupons = useResource<Coupon[]>(
+    selectedId ? `/api/admin/catalog/coupons?platformId=${selectedId}` : null,
+  );
+  const couponsForFirm = (coupons.data ?? []).filter((coupon) => coupon.platformId === selectedId);
 
   /**
    * The logo belongs to a firm that already exists.
@@ -126,6 +140,10 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
       categories: platform.categories ?? [],
       exposesCustomerId: platform.exposesCustomerId,
       defaultCouponCode: platform.defaultCouponCode ?? "",
+      defaultCommissionRate:
+        platform.defaultCommissionRate === null || platform.defaultCommissionRate === undefined
+          ? ""
+          : String(Number(platform.defaultCommissionRate) * 100),
       profitSplit: platform.profitSplit ?? "",
       payoutCadence: platform.payoutCadence ?? "",
     });
@@ -155,6 +173,13 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
       trackedLinkTemplate: optional(form.trackedLinkTemplate),
       exposesCustomerId: form.exposesCustomerId,
       defaultCouponCode: optional(form.defaultCouponCode),
+      // Typed as a percentage because that is how affiliate terms are written
+      // ("20%"), stored as a rate because that is what it multiplies. Blank
+      // stays blank: a 0 here would pre-fill every manual order with no
+      // commission, which is a claim rather than an absence.
+      defaultCommissionRate: form.defaultCommissionRate.trim()
+        ? (Number(form.defaultCommissionRate) / 100).toFixed(4)
+        : null,
       profitSplit: optional(form.profitSplit),
       payoutCadence: optional(form.payoutCadence),
       categories: form.categories,
@@ -279,9 +304,16 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
                       {adapter.displayName} (v{adapter.version})
                     </option>
                   ))}
+                  {/* A real value, not a blank. Blank cannot tell "this firm
+                      has no export" apart from "nobody filled this in", and
+                      only the first should make manual entry the expected
+                      path rather than a workaround. */}
+                  <option value={MANUAL_ADAPTER_KEY}>Manual entry - no CSV export</option>
                 </Select>
                 <p className="mt-2 text-[11px] leading-5 text-muted">
-                  Which parser reads this firm&rsquo;s CSV exports.
+                  {form.adapterKey === MANUAL_ADAPTER_KEY
+                    ? "Orders for this firm are typed in by hand, from the member's claim in Console → Claims. CSV uploads are refused."
+                    : "Which parser reads this firm’s CSV exports. A missing sale can still be recorded by hand from the claim."}
                 </p>
               </div>
               <div>
@@ -316,17 +348,68 @@ export function PlatformPanel({ platforms }: { platforms: Resource<Platform[]> }
               </div>
               <div>
                 <FieldLabel htmlFor="platform-coupon">DEFAULT COUPON</FieldLabel>
-                <TextInput
+                {/* A picker, not free text - and only once there is something
+                    to pick from. Typed by hand it was the single most confusing
+                    field on this screen: an admin wrote JAISARA, saw it saved,
+                    and reasonably concluded the coupon existed. It did not.
+                    This field is only the code appended to the outbound link;
+                    the discount lives on a Coupon row, and a code with no row
+                    behind it silently means "no discount, no tracking link". */}
+                <Select
                   id="platform-coupon"
-                  disabled={!canManage}
-                  maxLength={40}
-                  placeholder="JAISARA"
+                  disabled={!canManage || !selectedId || couponsForFirm.length === 0}
                   value={form.defaultCouponCode}
                   onChange={(event) =>
-                    setForm({ ...form, defaultCouponCode: event.target.value.toUpperCase() })
+                    setForm({ ...form, defaultCouponCode: event.target.value })
+                  }
+                >
+                  <option value="">
+                    {selectedId ? "No default code" : "Save the firm first"}
+                  </option>
+                  {couponsForFirm.map((coupon) => (
+                    <option key={coupon.id} value={coupon.code}>
+                      {coupon.code}
+                      {coupon.discountPct ? ` - ${Number(coupon.discountPct)}% off` : " - no price cut"}
+                      {coupon.status !== "ACTIVE" ? ` (${coupon.status.toLowerCase()})` : ""}
+                    </option>
+                  ))}
+                </Select>
+                <p className="mt-2 text-[11px] leading-5 text-muted">
+                  {!selectedId
+                    ? "Coupons belong to a firm, so there are none to choose from yet. Save the firm, add a coupon under Coupons, then come back and pick it."
+                    : couponsForFirm.length === 0
+                      ? "This firm has no coupons yet. Add one under Coupons - that is where the discount percentage lives."
+                      : "The code appended to every outbound link for this firm, so the sale is attributed to us."}
+                </p>
+              </div>
+            </div>
+
+            {/* The field keeps the column width of the grid above so the inputs
+                still line up, but its explanation is not trapped in that half.
+                Alone inside `md:grid-cols-2` the paragraph wrapped at half
+                width and left the right side of the panel visibly dead. */}
+            <div className="grid gap-2">
+              <div className="md:w-[calc(50%-0.375rem)]">
+                <FieldLabel htmlFor="platform-commission">DEFAULT COMMISSION %</FieldLabel>
+                <TextInput
+                  id="platform-commission"
+                  disabled={!canManage}
+                  inputMode="decimal"
+                  placeholder="20"
+                  value={form.defaultCommissionRate}
+                  onChange={(event) =>
+                    setForm({ ...form, defaultCommissionRate: event.target.value })
                   }
                 />
               </div>
+              {/* Stated plainly because the distinction is the whole design:
+                  this pre-fills a box, it never decides a payment. */}
+              <p className="text-[11px] leading-5 text-muted">
+                What this firm pays us on a sale - the affiliate commission, not a discount for
+                the buyer. It pre-fills manual order entry and seeds a new challenge&rsquo;s rate;
+                every payout splits the commission actually recorded on the order. A challenge
+                can override it in the catalogue.
+              </p>
             </div>
 
             {/* Toggles rather than a multi-select: there are four options and

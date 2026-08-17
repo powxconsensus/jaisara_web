@@ -38,6 +38,11 @@ export function FirmMark({
    * and `object-contain` inside a square renders one at a quarter of the box
    * height - "LUCID TRADING" in a 44px tile is 11px tall and unreadable. Used
    * where the mark is the heading (cards), not where a column has to line up.
+   *
+   * `size` is the box *height*; the caller sets the width with a class, so it
+   * can be responsive. It used to be `width: 100%` capped at `size * 3.4`,
+   * which in a flex row resolved against the whole row - a 150px logo slot on a
+   * 375px phone, taking the space the firm name needed.
    */
   fluid?: boolean;
   className?: string;
@@ -49,13 +54,19 @@ export function FirmMark({
 
   const [failed, setFailed] = useState(false);
 
+  // Breathing room inside a fluid slot, and the amount the image has to give
+  // back out of its own height. Declared once because the two must agree: the
+  // cap is what actually sizes a wordmark, so a padding change that did not
+  // reach it would either clip the logo or leave it floating in the tile.
+  const inset = 5;
+
   if (logoUrl && !failed) {
     return (
       <span
         className={shared}
         style={
           fluid
-            ? { height: size, width: "100%", maxWidth: size * 3.4, paddingInline: 10, paddingBlock: 6 }
+            ? { height: size, paddingInline: inset * 2, paddingBlock: inset }
             : { width: size, height: size }
         }
       >
@@ -76,7 +87,7 @@ export function FirmMark({
              percentage did not resolve against the padded area - a 174x90
              logo stayed 90px tall inside a 58px tile and was clipped. A
              concrete cap plus object-contain fits any aspect ratio. */
-          style={fluid ? { maxHeight: size - 12, maxWidth: "100%", width: "auto" } : undefined}
+          style={fluid ? { maxHeight: size - inset * 2, maxWidth: "100%", width: "auto" } : undefined}
           /* `size-full` plus `object-contain` rather than max-height: a
              percentage max on a replaced element resolves against a box the
              image itself is sizing, so a 174x90 logo ignored it and overflowed
@@ -92,6 +103,11 @@ export function FirmMark({
   // effectively invisible, so a firm whose logo URL had rotted rendered as an
   // empty tile - which reads as a failed image, exactly the thing this exists
   // to avoid.
+  //
+  // It occupies the same box a logo would, fluid or not. A monogram shrunk to a
+  // square inside a wide slot left a visible hole in the column and made rows
+  // with a logo and rows without look like two different designs - the point of
+  // a fallback is that nothing moves and nothing gapes when it swaps in.
   return (
     <span
       aria-hidden
@@ -99,7 +115,12 @@ export function FirmMark({
         shared,
         "bg-[linear-gradient(140deg,color-mix(in_oklab,var(--primary)_16%,var(--surface-2)),var(--surface-2))] font-mono font-semibold tracking-[0.06em] text-primary",
       )}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.34) }}
+      style={{
+        ...(fluid ? { height: size } : { width: size, height: size }),
+        // Sized off the height either way. Scaling two letters to a wide slot
+        // would print them larger than the wordmark they stand in for.
+        fontSize: Math.round(size * 0.34),
+      }}
     >
       {mark}
     </span>

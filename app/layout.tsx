@@ -6,6 +6,7 @@ import { ToastProvider } from "@/components/shell/toast";
 import { AssistantProvider } from "@/components/support/assistant-context";
 import { AuthProvider } from "@/components/auth/auth-context";
 import { ClarityAnalytics } from "@/components/analytics/clarity";
+import { AnalyticsConsentBanner } from "@/components/analytics/consent-banner";
 
 /**
  * Unset means Clarity is off — no script, and `next.config.ts` leaves the CSP
@@ -23,6 +24,19 @@ export const metadata: Metadata = {
     "Use a Jaisara coupon at the firm's checkout: the price drops straight away, then we pay you cashback on top. Tracked to the cent, withdrawable in USDT or gift cards.",
 };
 
+/**
+ * Deliberately does *not* read the session here.
+ *
+ * Resolving it in the root layout removes the dashboard's auth waterfall, and
+ * costs the entire public site its static rendering: `cookies()` opts every
+ * descendant into per-request server rendering, so `/`, `/deals`, `/terms` and
+ * every prerendered firm page stop being served from cache. Measured, it took
+ * the build from a set of static and SSG routes to zero.
+ *
+ * That is the wrong trade - it slows the storefront to speed up the account
+ * area. The session is read in the layouts that actually need it, which are
+ * dynamic anyway, and seeded into this provider from there.
+ */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className={fontVariables}>
@@ -33,7 +47,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <AssistantProvider>{children}</AssistantProvider>
           </AuthProvider>
         </ToastProvider>
-        {clarityProjectId ? <ClarityAnalytics projectId={clarityProjectId} /> : null}
+        {/* Both gated on the same variable: with no project id there is nothing
+            to consent to, and a banner asking about analytics that do not exist
+            is an interruption bought with nothing. */}
+        {clarityProjectId ? (
+          <>
+            <ClarityAnalytics projectId={clarityProjectId} />
+            <AnalyticsConsentBanner />
+          </>
+        ) : null}
       </body>
     </html>
   );
